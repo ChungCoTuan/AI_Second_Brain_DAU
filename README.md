@@ -1,6 +1,6 @@
 # DAU Second Brain
 
-**Hệ thống tóm tắt & tra cứu văn bản tiếng Việt có trích dẫn — chống bịa đặt thông tin — dành cho Trường Đại học Kiến trúc.**
+**Hệ thống tóm tắt & tra cứu văn bản tiếng Việt có trích dẫn — chống bịa đặt thông tin — dành cho Trường Đại học Kiến trúc Đà Nẵng.**
 
 Đồ án môn Trí tuệ Nhân tạo | Nhóm 2 sinh viên | 12 tuần
 
