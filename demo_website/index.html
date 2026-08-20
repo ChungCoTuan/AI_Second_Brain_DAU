@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Second Brain DAU - Hệ thống học tập thông minh</title>
+    <meta name="description" content="AI Second Brain DAU - Trợ lý AI cá nhân dành cho Sinh viên và Giảng viên Đại học Kiến Trúc Đà Nẵng.">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .hero {
+            position: relative;
+            padding: 100px 0;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,249,250,0.95) 100%), 
+                        url('https://media.dau.edu.vn/Media/1_TH1057/FolderFunc/202608/Images/bia-chinh-20260801103136-e.png') no-repeat center center;
+            background-size: cover;
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            color: var(--dau-red);
+            margin-bottom: 24px;
+            font-weight: 700;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .features {
+            padding: 80px 0;
+            background-color: white;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: var(--text-main);
+            margin-bottom: 60px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+        }
+
+        .feature-card {
+            padding: 40px;
+            text-align: center;
+            transition: var(--transition-medium);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(192, 24, 38, 0.1);
+            color: var(--dau-red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        
+        .feature-icon svg {
+            width: 40px;
+            height: 40px;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            color: var(--text-main);
+        }
+
+        .feature-desc {
+            color: var(--text-muted);
+        }
+        
+        footer {
+            background-color: var(--dau-red-dark);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar glass-panel">
+        <a href="index.html" class="nav-brand">
+            <img src="https://media.dau.edu.vn/Media/1_TH1057/Images/logo-dhktdn-150.png" alt="DAU Logo">
+            AI Second Brain DAU
+        </a>
+        <div class="nav-links">
+            <a href="#features">Tính năng</a>
+            <a href="#">Giới thiệu</a>
+            <a href="login.html" class="btn btn-outline">Đăng nhập</a>
+            <a href="register.html" class="btn btn-primary">Đăng ký</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container hero-content animate-fade-in">
+            <h1 class="hero-title">Kiến tạo Não Bộ Thứ Hai</h1>
+            <p class="hero-subtitle">Hệ thống AI thông minh giúp Sinh viên và Giảng viên Đại học Kiến Trúc Đà Nẵng (DAU) quản lý tri thức, tra cứu tài liệu và tối ưu hoá quá trình học tập, giảng dạy.</p>
+            <div class="hero-buttons">
+                <a href="register.html" class="btn btn-primary" style="padding: 14px 32px; font-size: 1.1rem;">Bắt đầu ngay</a>
+                <a href="#features" class="btn btn-outline" style="padding: 14px 32px; font-size: 1.1rem;">Tìm hiểu thêm</a>
+            </div>
+        </div>
+    </header>
+
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Tại sao chọn AI Second Brain DAU?</h2>
+            <div class="feature-grid">
+                
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    </div>
+                    <h3 class="feature-title">Quản lý Tài liệu Thông minh</h3>
+                    <p class="feature-desc">Tự động phân loại, trích xuất và số hoá giáo trình, bài giảng, tài liệu tham khảo bằng công nghệ OCR & NLP.</p>
+                </div>
+
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    </div>
+                    <h3 class="feature-title">Trợ lý AI Học tập</h3>
+                    <p class="feature-desc">Hỏi đáp trực tiếp với AI dựa trên kho tài liệu đã cung cấp. Giải đáp thắc mắc chuyên ngành nhanh chóng và chính xác.</p>
+                </div>
+
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </div>
+                    <h3 class="feature-title">Phân quyền Đa tầng</h3>
+                    <p class="feature-desc">Trải nghiệm cá nhân hóa dành riêng cho Sinh viên, Giảng viên và Quản trị viên với các tính năng đặc thù.</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Đại học Kiến Trúc Đà Nẵng (DAU) - AI Second Brain. Thiết kế bản Demo.</p>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
