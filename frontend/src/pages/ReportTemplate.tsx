@@ -1,70 +1,103 @@
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Download, ArrowLeft } from 'lucide-react';
-import CitationBadge from '../components/shared/CitationBadge';
-import StatusBadge from '../components/shared/StatusBadge';
+import { useNavigate } from 'react-router-dom';
+import { Download, ArrowLeft, Calendar, Building2, FileSignature } from 'lucide-react';
+import { CitationBadge } from '../components/shared/Badge';
 
 const ReportTemplate: React.FC = () => {
-  const { id } = useParams();
+  const navigate = useNavigate();
 
   return (
-    <div className="report-template">
-      <Link to={`/compare/${id}`} className="btn" style={{ marginBottom: '1rem', color: 'var(--dau-gray)' }}>
-        <ArrowLeft size={16} /> Quay lại văn bản
-      </Link>
+    <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '900px', margin: '0 auto' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h2 className="page-title" style={{ margin: 0, marginBottom: '0.5rem' }}>Khung Báo Cáo Gợi Ý</h2>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <StatusBadge status="warning" label="Hạn nộp: 30/09/2024" />
-            <StatusBadge status="warning" label="Đơn vị: Phòng Đào Tạo" />
+      {/* Header section */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+        <button 
+          onClick={() => navigate(-1)} 
+          className="icon-btn hover-lift" 
+          style={{ padding: '0.5rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '50%' }}
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div style={{ flex: 1 }}>
+          <h1 className="title-h1" style={{ margin: 0, marginBottom: '0.5rem' }}>Báo cáo định kỳ công tác đào tạo tín chỉ</h1>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-secondary)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <Calendar size={16} /> Hạn nộp: 30/08/2026
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <Building2 size={16} /> Đơn vị: Khoa CNTT
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-primary)', fontWeight: 500 }}>
+              <FileSignature size={16} /> Mẫu: Báo cáo định kỳ
+            </span>
           </div>
         </div>
-        <button className="btn btn-primary" onClick={() => alert('Đang tải file Word...')}>
-          <Download size={18} /> Tải file Word (.docx)
+        <button className="hover-lift" style={{ 
+          display: 'flex', alignItems: 'center', gap: '0.5rem', 
+          backgroundColor: 'var(--color-primary)', color: 'white', 
+          padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600
+        }}>
+          <Download size={20} />
+          Tải file Word (.docx)
         </button>
       </div>
 
-      <div className="report-preview">
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h3>BÁO CÁO</h3>
-          <h4>V/v: Tình hình đào tạo học kỳ I năm học 2023-2024</h4>
-        </div>
+      {/* Preview section */}
+      <div className="card" style={{ padding: '3rem', backgroundColor: 'white', color: 'black' }}>
+        <h2 style={{ textAlign: 'center', textTransform: 'uppercase', marginBottom: '2rem', fontSize: '1.25rem' }}>
+          BÁO CÁO KẾT QUẢ ĐÀO TẠO
+        </h2>
 
-        <div className="report-section">
-          <h3>1. Căn cứ pháp lý</h3>
-          <ul>
-            <li style={{ marginBottom: '0.5rem' }}>
-              Căn cứ <CitationBadge documentId="1" sourceText="Thông tư 08/2021/TT-BGDĐT" pageNumber={5} /> Quy chế đào tạo trình độ đại học.
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>I. Căn cứ pháp lý</h3>
+          <ul style={{ paddingLeft: '1.5rem', lineHeight: '1.8' }}>
+            <li>
+              Căn cứ theo <CitationBadge id="1" source="Quy chế 43/2007/QĐ-BGDĐT" /> ban hành quy chế đào tạo tín chỉ;
             </li>
             <li>
-              Căn cứ Kế hoạch năm học 2023-2024 của Trường Đại học Kiến trúc Đà Nẵng.
+              Thực hiện theo <CitationBadge id="2" source="Công văn 123/ĐHKT-ĐT" /> về việc rà soát học vụ;
             </li>
           </ul>
         </div>
 
-        <div className="report-section">
-          <h3>2. Nội dung báo cáo</h3>
-          <p style={{ color: 'var(--dau-gray)', fontStyle: 'italic' }}>* Các đề mục dưới đây được trích xuất từ yêu cầu báo cáo của văn bản</p>
-          <ul>
-            <li>Tình hình tổ chức giảng dạy</li>
-            <li>Công tác khảo thí và đảm bảo chất lượng</li>
-            <li>Khó khăn, vướng mắc</li>
-          </ul>
-        </div>
-
-        <div className="report-section">
-          <h3>3. Số liệu thống kê</h3>
-          <div className="report-dashed-box">
-            (Để trống - Người dùng tự điền số liệu thực tế)
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>II. Kết quả thực hiện theo từng chỉ tiêu</h3>
+          <div style={{ 
+            padding: '2rem', border: '2px dashed #9ca3af', borderRadius: '8px', 
+            backgroundColor: '#f9fafb', color: '#6b7280', fontStyle: 'italic',
+            textAlign: 'center'
+          }}>
+            (Để trống) Cán bộ điền số liệu kết quả triển khai học vụ tại đây...
           </div>
         </div>
 
-        <div className="report-section">
-          <h3>4. Kết luận và Kiến nghị</h3>
-          <div className="report-dashed-box">
-            (Để trống - Người dùng tự viết kết luận)
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>III. Khó khăn vướng mắc</h3>
+          <div style={{ 
+            padding: '2rem', border: '2px dashed #9ca3af', borderRadius: '8px', 
+            backgroundColor: '#f9fafb', color: '#6b7280', fontStyle: 'italic',
+            textAlign: 'center'
+          }}>
+            (Để trống) Nêu các vướng mắc trong quá trình áp dụng quy chế...
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>IV. Kiến nghị</h3>
+          <div style={{ 
+            padding: '2rem', border: '2px dashed #9ca3af', borderRadius: '8px', 
+            backgroundColor: '#f9fafb', color: '#6b7280', fontStyle: 'italic',
+            textAlign: 'center'
+          }}>
+            (Để trống) Đề xuất hướng giải quyết...
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3rem' }}>
+          <div></div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontStyle: 'italic' }}>Đà Nẵng, ngày ... tháng ... năm ...</p>
+            <p style={{ margin: 0, fontWeight: 'bold', marginTop: '0.5rem' }}>NGƯỜI LẬP BÁO CÁO</p>
           </div>
         </div>
       </div>
