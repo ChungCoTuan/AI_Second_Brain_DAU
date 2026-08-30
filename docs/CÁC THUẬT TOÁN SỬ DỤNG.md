@@ -25,8 +25,8 @@
   - **Hình dung thực tế:** Giống nhờ một trợ lý đọc hết bản báo cáo dài (encoder = đọc hiểu), rồi tự viết lại bằng lời văn của chính mình thành bản ngắn gọn (decoder = viết lại), chứ không chỉ cắt-dán vài câu có sẵn như TextRank. Cơ chế "attention" giống việc trợ lý luôn liếc lại đúng đoạn liên quan trong tài liệu gốc khi viết, để không viết sai từ trí nhớ mang máng.
 
 - **Mô hình NLI (kiểm tra Faithfulness — cơ chế chống bịa đặt)**
-  - **Định nghĩa:** Bài toán phân loại quan hệ giữa "premise" (đoạn văn gốc) và "hypothesis" (câu tóm tắt) thành 1 trong 3 nhãn: Entailment (suy ra được), Contradiction (mâu thuẫn), Neutral (không đủ căn cứ). Chỉ câu được phân loại Entailment với độ tin cậy đủ cao mới được giữ lại.
-  - **Hình dung thực tế:** Giống giáo viên chấm bài "đúng/sai dựa trên đoạn văn cho sẵn": học sinh (mô hình tóm tắt) viết một câu, giáo viên (mô hình NLI) đọc lại đoạn gốc và tự hỏi "câu này có suy ra được từ đây không, hay học sinh đang bịa thêm?" — suy ra được thì cho qua, không thì gạch bỏ.
+  - **Định nghĩa:** Bài toán phân loại quan hệ giữa "premise" (đoạn văn gốc) và "hypothesis" (câu tóm tắt) thành **1 trong 3 nhãn**: `Entailment` (câu suy ra được từ nguồn), `Contradiction` (câu mâu thuẫn với nguồn), `Neutral` (không đủ căn cứ để khẳng định đúng/sai). Câu `Entailment` được giữ lại kèm trích dẫn; câu `Contradiction` bị gắn cờ ưu tiên cao nhất và **chặn toàn bộ văn bản khỏi trạng thái `published`** cho tới khi cán bộ rà soát xong (Publish Gate); câu `Neutral` gắn cờ cảnh báo mức thấp hơn.
+  - **Hình dung thực tế:** Giống giáo viên chấm bài "đúng/sai dựa trên đoạn văn cho sẵn": học sinh (mô hình tóm tắt) viết một câu, giáo viên (mô hình NLI) đọc lại đoạn gốc và phân loại — "suy ra được" (Entailment: cho qua), "mâu thuẫn rõ ràng" (Contradiction: gạch đỏ, cả bài chưa được nộp), "không rõ đúng sai" (Neutral: gạch vàng, cảnh báo thêm). Cả bài chỉ được công nhận khi không còn chỗ nào bị gạch đỏ.
 
 **Nhóm 3 — Tra cứu ngữ nghĩa (RAG)**
 
@@ -70,10 +70,12 @@
 
 **Kỹ thuật huấn luyện & trích xuất bổ sung**
 
-- **LoRA / PEFT (Low-Rank Adaptation) — nếu áp dụng fine-tune hiệu quả**
+- **LoRA / PEFT (Low-Rank Adaptation) — kỹ thuật dự phòng nếu cần điều chỉnh mô hình**
   - **Định nghĩa:** Thay vì cập nhật toàn bộ hàng trăm triệu tham số của mô hình khi fine-tune (rất tốn tài nguyên), LoRA chỉ chèn thêm một lượng nhỏ tham số mới dạng ma trận hạng thấp vào các lớp của mô hình, và chỉ huấn luyện phần nhỏ này — phần lớn tham số gốc được giữ nguyên.
-  - **Hình dung thực tế:** Giống dạy thêm 1 kỹ năng mới cho người đã có sẵn nền tảng vững, thay vì bắt họ học lại từ đầu (tốn thời gian, dễ quên kiến thức cũ) — chỉ cần một khóa bổ sung ngắn trong khi nền tảng cũ vẫn giữ nguyên.
+  - **Hình dung thực tế:** Giống dạy thêm 1 kỹ năng mới cho người đã có sẵn nền tảng vững, thay vì bắt họ học lại từ đầu — chỉ cần một khóa bổ sung ngắn trong khi nền tảng cũ vẫn giữ nguyên.
+  - **Ghi chú trong dự án:** Do nguồn dữ liệu bị giới hạn ở chinhphu.vn và tài liệu nội bộ trường (không còn VietNews/VNDS quy mô lớn), chiến lược ưu tiên là **dùng thẳng BARTpho/ViT5 pretrained checkpoint sẵn có** thay vì fine-tune từ đầu. LoRA chỉ cân nhắc áp dụng nếu có dữ liệu gán nhãn đủ chất lượng và thời gian còn cho phép.
 
 - **Rule-based / Regex Extraction (trích xuất theo mẫu cố định)**
   - **Định nghĩa:** Dùng biểu thức chính quy (regular expression) để nhận diện các mẫu ký tự có cấu trúc cố định — ví dụ số hiệu văn bản luôn theo dạng "Số: XX/YYYY/TT-BGDĐT". Không cần mô hình học máy, chỉ cần định nghĩa đúng khuôn mẫu cần tìm — đây là kỹ thuật hỗ trợ NER ở mục "gán nhãn bán tự động" trong Kế hoạch Dữ liệu.
   - **Hình dung thực tế:** Giống cách bạn tìm số điện thoại trong một đoạn văn bằng mắt: không cần hiểu nghĩa cả câu, chỉ cần quét tìm đúng khuôn "10 chữ số liên tiếp bắt đầu bằng số 0".
+  - **Vai trò mở rộng trong dự án — Cây văn bản:** Ngoài hỗ trợ NER, Rule-based/Regex còn được dùng để **phát hiện quan hệ tường minh giữa các văn bản** ("thay thế", "sửa đổi", "bãi bỏ", "căn cứ" kèm số hiệu văn bản được nhắc tới) — đây là bước đầu tiên xây dựng tính năng Cây văn bản (WF-06), chi phí thấp vì không cần huấn luyện thêm mô hình.

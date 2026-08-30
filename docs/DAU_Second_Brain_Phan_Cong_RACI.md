@@ -24,11 +24,11 @@
 
 | Vai trò | Người đảm nhận | Track phụ trách chính |
 |---|---|---|
-| Thành viên 1 (TV1) | *(điền tên)* | Track A — Data & Pipeline (Ingestion, Extraction, NER, Report Suggestion, Dashboard/DevOps) |
-| Thành viên 2 (TV2) | *(điền tên)* | Track B — AI Core (Fine-tune tóm tắt, Faithfulness/NLI, Embedding & RAG) |
+| Thành viên 1 (TV1) | *(điền tên)* | Track A — Data & Pipeline (Ingestion, Extraction/Classification/NER, **Thư viện Template & Report Suggestion, Dashboard theo chủ đề**, DevOps) |
+| Thành viên 2 (TV2) | *(điền tên)* | Track B — AI Core (Đánh giá & lựa chọn mô hình tóm tắt pretrained — **không fine-tune, xem Kế hoạch Dữ liệu mục 3**, NLI 3 nhãn, **Review Service**, Embedding & RAG, **Cây văn bản**) |
 | Giảng viên hướng dẫn (GVHD) | *(điền tên)* | Product Owner — định hướng, duyệt tiêu chí nghiệm thu, tham vấn kỹ thuật |
 
-> Cách chia Track này giữ nguyên theo Tài liệu Kiến trúc (mục 3.1.1) — tài liệu này chỉ cụ thể hóa thêm mức độ trách nhiệm và lịch làm việc.
+> Cách chia Track này giữ nguyên theo Tài liệu Kiến trúc (mục 3.1.1) — tài liệu này chỉ cụ thể hóa thêm mức độ trách nhiệm và lịch làm việc. Đã cập nhật theo 5 yêu cầu bổ sung của GVHD và Phương án A (dùng mô hình pretrained, không tự fine-tune — Kế hoạch Dữ liệu mục 3).
 
 ---
 
@@ -49,18 +49,21 @@
 |---|---|---|---|
 | Thu thập & tiền xử lý dữ liệu (Sprint 0) | R, A | C | I |
 | EPIC-1: Ingestion Service | R, A | C | I |
-| EPIC-2: Extraction, Classification, NER | R, A | C | I |
-| EPIC-3: Fine-tune mô hình tóm tắt | C | R, A | I |
-| EPIC-3: Faithfulness/NLI check (Sprint 3 — cả 2 cùng làm) | R, A | R, A | C |
-| EPIC-4: Report Suggestion | R, A | C | I |
+| EPIC-2: Extraction, Classification (loại + **chủ đề**), NER | R, A | C | I |
+| EPIC-3: Đánh giá & lựa chọn mô hình tóm tắt pretrained *(không fine-tune)* | C | R, A | I |
+| EPIC-3: NLI 3 nhãn + citation mapping (Sprint 3 — cả 2 cùng làm) | R, A | R, A | C |
+| **EPIC-9: Review Service (Sprint 3 — cả 2 cùng làm)** | R, A | R, A | C |
+| EPIC-4: Thư viện Template + Report Suggestion | R, A | C | I |
 | EPIC-5: Embedding + RAG Chatbot | C | R, A | I |
-| EPIC-7: Dashboard & tích hợp end-to-end | R, A | R | I |
+| **EPIC-6: Cây văn bản** | C | R, A | I |
+| **EPIC-10: Dashboard theo chủ đề** | R, A | C | I |
+| EPIC-7: Tích hợp end-to-end | R, A | R | I |
 | EPIC-8: Đánh giá định lượng | R | R, A | C |
 | EPIC-8: Viết báo cáo đồ án | R, A | R, A | C |
 | Quyết định ngưỡng Faithfulness/tiêu chí nghiệm thu | C | C | **R, A** |
 | Chuẩn bị & trình bày demo/bảo vệ | R, A | R, A | C |
 
-> **Lưu ý:** Với EPIC-3 (phần Faithfulness) — mục quan trọng nhất của đồ án — cả 2 thành viên đều là R/A, nghĩa là **không ai được đứng ngoài phần này**, đúng theo nguyên tắc giảm rủi ro "chỉ 1 người hiểu phần lõi" đã nêu trong Risk Register của Tài liệu Kiến trúc.
+> **Lưu ý:** Với EPIC-3 phần NLI 3 nhãn và EPIC-9 (Review Service) — 2 mục quan trọng nhất của đồ án — cả 2 thành viên đều là R/A, nghĩa là **không ai được đứng ngoài phần này**, đúng theo nguyên tắc giảm rủi ro "chỉ 1 người hiểu phần lõi" đã nêu trong Risk Register của Tài liệu Kiến trúc.
 
 ---
 
@@ -68,13 +71,15 @@
 
 | Sprint | Tuần | TV1 — Track A | TV2 — Track B | Điểm đồng bộ (Sync point) |
 |---|---|---|---|---|
-| Sprint 0 | 1–2 | Thu thập văn bản GD&ĐT, thiết kế schema DocumentChunk | Tải & khảo sát dataset VietNews/VNDS, khảo sát mô hình BARTpho/ViT5 | Thống nhất schema dữ liệu trung gian trước khi tách việc (bắt buộc — theo Risk Register) |
-| Sprint 1 | 3–4 | Xây Ingestion Service, chia đoạn Điều/Khoản | Chuẩn bị pipeline fine-tune, chạy baseline TextRank | Kiểm tra output của TV1 (chunk có ID) tương thích với input mà TV2 cần |
-| Sprint 2 | 5–6 | Classification + NER cơ bản | Fine-tune BARTpho/ViT5 (bản đầu) trên dữ liệu công khai | Demo nội bộ giữa 2 người: dữ liệu đã trích xuất từ TV1 chạy thử qua model của TV2 |
-| Sprint 3 | 7–8 | **Cùng làm:** tích hợp NLI + citation mapping | **Cùng làm:** tích hợp NLI + citation mapping | Cả 2 cùng ngồi code chung phần này — không tách việc |
-| Sprint 4 | 9–10 | Report Suggestion template + trích xuất yêu cầu báo cáo | Embedding + RAG chatbot | Chạy thử độc lập 2 module, chuẩn bị ghép ở Sprint 5 |
-| Sprint 5 | 11 | Hoàn thiện Dashboard, ghép nối toàn bộ pipeline | Hỗ trợ ghép nối phần AI vào Dashboard, kiểm thử end-to-end | Test toàn bộ luồng cùng nhau, danh sách lỗi cần sửa gấp |
-| Sprint 6 | 12 | Chạy đánh giá phần dữ liệu/NER, viết phần kiến trúc-triển khai trong báo cáo | Chạy đánh giá ROUGE/BERTScore/Faithfulness, viết phần mô hình-kết quả trong báo cáo | Ghép báo cáo hoàn chỉnh, tổng duyệt trước khi nộp/demo |
+| Sprint 0 | 1–2 | Thu thập văn bản từ **chinhphu.vn + tài liệu trường**, thiết kế schema `DocumentChunk` và các bảng mới (`ReviewItem`, `ReportTemplate`, `Topic`) | Khảo sát và chọn checkpoint BARTpho/ViT5 **pretrained** phù hợp nhất (không tự huấn luyện) | Thống nhất schema dữ liệu trung gian trước khi tách việc (bắt buộc — theo Risk Register) |
+| Sprint 1 | 3–4 | Xây Ingestion Service, chia đoạn Điều/Khoản | Chạy baseline TextRank; chạy thử nhanh checkpoint pretrained trên vài văn bản đầu để có cảm nhận sớm | Kiểm tra output của TV1 (chunk có ID) tương thích với input mà TV2 cần |
+| Sprint 2 | 5–6 | Classification (loại + **chủ đề**) + NER cơ bản | Đánh giá sơ bộ mô hình pretrained trên tập đã có; cân nhắc LoRA nhẹ nếu kết quả kém (Kế hoạch Dữ liệu, Bước 3 — tùy chọn) | Demo nội bộ giữa 2 người: dữ liệu đã trích xuất từ TV1 chạy thử qua model của TV2 |
+| Sprint 3 | 7–8 | **Cùng làm:** NLI 3 nhãn (entailment/contradiction/neutral) + citation mapping + **Review Service** (hàng đợi ưu tiên, audit trail, cơ chế publish theo văn bản) | **Cùng làm:** (như cột bên trái — không tách việc) | Cả 2 cùng ngồi code chung phần này — đây là sprint nặng nhất, không tách việc |
+| Sprint 4 | 9–10 | **Thư viện Template** + Report Suggestion theo từng loại; bắt đầu UI **Dashboard theo chủ đề** | Embedding + RAG chatbot (chỉ trên văn bản `published`); **Cây văn bản** (tái sử dụng Vector DB của RAG, không xây thêm mô hình) | Chạy thử độc lập 2 module, chuẩn bị ghép ở Sprint 5 |
+| Sprint 5 | 11 | Hoàn thiện Dashboard theo chủ đề, ghép nối toàn bộ pipeline | Hỗ trợ ghép nối phần AI vào Dashboard + hiển thị Cây văn bản, kiểm thử end-to-end | Test toàn bộ luồng cùng nhau, danh sách lỗi cần sửa gấp |
+| Sprint 6 | 12 | Chạy đánh giá phần dữ liệu/NER/chủ đề, viết phần kiến trúc-triển khai trong báo cáo | Chạy đánh giá ROUGE/BERTScore/phân phối 3 nhãn NLI/Cây văn bản, viết phần mô hình-kết quả trong báo cáo | Ghép báo cáo hoàn chỉnh, tổng duyệt trước khi nộp/demo |
+
+> **Thay đổi so với bản trước:** Sprint 3 giờ gánh thêm Review Service (trước đây tách biệt), Sprint 4 gánh thêm Cây văn bản và Dashboard theo chủ đề — đây là 2 sprint có khối lượng tăng nhiều nhất sau khi GVHD bổ sung yêu cầu. Xem mục 6 để biết ước lượng giờ đã điều chỉnh tương ứng.
 
 ---
 
@@ -91,14 +96,15 @@
 
 | Hạng mục | Ước lượng giờ/người | Ghi chú |
 |---|---|---|
-| Sprint 0 (thu thập, thiết kế) | ~15-20 giờ/người | Bao gồm thời gian đọc tài liệu, thử nghiệm công cụ |
-| Sprint 1-2 (xây nền tảng) | ~20-25 giờ/người/sprint | Phần code nhiều nhất |
-| Sprint 3 (faithfulness — cả 2 cùng làm) | ~25-30 giờ/người | Phần khó nhất kỹ thuật, cần thời gian thử-sai |
-| Sprint 4-5 (mở rộng, ghép nối) | ~20-25 giờ/người/sprint | |
-| Sprint 6 (đánh giá, báo cáo) | ~15-20 giờ/người | Bao gồm thời gian viết báo cáo |
-| **Tổng ước tính** | **~130-165 giờ/người trong 12 tuần** | Tương đương ~11-14 giờ/tuần/người — cần cân đối với lịch học các môn khác |
+| Sprint 0 (thu thập, thiết kế) | ~15-20 giờ/người | Bao gồm thời gian đọc tài liệu, thử nghiệm công cụ; schema đã mở rộng thêm 3 bảng mới nên thiết kế mất thêm thời gian so với bản trước |
+| Sprint 1-2 (xây nền tảng) | ~20-25 giờ/người/sprint | Phần code nhiều nhất; Sprint 2 của TV1 nặng hơn trước vì thêm phân loại chủ đề |
+| **Sprint 3 (NLI 3 nhãn + Review Service — cả 2 cùng làm)** | **~30-35 giờ/người** *(tăng so với bản trước ~25-30 giờ)* | Sprint nặng nhất — gánh cả cơ chế 3 nhãn lẫn Review Service mới; nếu quá tải, xem thứ tự cắt giảm ở Tài liệu Kiến trúc mục 3.3 |
+| **Sprint 4 (mở rộng — Template/Chủ đề/Cây văn bản)** | **~25-30 giờ/người** *(tăng so với bản trước ~20-25 giờ)* | Gánh thêm Cây văn bản và Dashboard theo chủ đề so với kế hoạch gốc |
+| Sprint 5 (ghép nối) | ~20-25 giờ/người | Nhiều module hơn cần ghép nối so với bản trước |
+| Sprint 6 (đánh giá, báo cáo) | ~15-20 giờ/người | Bao gồm thời gian viết báo cáo; nhiều chỉ số đánh giá hơn (3 nhãn NLI, chủ đề, Cây văn bản) |
+| **Tổng ước tính** | **~155-190 giờ/người trong 12 tuần** *(tăng so với bản trước 130-165 giờ)* | Tương đương ~13-16 giờ/tuần/người — **cao hơn đáng kể so với ước lượng ban đầu**, cần cân đối kỹ với lịch học các môn khác |
 
-> Đây là ước lượng để 2 bạn tự đối chiếu với thời gian thực tế có thể dành cho đồ án mỗi tuần — nếu thấy không khả thi, nên trao đổi sớm với GVHD để điều chỉnh phạm vi (mục 3.2 trong Đề cương) thay vì cố gắng quá sức ở các tuần cuối.
+> **Cảnh báo:** khối lượng công việc đã tăng ~20% sau khi bổ sung 5 yêu cầu của GVHD. Nếu 13-16 giờ/tuần/người không khả thi với lịch học thực tế, nên chủ động trao đổi với GVHD **ngay từ Sprint 0-1** về việc cắt giảm phạm vi (theo thứ tự ưu tiên đã nêu ở Tài liệu Kiến trúc mục 3.3), thay vì cố gắng quá sức ở các tuần cuối rồi mới báo trễ hạn.
 
 ---
 
