@@ -1,112 +1,89 @@
-# HƯỚNG DẪN THỰC THÀNH VÀ SỬ DỤNG DỮ LIỆU (DATA USAGE GUIDE)
+# HƯỚNG DẪN XỬ LÝ DỮ LIỆU & QUY TRÌNH HỆ THỐNG (DATA & PIPELINE GUIDE)
 ## Dự Án: DAU Second Brain
 
-> **Tài liệu liên quan:** [DAU_Second_Brain_Ke_Hoach_Du_Lieu.md](file:///e:/AISCBRAINDAU/docs/DAU_Second_Brain_Ke_Hoach_Du_Lieu.md) | [workflow.md](file:///e:/AISCBRAINDAU/docs/workflow.md) | [DAU_Second_Brain_Dac_Ta_Nghiep_Vu_Kien_Truc.md](file:///e:/AISCBRAINDAU/docs/DAU_Second_Brain_Dac_Ta_Nghiep_Vu_Kien_Truc.md) | [DAU_Second_Brain_Phan_Cong_RACI.md](file:///e:/AISCBRAINDAU/docs/DAU_Second_Brain_Phan_Cong_RACI.md)
+> **Tài liệu liên quan:** [DAU_Second_Brain_Ke_Hoach_Du_Lieu.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/DAU_Second_Brain_Ke_Hoach_Du_Lieu.md) | [workflow.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/workflow.md) | [DAU_Second_Brain_Dac_Ta_Nghiep_Vu_Kien_Truc.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/DAU_Second_Brain_Dac_Ta_Nghiep_Vu_Kien_Truc.md) | [DAU_Second_Brain_Phan_Cong_RACI.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/DAU_Second_Brain_Phan_Cong_RACI.md)
 
-Tài liệu này hướng dẫn chi tiết các bước cài đặt môi trường, chuẩn bị thư mục, chạy script tiền xử lý dữ liệu, định dạng các file JSON/JSONL đầu ra chuẩn Data Model (bao gồm đầy đủ `DocumentRelation`), và kiểm tra chất lượng bằng Pydantic.
+Tài liệu này tổng hợp toàn bộ quy trình thiết lập môi trường, thu thập dữ liệu tự động, tiền xử lý, chia đoạn (Structure Chunking), định dạng Data Model Schemas, kiểm duyệt tính hợp lệ với Pydantic (Data Quality Gate), quản trị rủi ro và các chỉ số nghiệm thu KPI.
 
 ---
 
-## 1. Chuẩn Bị Môi Trường Làm Việc
+## I. TRẠNG THÁI TIẾN ĐỘ DỰ ÁN (PROJECT PROGRESS STATUS)
 
-### 1.1 Yêu cầu hệ thống
-- Python **3.10+**
-- Thư viện xử lý PDF và văn bản: `pdfplumber`, `PyMuPDF` (`fitz`), `pandas`, `pydantic`.
-- Thư viện OCR (nếu xử lý văn bản dạng ảnh scan): `paddleocr` hoặc `pytesseract`.
+```mermaid
+flowchart LR
+    A[1. Thu thập PDF Raw\n✅ Hoàn thành 90 PDF] --> B[2. Preprocessing & Chunking\n✅ 172 Chunks & 144 Rels]
+    B --> C[3. Pydantic Quality Gate\n✅ 100% Schema Valid]
+    C --> D[4. Phân loại Chủ đề & NER\n🔄 Đang thực hiện]
+    D --> E[5. NLI 3 Nhãn & Publish Gate\n⏳ Chuẩn bị Sprint 3]
+```
 
-### 1.2 Cài đặt dependencies
-Mở terminal tại thư mục gốc dự án `AISCBRAINDAU` và thực hiện:
+- ✅ **Bước 1 (Thu thập dữ liệu)**: Đã cào và lưu trữ 90 văn bản PDF phân loại thành 3 danh mục chính tại `data/raw/` (`thong_tu/`, `quyet_dinh/`, `quy_che_noi_bo/`).
+- ✅ **Bước 2 (Tiền xử lý & Chunking)**: Script `services/ingestion/preprocess.py` đã trích xuất text chuẩn NFC, cắt đoạn theo Điều/Khoản kèm số trang PDF gốc (`so_trang`) và trích xuất 5 loại quan hệ `DocumentRelation`.
+- ✅ **Bước 3 (Pydantic Quality Gate)**: Script `services/ingestion/validate_data.py` đã kiểm duyệt 100% hợp lệ cho 90 Documents, 172 Chunks, 144 Relations và 45 mẫu Faithfulness Testset.
+- 🔄 **Bước 4 (Công việc tiếp theo)**: Phân loại văn bản theo **Chủ đề** (`TopicEnum`) và Trích xuất thực thể NER nâng cao qua `services/extraction/extract_and_classify.py`.
 
-```bash
-# 1. Khởi tạo môi trường ảo
-python -m venv .venv
+---
 
-# 2. Kích hoạt môi trường ảo
-# Windows (PowerShell):
-.\.venv\Scripts\Activate.ps1
-# Linux/macOS:
-# source .venv/bin/activate
+## II. THIẾT LẬP MÔI TRƯỜNG & CẤU TRÚC DỮ LIỆU
 
-# 3. Cài đặt các thư viện phục vụ xử lý dữ liệu
-pip install pdfplumber PyMuPDF pandas pydantic python-dotenv
+### 1. Chuẩn bị môi trường làm việc
+- **Python**: Version `3.10+` (khuyên dùng `.venv` trong dự án).
+- **Dependencies**: `pdfplumber`, `pymupdf` (`fitz`), `pandas`, `pydantic`, `requests`, `beautifulsoup4`.
+- **Cài đặt**:
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install pdfplumber pymupdf pandas pydantic requests beautifulsoup4 python-dotenv
+  ```
+
+### 2. Cấu trúc thư mục chuẩn
+```
+data/
+├── raw/
+│   ├── thong_tu/              # Các Thông tư Bộ GD&ĐT & Chính phủ
+│   ├── quyet_dinh/            # Các Quyết định Bộ GD&ĐT & Chính phủ
+│   └── quy_che_noi_bo/        # Tài liệu & Quy định nội bộ DAU
+├── processed/
+│   ├── documents.jsonl        # Metadata văn bản chuẩn DocumentSchema
+│   ├── chunks.jsonl           # Đoạn cắt Điều/Khoản chuẩn DocumentChunkSchema
+│   └── document_relations.jsonl# Quan hệ văn bản chuẩn DocumentRelationSchema
+└── testset/
+    └── faithfulness_samples.json# Tập test NLI 3 nhãn chuẩn FaithfulnessSampleSchema
+logs/
+├── ingestion_errors.log       # Log lỗi cào văn bản
+└── extraction_errors.log      # Log lỗi trích xuất text/OCR
 ```
 
 ---
 
-## 2. Chuẩn Bị Thư Mục & Thu Thập File Gốc
+## III. ĐỊNH DẠNG CHUẨN 4 SCHEMAS ĐẦU RA (DATA MODEL)
 
-Tạo cấu trúc thư mục lưu trữ dữ liệu theo đúng quy ước:
-
-```bash
-mkdir -p data/raw/thong_tu
-mkdir -p data/raw/quyet_dinh
-mkdir -p data/raw/quy_che_noi_bo
-mkdir -p data/processed
-mkdir -p data/testset
-```
-
-### Đặt file PDF vào thư mục tương ứng:
-- Đặt file PDF tải từ `chinhphu.vn` hoặc `moet.gov.vn` vào `data/raw/thong_tu/` hoặc `data/raw/quyet_dinh/`.
-- Ví dụ file: `data/raw/thong_tu/08_2024_TT_BGDDT.pdf`
-
----
-
-## 3. Quy Trình Chạy Script Xử Lý Dữ Liệu
-
-### Bước 3.1: Viết & Chạy Script Preprocessing (`services/ingestion/preprocess.py`)
-Script này chịu trách nhiệm:
-1. Đọc tất cả các file PDF từ `data/raw/`.
-2. Trích xuất text thô + số trang (`so_trang`), làm sạch header/footer/watermark và chuẩn hóa Unicode NFC.
-3. Cắt đoạn văn bản theo **Điều / Khoản** (Structure Chunking).
-4. Trích xuất 5 loại quan hệ `DocumentRelation` (`CAN_CU`, `THAY_THE`, `SUA_DOI`, `BAI_BO`, `LIEN_QUAN_NGU_NGHIA`).
-5. Khởi tạo trạng thái xuất bản `trang_thai_xuat_ban = "PENDING_REVIEW"` cho cơ chế Publish Gate.
-6. Xuất các file kết quả:
-   - `data/processed/documents.jsonl`
-   - `data/processed/chunks.jsonl`
-   - `data/processed/document_relations.jsonl`
-
-#### Ví dụ lệnh chạy:
-```bash
-python services/ingestion/preprocess.py --input_dir data/raw --output_dir data/processed
-```
-
----
-
-## 4. Định Dạng Cấu Trúc Các File Dữ Liệu Đầu Ra (Schemas)
-
-### 📄 4.1 Schema File Metadata Văn Bản (`data/processed/documents.jsonl`)
-Mỗi dòng là một đối tượng JSON đại diện cho 1 văn bản (Khớp chuẩn 100% Data Model `Document`):
-
+### 📄 1. Schema Metadata Văn Bản (`data/processed/documents.jsonl`)
+Mỗi dòng là đối tượng JSON `DocumentSchema`:
 ```json
 {
-  "doc_id": "08_2024_TT_BGDDT",
-  "so_hieu": "08/2024/TT-BGDĐT",
-  "ten_van_ban": "Thông tư Ban hành Quy chế Đào tạo Đại học",
+  "doc_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
+  "so_hieu": "08/2021/TT-BGDĐT",
+  "ten_van_ban": "Thông tư 08/2021/TT-BGDĐT: Quy chế đào tạo trình độ đại học",
   "co_quan_ban_hanh": "Bộ Giáo dục và Đào tạo",
-  "ngay_ban_hanh": "2024-03-15",
+  "ngay_ban_hanh": "2021-03-18",
   "loai_van_ban": "Thông tư",
   "trich_yeu": "Ban hành quy chế đào tạo trình độ đại học áp dụng cho các cơ sở giáo dục đại học.",
   "chu_de": "DAO_TAO",
   "muc_do_lien_quan_dau": "GENERAL",
   "trang_thai_xuat_ban": "PENDING_REVIEW",
-  "can_cu_dan_chieu": [
-    "Luật Giáo dục đại học số 34/2018/QH14",
-    "Nghị định 99/2019/NĐ-CP"
-  ],
-  "file_path": "data/raw/thong_tu/08_2024_TT_BGDDT.pdf"
+  "can_cu_dan_chieu": ["Luật Giáo dục đại học số 34/2018/QH14"],
+  "file_path": "data/raw/thong_tu/BGD_TT_082021_QuyCheDaoTaoDaiHoc.pdf"
 }
 ```
 
----
-
-### 🧩 4.2 Schema File Chunk Đoạn Văn Bản (`data/processed/chunks.jsonl`)
-Mỗi dòng đại diện cho 1 Khoản / 1 Điều nhỏ đã chia (Bổ sung `so_trang` cho tính năng "Xem văn bản gốc" / Màn hình 4):
-
+### 🧩 2. Schema Chunk Đoạn Văn Bản (`data/processed/chunks.jsonl`)
+Mỗi dòng là đối tượng JSON `DocumentChunkSchema` (kèm `so_trang` cho tính năng xem file gốc):
 ```json
 {
-  "chunk_id": "08_2024_TT_BGDDT_D5_K1",
-  "doc_id": "08_2024_TT_BGDDT",
-  "so_hieu": "08/2024/TT-BGDĐT",
+  "chunk_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc_D5_K1",
+  "doc_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
+  "so_hieu": "08/2021/TT-BGDĐT",
   "dieu_so": 5,
   "khoan_so": 1,
   "so_trang": 4,
@@ -118,15 +95,12 @@ Mỗi dòng đại diện cho 1 Khoản / 1 Điều nhỏ đã chia (Bổ sung `
 }
 ```
 
----
-
-### 🕸️ 4.3 Schema File Quan Hệ Văn Bản (`data/processed/document_relations.jsonl`)
-Mỗi dòng lưu trữ 1 mối quan hệ liên kết giữa 2 văn bản (Phục vụ Cây Văn Bản / WF-06), hỗ trợ đầy đủ 5 loại quan hệ trong `DocumentRelation`:
-
+### 🕸️ 3. Schema Quan Hệ Văn Bản (`data/processed/document_relations.jsonl`)
+Mỗi dòng là mối quan hệ `DocumentRelationSchema` giữa 2 văn bản:
 ```json
 {
   "relation_id": "rel_001",
-  "document_id_a": "08_2024_TT_BGDDT",
+  "document_id_a": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
   "document_id_b": "34_2018_QH14",
   "loai_quan_he": "CAN_CU",
   "mo_ta": "Căn cứ Luật Giáo dục đại học số 34/2018/QH14",
@@ -134,239 +108,112 @@ Mỗi dòng lưu trữ 1 mối quan hệ liên kết giữa 2 văn bản (Phục
 }
 ```
 
-```json
-{
-  "relation_id": "rel_002",
-  "document_id_a": "08_2024_TT_BGDDT",
-  "document_id_b": "10_2016_TT_BGDDT",
-  "loai_quan_he": "THAY_THE",
-  "mo_ta": "Thay thế Thông tư số 10/2016/TT-BGDĐT",
-  "diem_tuong_dong": null
-}
-```
-
----
-
-### 🧪 4.4 Schema Tập Kiểm Thử Faithfulness Audit (`data/testset/faithfulness_samples.json`)
-Dùng để đánh giá khả năng chống bịa đặt (Anti-Hallucination) và đối chiếu trích dẫn của hệ thống (Đầy đủ 3 nhãn NLI: `entailment`, `neutral`, `contradiction`):
-
+### 🧪 4. Schema Tập Kiểm Thử Faithfulness Audit (`data/testset/faithfulness_samples.json`)
+Danh sách mẫu NLI 3 nhãn (`entailment`, `neutral`, `contradiction`) phục vụ đánh giá chống bịa đặt:
 ```json
 [
   {
     "sample_id": "test_001",
-    "doc_id": "08_2024_TT_BGDDT",
-    "chunk_id": "08_2024_TT_BGDDT_D5_K1",
+    "doc_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
+    "chunk_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc_D5_K1",
     "premise": "Sinh viên có điểm trung bình học kỳ dưới 1.0 sẽ bị cảnh báo học tập lần 1.",
-    "hypothesis": "Sinh viên đạt điểm trung bình 0.9/4.0 trong học kỳ 1 sẽ nhận cảnh báo học tập.",
+    "hypothesis": "Sinh viên có điểm học kỳ 0.9/4.0 sẽ bị nhận cảnh báo học tập.",
     "label": "entailment",
-    "notes": "Suy luận đúng hoàn toàn từ nội dung chunk_id"
-  },
-  {
-    "sample_id": "test_002",
-    "doc_id": "08_2024_TT_BGDDT",
-    "chunk_id": "08_2024_TT_BGDDT_D5_K1",
-    "premise": "Sinh viên có điểm trung bình học kỳ dưới 1.0 sẽ bị cảnh báo học tập lần 1.",
-    "hypothesis": "Sinh viên bị cảnh báo học tập sẽ phải nộp phạt 500.000 VNĐ.",
-    "label": "neutral",
-    "notes": "Không đủ thông tin xác nhận trong văn bản (Trung lập)"
-  },
-  {
-    "sample_id": "test_003",
-    "doc_id": "08_2024_TT_BGDDT",
-    "chunk_id": "08_2024_TT_BGDDT_D5_K1",
-    "premise": "Sinh viên có điểm trung bình học kỳ dưới 1.0 sẽ bị cảnh báo học tập lần 1.",
-    "hypothesis": "Sinh viên bị cảnh báo học tập lần 1 sẽ ngay lập tức bị buộc xuất học.",
-    "label": "contradiction",
-    "notes": "Bịa đặt / Mâu thuẫn trực tiếp với nội dung văn bản"
+    "notes": "Suy luận đúng 100% từ đoạn văn bản gốc"
   }
 ]
 ```
 
 ---
 
-## 5. Script Kiểm Tra Tính Hợp Lệ Dữ Liệu Chi Tiết Với Pydantic (`services/ingestion/validate_data.py`)
+## IV. QUY TRÌNH THỰC THI PIPELINE THEO CÁC BƯỚC
 
-Dưới đây là mã nguồn Python hoàn chỉnh dùng thư viện `Pydantic` để kiểm duyệt tính hợp lệ của dữ liệu trước khi nạp vào hệ thống:
-
-```python
-"""Script kiểm tra tính hợp lệ dữ liệu (Data Quality Gate) cho DAU Second Brain."""
-
-from enum import Enum
-import json
-from pathlib import Path
-from typing import List, Optional
-from pydantic import BaseModel, Field, ValidationError
-
-
-# --- ENUM DEFINITIONS ---
-class TopicEnum(str, Enum):
-    DAO_TAO = "DAO_TAO"
-    TAI_CHINH = "TAI_CHINH"
-    NHAN_SU = "NHAN_SU"
-    TUYEN_SINH = "TUYEN_SINH"
-    CO_SO_VAT_CHAT = "CO_SO_VAT_CHAT"
-    KHAC = "KHAC"
-
-
-class DAURelevanceEnum(str, Enum):
-    DIRECT = "DIRECT"
-    GENERAL = "GENERAL"
-    REFERENCE = "REFERENCE"
-
-
-class PublishStatusEnum(str, Enum):
-    PENDING_REVIEW = "PENDING_REVIEW"
-    PUBLISHED = "PUBLISHED"
-    REJECTED = "REJECTED"
-
-
-class RelationTypeEnum(str, Enum):
-    CAN_CU = "CAN_CU"
-    THAY_THE = "THAY_THE"
-    SUA_DOI = "SUA_DOI"
-    BAI_BO = "BAI_BO"
-    LIEN_QUAN_NGU_NGHIA = "LIEN_QUAN_NGU_NGHIA"
-
-
-class NLILabelEnum(str, Enum):
-    ENTAILMENT = "entailment"
-    NEUTRAL = "neutral"
-    CONTRADICTION = "contradiction"
-
-
-# --- PYDANTIC SCHEMAS ---
-class DocumentSchema(BaseModel):
-    doc_id: str
-    so_hieu: str
-    ten_van_ban: str
-    co_quan_ban_hanh: str
-    ngay_ban_hanh: str
-    loai_van_ban: str
-    trich_yeu: str
-    chu_de: TopicEnum
-    muc_do_lien_quan_dau: DAURelevanceEnum
-    trang_thai_xuat_ban: PublishStatusEnum = PublishStatusEnum.PENDING_REVIEW
-    can_cu_dan_chieu: List[str] = Field(default_factory=list)
-    file_path: str
-
-
-class DocumentChunkSchema(BaseModel):
-    chunk_id: str
-    doc_id: str
-    so_hieu: str
-    dieu_so: Optional[int] = None
-    khoan_so: Optional[int] = None
-    so_trang: int = Field(gt=0, description="Số trang trong file PDF gốc (1-indexed)")
-    title: str
-    content: str
-    token_count: int = Field(gt=0)
-    chu_de: TopicEnum
-    muc_do_lien_quan_dau: DAURelevanceEnum
-
-
-class DocumentRelationSchema(BaseModel):
-    relation_id: str
-    document_id_a: str
-    document_id_b: str
-    loai_quan_he: RelationTypeEnum
-    mo_ta: Optional[str] = None
-    diem_tuong_dong: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-
-
-class FaithfulnessSampleSchema(BaseModel):
-    sample_id: str
-    doc_id: str
-    chunk_id: str
-    premise: str
-    hypothesis: str
-    label: NLILabelEnum
-    notes: Optional[str] = None
-
-
-# --- VALIDATION FUNCTIONS ---
-def validate_documents(file_path: Path) -> int:
-    count = 0
-    with open(file_path, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            if not line.strip():
-                continue
-            data = json.loads(line)
-            DocumentSchema(**data)
-            count += 1
-    print(f"✅ Documents ({file_path.name}): {count} văn bản hợp lệ!")
-    return count
-
-
-def validate_chunks(file_path: Path) -> int:
-    count = 0
-    with open(file_path, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            if not line.strip():
-                continue
-            data = json.loads(line)
-            DocumentChunkSchema(**data)
-            count += 1
-    print(f"✅ Chunks ({file_path.name}): {count} đoạn hợp lệ!")
-    return count
-
-
-def validate_relations(file_path: Path) -> int:
-    count = 0
-    with open(file_path, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            if not line.strip():
-                continue
-            data = json.loads(line)
-            DocumentRelationSchema(**data)
-            count += 1
-    print(f"✅ Relations ({file_path.name}): {count} quan hệ văn bản hợp lệ!")
-    return count
-
-
-def validate_faithfulness_samples(file_path: Path) -> int:
-    with open(file_path, "r", encoding="utf-8") as f:
-        data_list = json.load(f)
-    for idx, item in enumerate(data_list, 1):
-        FaithfulnessSampleSchema(**item)
-    print(f"✅ Faithfulness Samples ({file_path.name}): {len(data_list)} mẫu NLI hợp lệ!")
-    return len(data_list)
-
-
-if __name__ == "__main__":
-    base_dir = Path(__file__).resolve().parents[2]
-    processed_dir = base_dir / "data" / "processed"
-    testset_dir = base_dir / "data" / "testset"
-
-    print("🔍 Đang tiến hành kiểm duyệt dữ liệu (Data Quality Gate)...")
-    try:
-        if (processed_dir / "documents.jsonl").exists():
-            validate_documents(processed_dir / "documents.jsonl")
-        if (processed_dir / "chunks.jsonl").exists():
-            validate_chunks(processed_dir / "chunks.jsonl")
-        if (processed_dir / "document_relations.jsonl").exists():
-            validate_relations(processed_dir / "document_relations.jsonl")
-        if (testset_dir / "faithfulness_samples.json").exists():
-            validate_faithfulness_samples(testset_dir / "faithfulness_samples.json")
-        print("🎉 TOÀN BỘ DỮ LIỆU ĐẠT TIÊU CHUẨN CHẤT LƯỢNG!")
-    except ValidationError as e:
-        print(f"❌ PHÁT HIỆN LỖI SCHEMA DỮ LIỆU:\n{e}")
-```
-
-#### Lệnh chạy kiểm duyệt:
-```bash
-python services/ingestion/validate_data.py
-```
+### Bước 1: Thu thập Dữ liệu Văn bản Tự động (`services/ingestion/crawl_documents.py`)
+- **Mục tiêu**: Tải các file PDF Thông tư & Quyết định chính thức từ `moet.gov.vn` hoặc `vanban.chinhphu.vn`.
+- **Lệnh thực thi**:
+  ```bash
+  .venv/bin/python services/ingestion/crawl_documents.py --max_files 50 --output_dir data/raw
+  ```
+- **Quản trị rủi ro luồng cào**:
+  > [!WARNING]
+  > - **Retry & Rate-Limit**: Tự động áp dụng Exponential Backoff Retry (ngủ 2s–5s, tối đa 3 lần thử lại) khi gặp lỗi kết nối 429/403.
+  > - **Kiểm soát PDF Binary**: Kiểm tra header bọc `res.content.startswith(b'%PDF')` ngăn lưu nhầm file lỗi HTML/404.
+  > - **Log lỗi**: Ghi vết ngoại lệ kết nối vào `logs/ingestion_errors.log`.
 
 ---
 
-## 6. Bảng Phân Công Nhiệm Vụ Làm Dữ Liệu (Chuẩn RACI)
+### Bước 2: Preprocessing & Structure Chunking (`services/ingestion/preprocess.py`)
+- **Mục tiêu**: Đọc toàn bộ PDF raw, trích xuất text chuẩn Unicode NFC, cắt đoạn theo Điều/Khoản (`so_trang`), bóc tách mối quan hệ liên văn bản (`CAN_CU`, `THAY_THE`, `SUA_DOI`, `BAI_BO`).
+- **Lệnh thực thi**:
+  ```bash
+  .venv/bin/python services/ingestion/preprocess.py --input_dir data/raw --output_dir data/processed
+  ```
+- **Quản trị rủi ro trích xuất**:
+  > [!IMPORTANT]
+  > - **Fallback OCR**: Nếu PDF là ảnh scan hoặc mã hóa lỗi font (số từ < 20 từ/trang), hệ thống tự động kích hoạt luồng Fallback OCR (`PaddleOCR` / `PyTesseract`).
+  > - **Log lỗi trích xuất**: Mọi đoạn chunk lỗi được ghi vết vào `logs/extraction_errors.log`.
 
-> **Căn cứ chiếu:** [DAU_Second_Brain_Phan_Cong_RACI.md](file:///e:/AISCBRAINDAU/docs/DAU_Second_Brain_Phan_Cong_RACI.md) — Thành viên 1 (TV1 / Track A - Data & Pipeline) giữ vai trò **R** (Responsible) và **A** (Accountable) toàn bộ các hạng mục thuộc Sprint 0 (Thu thập & Tiền xử lý dữ liệu). Thành viên 2 (TV2 / Track B - AI Core) đóng vai trò **C** (Consulted).
+---
+
+### Bước 3: Kiểm duyệt Hợp lệ Dữ liệu với Pydantic (`services/ingestion/validate_data.py`)
+- **Mục tiêu**: Đảm bảo 100% dữ liệu đầu ra đạt chuẩn Pydantic Schema trước khi đưa vào các bước tiếp theo.
+- **Lệnh thực thi**:
+  ```bash
+  .venv/bin/python services/ingestion/validate_data.py
+  ```
+- **Kết quả kiểm duyệt thực tế**:
+  - ✅ **Documents**: 90/90 văn bản hợp lệ 100%.
+  - ✅ **Chunks**: 172/172 đoạn hợp lệ 100%.
+  - ✅ **Relations**: 144/144 quan hệ hợp lệ 100%.
+  - ✅ **Faithfulness Samples**: 45/45 mẫu NLI hợp lệ 100%.
+
+---
+
+### Bước 4 (BƯỚC TIẾP THEO): Phân Loại Chủ Đề & Trích Xuất Thực Thể NER (`services/extraction/extract_and_classify.py`)
+- **Mục tiêu**: Thực hiện **EPIC-2 (Sprint 2)** theo phân công RACI:
+  1. Phân loại tự động **Loại văn bản**: `Thông tư`, `Quyết định`, `Nghị định`, `Công văn`, `Luật`, `Quy định`.
+  2. Gán nhãn tự động **Chủ đề (`TopicEnum`)**: `DAO_TAO`, `TUYEN_SINH`, `TAI_CHINH`, `NHAN_SU`, `CO_SO_VAT_CHAT`, `KHAC`.
+  3. Trích xuất thực thể NER: Số hiệu, Cơ quan ban hành, Ngày ban hành, Trích yếu, Yêu cầu báo cáo & Hạn nộp.
+- **Lệnh thực thi**:
+  ```bash
+  .venv/bin/python services/extraction/extract_and_classify.py --input_dir data/processed --output_dir data/processed
+  ```
+
+---
+
+### Bước 5: Đánh Giá NLI 3 Nhãn & Review Service Publish Gate (`services/review_service/publish_gate.py`)
+- **Mục tiêu**: Thực hiện **EPIC-3 (NLI 3 nhãn)** và **EPIC-9 (Review Service - Sprint 3)**:
+  1. Văn bản mới Ingestion mặc định ở trạng thái `trang_thai_xuat_ban = "PENDING_REVIEW"`.
+  2. Phân loại NLI 3 nhãn: `entailment`, `neutral`, `contradiction`.
+  3. **Ràng buộc an toàn FR-08**: Nếu có ít nhất 1 câu `contradiction` ➔ Chuyển toàn bộ văn bản vào hàng đợi rà soát, ngăn tự động chuyển `published`.
+- **Lệnh thực thi**:
+  ```bash
+  .venv/bin/python services/review_service/publish_gate.py --input_dir data/processed --testset data/testset/faithfulness_samples.json
+  ```
+
+---
+
+## V. BỘ CHỈ SỐ KPIS NGHỆM THU CHẤT LƯỢNG
+
+Bảng dưới đây quy định các ngưỡng chỉ số đo lường chất lượng tối thiểu bắt buộc hệ thống phải đạt được trước khi nghiệm thu:
+
+| Hạng mục Đo lường | Chỉ số KPI / Metric | Ngưỡng Đạt Tối Thiểu | Ghi chú & Phương pháp Kiểm thử |
+|---|---|---|---|
+| **Luồng Cào dữ liệu (Crawler)** | Tỷ lệ cào tệp PDF thành công | **> 95% links** | Không bị ngắt tiến trình, 100% tệp lưu chuẩn `%PDF-1.` binary |
+| **Kiểm duyệt Schema (Data Gate)** | Tính hợp lệ Pydantic Schema | **100% hợp lệ** | Không có bất kỳ lỗi `ValidationError` nào trên `documents`, `chunks`, `relations` |
+| **Trích xuất NER & Chủ đề** | Độ chính xác F1-Score | **> 85%** | Đánh giá trên tập nhãn mẫu (Số hiệu, Ngày BH, Loại VB, Chủ đề) |
+| **Độ chính xác Mô hình NLI** | Accuracy NLI 3 Nhãn | **> 85%** | Đánh giá trên tập `data/testset/faithfulness_samples.json` |
+| **Publish Gate Safety (FR-08)** | Tỷ lệ chặn câu `contradiction` | **100% chặn tuyệt đối** | 100% văn bản chứa mâu thuẫn/bịa đặt bị giữ lại `PENDING_REVIEW` |
+| **Hiệu năng xử lý (Performance)** | Thời gian Preprocessing / PDF | **< 3 giây / PDF** | Đảm bảo tốc độ xử lý hàng loạt tốt trên môi trường tiêu chuẩn |
+
+---
+
+## VI. BẢNG PHÂN CÔNG VAI TRÒ (NHÓM RACI)
 
 | Hạng mục Công việc | TV1 (Track A - Data & Pipeline) | TV2 (Track B - AI Core) |
 |---|---|---|
-| **Thu thập PDF chinhphu.vn & DAU** | **R / A** (Thực hiện & Phê duyệt chính) | **C** (Tư vấn nguồn/lĩnh vực) |
-| **Viết Script Preprocessing, Chunking & so_trang** | **R / A** (Thực hiện & Phê duyệt chính) | **C** (Đóng góp regex) |
-| **Trích xuất Quan Hệ DocumentRelation (5 Loại)** | **R / A** (Thực hiện & Phê duyệt chính) | **C** (Tư vấn similarity) |
-| **Gán nhãn Gold Summary, Topic & Publish Status** | **R / A** (Thực hiện & Phê duyệt chính) | **C** (Review chất lượng) |
-| **Xây tập Test Faithfulness (NLI Pairs 3 Nhãn)** | **R** (Hỗ trợ chuẩn bị context) | **R / A** (Chủ trì xây dựng & Đánh giá NLI) |
+| **Thu thập PDF chinhphu.vn & MOET** | **R / A** (Thực hiện chính) | **C** (Tư vấn nguồn) |
+| **Viết Script Preprocessing & Chunking** | **R / A** (Thực hiện chính) | **C** (Đóng góp regex) |
+| **Trích xuất Quan Hệ DocumentRelation** | **R / A** (Thực hiện chính) | **C** (Tư vấn similarity) |
+| **Phân loại Chủ đề & NER (EPIC-2)** | **R / A** (Thực hiện chính) | **C** (Review chất lượng) |
+| **NLI 3 Nhãn & Review Service (EPIC-3, 9)** | **R / A** (Cùng thực hiện) | **R / A** (Cùng thực hiện) |

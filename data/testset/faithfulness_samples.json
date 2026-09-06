@@ -1,0 +1,407 @@
+[
+  {
+    "sample_id": "test_001",
+    "doc_id": "NT-2026-Luu-y-khi-trien-khai-cac-Tap-cua-De-an-AI-native",
+    "chunk_id": "NT-2026-Luu-y-khi-trien-khai-cac-Tap-cua-De-an-AI-native_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_002",
+    "doc_id": "NT-2026-Luu-y-khi-trien-khai-cac-Tap-cua-De-an-AI-native",
+    "chunk_id": "NT-2026-Luu-y-khi-trien-khai-cac-Tap-cua-De-an-AI-native_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_003",
+    "doc_id": "NT-2026-Luu-y-khi-trien-khai-cac-Tap-cua-De-an-AI-native",
+    "chunk_id": "NT-2026-Luu-y-khi-trien-khai-cac-Tap-cua-De-an-AI-native_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_004",
+    "doc_id": "NT-2026-Cong-thuc-chien-luoc",
+    "chunk_id": "NT-2026-Cong-thuc-chien-luoc_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_005",
+    "doc_id": "NT-2026-Cong-thuc-chien-luoc",
+    "chunk_id": "NT-2026-Cong-thuc-chien-luoc_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_006",
+    "doc_id": "NT-2026-Cong-thuc-chien-luoc",
+    "chunk_id": "NT-2026-Cong-thuc-chien-luoc_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_007",
+    "doc_id": "NT-2026-Huong-dan-lam-CTĐT-và-ĐCCT-2026",
+    "chunk_id": "NT-2026-Huong-dan-lam-CTĐT-và-ĐCCT-2026_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_008",
+    "doc_id": "NT-2026-Huong-dan-lam-CTĐT-và-ĐCCT-2026",
+    "chunk_id": "NT-2026-Huong-dan-lam-CTĐT-và-ĐCCT-2026_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_009",
+    "doc_id": "NT-2026-Huong-dan-lam-CTĐT-và-ĐCCT-2026",
+    "chunk_id": "NT-2026-Huong-dan-lam-CTĐT-và-ĐCCT-2026_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_010",
+    "doc_id": "NT-2026-Huong-dan-5T-Bloom_DCMS_VQF_LLO",
+    "chunk_id": "NT-2026-Huong-dan-5T-Bloom_DCMS_VQF_LLO_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_011",
+    "doc_id": "NT-2026-Huong-dan-5T-Bloom_DCMS_VQF_LLO",
+    "chunk_id": "NT-2026-Huong-dan-5T-Bloom_DCMS_VQF_LLO_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_012",
+    "doc_id": "NT-2026-Huong-dan-5T-Bloom_DCMS_VQF_LLO",
+    "chunk_id": "NT-2026-Huong-dan-5T-Bloom_DCMS_VQF_LLO_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_013",
+    "doc_id": "NT-2026-Executive-Summary-DAU-AI-native-Competency-Based-5T-University",
+    "chunk_id": "NT-2026-Executive-Summary-DAU-AI-native-Competency-Based-5T-University_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_014",
+    "doc_id": "NT-2026-Executive-Summary-DAU-AI-native-Competency-Based-5T-University",
+    "chunk_id": "NT-2026-Executive-Summary-DAU-AI-native-Competency-Based-5T-University_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_015",
+    "doc_id": "NT-2026-Executive-Summary-DAU-AI-native-Competency-Based-5T-University",
+    "chunk_id": "NT-2026-Executive-Summary-DAU-AI-native-Competency-Based-5T-University_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_016",
+    "doc_id": "NT-2026-AI-native-Second-Brain-World-Models",
+    "chunk_id": "NT-2026-AI-native-Second-Brain-World-Models_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_017",
+    "doc_id": "NT-2026-AI-native-Second-Brain-World-Models",
+    "chunk_id": "NT-2026-AI-native-Second-Brain-World-Models_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_018",
+    "doc_id": "NT-2026-AI-native-Second-Brain-World-Models",
+    "chunk_id": "NT-2026-AI-native-Second-Brain-World-Models_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_019",
+    "doc_id": "NT_QD_2026_Thông_tin_tuyển_sinh_2026",
+    "chunk_id": "NT_QD_2026_Thông_tin_tuyển_sinh_2026_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_020",
+    "doc_id": "NT_QD_2026_Thông_tin_tuyển_sinh_2026",
+    "chunk_id": "NT_QD_2026_Thông_tin_tuyển_sinh_2026_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_021",
+    "doc_id": "NT_QD_2026_Thông_tin_tuyển_sinh_2026",
+    "chunk_id": "NT_QD_2026_Thông_tin_tuyển_sinh_2026_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_022",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_023",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_024",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_025",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D1",
+    "premise": "Điều 1. Ban hành kèm theo Quyết định này \"Chiến lược phát triển Trường Đại",
+    "hypothesis": "Điều 1. Ban hành kèm theo Quyết định này \"Chiến lược phát triển Trường Đại",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_026",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D1",
+    "premise": "Điều 1. Ban hành kèm theo Quyết định này \"Chiến lược phát triển Trường Đại",
+    "hypothesis": "Điều 1. Ban hành kèm theo Quyết định này \"Chiến lược phát triển Trường Đại và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_027",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D1",
+    "premise": "Điều 1. Ban hành kèm theo Quyết định này \"Chiến lược phát triển Trường Đại",
+    "hypothesis": "Không thực hiện quy định: Điều 1. Ban hành kèm theo Quyết định này \"Chiến lược phát triển Trường Đại",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_028",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D2",
+    "premise": "Điều 2. Chiến lược là căn cứ để Nhà trường xây dựng kế hoạch hành động trung",
+    "hypothesis": "Điều 2. Chiến lược là căn cứ để Nhà trường xây dựng kế hoạch hành động trung",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_029",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D2",
+    "premise": "Điều 2. Chiến lược là căn cứ để Nhà trường xây dựng kế hoạch hành động trung",
+    "hypothesis": "Điều 2. Chiến lược là căn cứ để Nhà trường xây dựng kế hoạch hành động trung và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_030",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D2",
+    "premise": "Điều 2. Chiến lược là căn cứ để Nhà trường xây dựng kế hoạch hành động trung",
+    "hypothesis": "Không thực hiện quy định: Điều 2. Chiến lược là căn cứ để Nhà trường xây dựng kế hoạch hành động trung",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_031",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D3",
+    "premise": "Điều 3. Hiệu trưởng, Ban Giám hiệu, Trưởng các khoa, phòng, ban, viện, trung",
+    "hypothesis": "Điều 3. Hiệu trưởng, Ban Giám hiệu, Trưởng các khoa, phòng, ban, viện, trung",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_032",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D3",
+    "premise": "Điều 3. Hiệu trưởng, Ban Giám hiệu, Trưởng các khoa, phòng, ban, viện, trung",
+    "hypothesis": "Điều 3. Hiệu trưởng, Ban Giám hiệu, Trưởng các khoa, phòng, ban, viện, trung và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_033",
+    "doc_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050",
+    "chunk_id": "NT-2026-Chien-luoc-DAU_2026-2030-2050_D3",
+    "premise": "Điều 3. Hiệu trưởng, Ban Giám hiệu, Trưởng các khoa, phòng, ban, viện, trung",
+    "hypothesis": "Không thực hiện quy định: Điều 3. Hiệu trưởng, Ban Giám hiệu, Trưởng các khoa, phòng, ban, viện, trung",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_034",
+    "doc_id": "NT-2026-Ban-do-tong-the-va-cach-hieu-de-an-DAU-AI-native-University",
+    "chunk_id": "NT-2026-Ban-do-tong-the-va-cach-hieu-de-an-DAU-AI-native-University_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_035",
+    "doc_id": "NT-2026-Ban-do-tong-the-va-cach-hieu-de-an-DAU-AI-native-University",
+    "chunk_id": "NT-2026-Ban-do-tong-the-va-cach-hieu-de-an-DAU-AI-native-University_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_036",
+    "doc_id": "NT-2026-Ban-do-tong-the-va-cach-hieu-de-an-DAU-AI-native-University",
+    "chunk_id": "NT-2026-Ban-do-tong-the-va-cach-hieu-de-an-DAU-AI-native-University_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_037",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_038",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "BỘ GIÁO DỤC VÀ ĐÀO TẠO và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_039",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D1",
+    "premise": "BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "hypothesis": "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_040",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D1",
+    "premise": "Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng",
+    "hypothesis": "Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_041",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D1",
+    "premise": "Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng",
+    "hypothesis": "Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_042",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D1",
+    "premise": "Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng",
+    "hypothesis": "Không thực hiện quy định: Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  },
+  {
+    "sample_id": "test_043",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D2",
+    "premise": "Điều 2. Tổ chức tuyển sinh",
+    "hypothesis": "Điều 2. Tổ chức tuyển sinh",
+    "label": "entailment",
+    "notes": "Suy luận đúng 100% từ nội dung đoạn văn bản gốc (Entailment)"
+  },
+  {
+    "sample_id": "test_044",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D2",
+    "premise": "Điều 2. Tổ chức tuyển sinh",
+    "hypothesis": "Điều 2. Tổ chức tuyển sinh và sinh viên sẽ nhận mức học bổng bổ sung 2.000.000 VNĐ.",
+    "label": "neutral",
+    "notes": "Thông tin bổ sung không thể xác minh từ đoạn nguồn (Neutral)"
+  },
+  {
+    "sample_id": "test_045",
+    "doc_id": "NT_QC_2026_QuyCheTuyenSinh",
+    "chunk_id": "NT_QC_2026_QuyCheTuyenSinh_D2",
+    "premise": "Điều 2. Tổ chức tuyển sinh",
+    "hypothesis": "Không thực hiện quy định: Điều 2. Tổ chức tuyển sinh",
+    "label": "contradiction",
+    "notes": "Mâu thuẫn/bịa đặt trực tiếp đối lập với văn bản gốc (Contradiction)"
+  }
+]
