@@ -533,7 +533,9 @@ def crawl_documents(max_files: int = 50, base_dir: Path = None):
 
         # Thử tải từ URL trực tiếp
         try:
-            res = requests.get(item["url"], headers=HEADERS, timeout=5)
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            res = requests.get(item["url"], headers=HEADERS, timeout=15, verify=False)
             if res.status_code == 200 and res.content.startswith(b"%PDF"):
                 with open(target_path, "wb") as f:
                     f.write(res.content)
@@ -541,7 +543,7 @@ def crawl_documents(max_files: int = 50, base_dir: Path = None):
                 downloaded_count += 1
                 success = True
         except Exception as e:
-            pass
+            print(f"     ⚠️ Lỗi mạng: {e}")
 
         # Fallback: Sinh file PDF tiêu chuẩn đầy đủ cấu trúc văn bản hành chính tiếng Việt bằng PyMuPDF
         if not success:
