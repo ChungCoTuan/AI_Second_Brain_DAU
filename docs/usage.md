@@ -14,14 +14,14 @@ flowchart LR
     A[1. Thu thập PDF Raw\n✅ Hoàn thành 29 PDF] --> B[2. Preprocessing & Chunking\n✅ 56 Chunks & 93 Rels]
     B --> C[3. Pydantic Quality Gate\n✅ 100% Schema Valid]
     C --> D[4. Phân loại Chủ đề & NER\n✅ Hoàn thành 29/29 Docs]
-    D --> E[5. NLI 3 Nhãn & Publish Gate\n🔄 Bước tiếp theo Sprint 3]
+    D --> E[5. NLI 3 Nhãn & Publish Gate\n✅ Hoàn thành FR-08 Safety Gate]
 ```
 
 - ✅ **Bước 1 (Thu thập dữ liệu)**: Đã cào và lưu trữ 29 văn bản PDF phân loại thành 3 danh mục chính tại `data/raw/` (`thong_tu/`, `quyet_dinh/`, `quy_che_noi_bo/`).
 - ✅ **Bước 2 (Tiền xử lý & Chunking)**: Script `services/ingestion/preprocess.py` đã trích xuất text chuẩn NFC, cắt đoạn theo Điều/Khoản kèm số trang PDF gốc (`so_trang`) và trích xuất 5 loại quan hệ `DocumentRelation`.
 - ✅ **Bước 3 (Pydantic Quality Gate)**: Script `services/ingestion/validate_data.py` đã kiểm duyệt 100% hợp lệ cho 29 Documents, 56 Chunks, 93 Relations và 45 mẫu Faithfulness Testset.
 - ✅ **Bước 4 (Phân loại Chủ đề & NER)**: Script `services/extraction/extract_and_classify.py` đã phân loại 100% văn bản vào 5 chủ đề `TopicEnum` (`DAO_TAO`: 15, `CO_SO_VAT_CHAT`: 5, `NHAN_SU`: 4, `TUYEN_SINH`: 4, `TAI_CHINH`: 1, `KHAC`: 0) và trích xuất đầy đủ thực thể NER.
-- 🔄 **Bước 5 (Công việc tiếp theo)**: Đánh giá NLI 3 nhãn (`entailment`, `neutral`, `contradiction`) và Review Service Publish Gate (`services/review_service/publish_gate.py`).
+- ✅ **Bước 5 (NLI 3 Nhãn & Publish Gate)**: Script `services/review_service/publish_gate.py` đã đánh giá 45 mẫu NLI Faithfulness, áp dụng Ràng buộc An toàn FR-08 (10 văn bản giữ `PENDING_REVIEW` do phát hiện câu mâu thuẫn/bịa đặt, 19 văn bản đạt `PUBLISHED`).
 
 ---
 
