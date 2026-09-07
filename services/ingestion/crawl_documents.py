@@ -489,10 +489,11 @@ def save_pdf_file(filepath: Path, content: bytes, doc_item: dict):
         import pymupdf as fitz
         doc = fitz.open()
         page = doc.new_page()
-        # Chuyển text Unicode sang PDF
+        # Sử dụng font Arial mặc định của Windows để hiển thị Tiếng Việt
+        page.insert_font(fontname="F0", fontfile="C:/Windows/Fonts/arial.ttf")
         text_content = content.decode("utf-8", errors="ignore") if isinstance(content, bytes) else content
         rect = fitz.Rect(50, 50, 550, 800)
-        page.insert_textbox(rect, text_content, fontsize=11, fontname="helv")
+        page.insert_textbox(rect, text_content, fontsize=11, fontname="F0")
         doc.save(str(filepath))
         doc.close()
     except Exception:
@@ -553,8 +554,9 @@ def crawl_documents(max_files: int = 50, base_dir: Path = None):
                 for page_idx in range(0, len(lines), lines_per_page):
                     page_lines = lines[page_idx:page_idx + lines_per_page]
                     page = doc.new_page(width=595, height=842)
+                    page.insert_font(fontname="F0", fontfile="C:/Windows/Fonts/arial.ttf")
                     rect = fitz.Rect(40, 40, 555, 800)
-                    page.insert_textbox(rect, "\n".join(page_lines), fontsize=10, fontname="helv")
+                    page.insert_textbox(rect, "\n".join(page_lines), fontsize=10, fontname="F0")
 
                 doc.save(str(target_path))
                 doc.close()
