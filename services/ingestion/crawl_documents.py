@@ -32,7 +32,7 @@ DOCUMENT_TARGETS = [
         "so_hieu": "01/2024/TT-BGDĐT",
         "filename": "BGD_TT_012024_QuyCheKiemDinhChatLuongGiaoDuc.pdf",
         "title": "Thông tư 01/2024/TT-BGDĐT Chuẩn cơ sở giáo dục đại học",
-        "url": "https://moet.gov.vn/content/vanban/PublishingImages/01_2024_TT_BGDDT.pdf",
+        "url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/02/01-bgddt.signed.pdf",
         "fallback_keywords": ["01/2024/TT-BGDĐT", "Chuẩn cơ sở giáo dục đại học"],
     },
     {
@@ -40,7 +40,7 @@ DOCUMENT_TARGETS = [
         "so_hieu": "03/2022/TT-BGDĐT",
         "filename": "BGD_TT_032022_QuyDinhXacDinhChiTieuTuyenSinh.pdf",
         "title": "Thông tư 03/2022/TT-BGDĐT Quy định về xác định chỉ tiêu tuyển sinh đại học",
-        "url": "https://moet.gov.vn/content/vanban/PublishingImages/03_2022_TT_BGDDT.pdf",
+        "url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2022/03/03-bgddt.signed.pdf",
         "fallback_keywords": ["03/2022/TT-BGDĐT", "xác định chỉ tiêu tuyển sinh"],
     },
     {
@@ -48,7 +48,7 @@ DOCUMENT_TARGETS = [
         "so_hieu": "05/2021/TT-BGDĐT",
         "filename": "BGD_TT_052021_QuyCheDaoTaoThacSi.pdf",
         "title": "Thông tư 05/2021/TT-BGDĐT Quy chế đào tạo trình độ thạc sĩ",
-        "url": "https://moet.gov.vn/content/vanban/PublishingImages/05_2021_TT_BGDDT.pdf",
+        "url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2021/04/05-bgddt.signed.pdf",
         "fallback_keywords": ["05/2021/TT-BGDĐT", "Quy chế đào tạo thạc sĩ"],
     },
     {
@@ -64,7 +64,7 @@ DOCUMENT_TARGETS = [
         "so_hieu": "12/2017/TT-BGDĐT",
         "filename": "BGD_TT_122017_KiemDinhChatLuongCoSoGiaoDucDaiHoc.pdf",
         "title": "Thông tư 12/2017/TT-BGDĐT Quy định về kiểm định chất lượng cơ sở giáo dục đại học",
-        "url": "https://moet.gov.vn/content/vanban/PublishingImages/12_2017_TT_BGDDT.pdf",
+        "url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2017/08/12-bgdt.signed.pdf",
         "fallback_keywords": ["12/2017/TT-BGDĐT", "kiểm định chất lượng cơ sở giáo dục đại học"],
     },
     {
@@ -96,7 +96,7 @@ DOCUMENT_TARGETS = [
         "so_hieu": "40/2020/TT-BGDĐT",
         "filename": "BGD_TT_402020_QuyDinhMienGiamHocPhiChiTieuGiangDay.pdf",
         "title": "Thông tư 40/2020/TT-BGDĐT Quy định về chuẩn chức danh nghề nghiệp giảng viên",
-        "url": "https://moet.gov.vn/content/vanban/PublishingImages/40_2020_TT_BGDDT.pdf",
+        "url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2020/11/40-bgddt.signed.pdf",
         "fallback_keywords": ["40/2020/TT-BGDĐT", "mã số chuẩn chức danh nghề nghiệp giảng viên"],
     },
     {
@@ -200,7 +200,7 @@ DOCUMENT_TARGETS = [
         "so_hieu": "23/2021/TT-BGDĐT",
         "filename": "BGD_TT_232021_QuyDinhViThanThuongXuyen.pdf",
         "title": "Thông tư 23/2021/TT-BGDĐT Quy định việc dạy và học trực tuyến trong cơ sở giáo dục đại học",
-        "url": "https://moet.gov.vn/content/vanban/PublishingImages/23_2021_TT_BGDDT.pdf",
+        "url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2021/09/23-bgddt.pdf",
         "fallback_keywords": ["23/2021/TT-BGDĐT", "dạy và học trực tuyến"],
     },
     {
@@ -234,7 +234,7 @@ DOCUMENT_TARGETS = [
         "so_hieu": "1982/QĐ-TTg",
         "filename": "CP_QD_1982_KhungTrinhDoQuocGiaVietNam.pdf",
         "title": "Quyết định 1982/QĐ-TTg Phê duyệt Khung trình độ quốc gia Việt Nam",
-        "url": "https://moet.gov.vn/content/vanban/PublishingImages/1982_QD_TTg.pdf",
+        "url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2016/11/1982.signed.pdf",
         "fallback_keywords": ["1982/QĐ-TTg", "Khung trình độ quốc gia Việt Nam"],
     },
     {
