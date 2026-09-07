@@ -11,16 +11,17 @@ Tài liệu này tổng hợp toàn bộ quy trình thiết lập môi trường
 
 ```mermaid
 flowchart LR
-    A[1. Thu thập PDF Raw\n✅ Hoàn thành 90 PDF] --> B[2. Preprocessing & Chunking\n✅ 172 Chunks & 144 Rels]
+    A[1. Thu thập PDF Raw\n✅ Hoàn thành 29 PDF] --> B[2. Preprocessing & Chunking\n✅ 56 Chunks & 93 Rels]
     B --> C[3. Pydantic Quality Gate\n✅ 100% Schema Valid]
-    C --> D[4. Phân loại Chủ đề & NER\n🔄 Đang thực hiện]
-    D --> E[5. NLI 3 Nhãn & Publish Gate\n⏳ Chuẩn bị Sprint 3]
+    C --> D[4. Phân loại Chủ đề & NER\n✅ Hoàn thành 29/29 Docs]
+    D --> E[5. NLI 3 Nhãn & Publish Gate\n🔄 Bước tiếp theo Sprint 3]
 ```
 
-- ✅ **Bước 1 (Thu thập dữ liệu)**: Đã cào và lưu trữ 90 văn bản PDF phân loại thành 3 danh mục chính tại `data/raw/` (`thong_tu/`, `quyet_dinh/`, `quy_che_noi_bo/`).
+- ✅ **Bước 1 (Thu thập dữ liệu)**: Đã cào và lưu trữ 29 văn bản PDF phân loại thành 3 danh mục chính tại `data/raw/` (`thong_tu/`, `quyet_dinh/`, `quy_che_noi_bo/`).
 - ✅ **Bước 2 (Tiền xử lý & Chunking)**: Script `services/ingestion/preprocess.py` đã trích xuất text chuẩn NFC, cắt đoạn theo Điều/Khoản kèm số trang PDF gốc (`so_trang`) và trích xuất 5 loại quan hệ `DocumentRelation`.
-- ✅ **Bước 3 (Pydantic Quality Gate)**: Script `services/ingestion/validate_data.py` đã kiểm duyệt 100% hợp lệ cho 90 Documents, 172 Chunks, 144 Relations và 45 mẫu Faithfulness Testset.
-- 🔄 **Bước 4 (Công việc tiếp theo)**: Phân loại văn bản theo **Chủ đề** (`TopicEnum`) và Trích xuất thực thể NER nâng cao qua `services/extraction/extract_and_classify.py`.
+- ✅ **Bước 3 (Pydantic Quality Gate)**: Script `services/ingestion/validate_data.py` đã kiểm duyệt 100% hợp lệ cho 29 Documents, 56 Chunks, 93 Relations và 45 mẫu Faithfulness Testset.
+- ✅ **Bước 4 (Phân loại Chủ đề & NER)**: Script `services/extraction/extract_and_classify.py` đã phân loại 100% văn bản vào 5 chủ đề `TopicEnum` (`DAO_TAO`: 15, `CO_SO_VAT_CHAT`: 5, `NHAN_SU`: 4, `TUYEN_SINH`: 4, `TAI_CHINH`: 1, `KHAC`: 0) và trích xuất đầy đủ thực thể NER.
+- 🔄 **Bước 5 (Công việc tiếp theo)**: Đánh giá NLI 3 nhãn (`entailment`, `neutral`, `contradiction`) và Review Service Publish Gate (`services/review_service/publish_gate.py`).
 
 ---
 
@@ -162,9 +163,9 @@ Danh sách mẫu NLI 3 nhãn (`entailment`, `neutral`, `contradiction`) phục v
   .venv/bin/python services/ingestion/validate_data.py
   ```
 - **Kết quả kiểm duyệt thực tế**:
-  - ✅ **Documents**: 90/90 văn bản hợp lệ 100%.
-  - ✅ **Chunks**: 172/172 đoạn hợp lệ 100%.
-  - ✅ **Relations**: 144/144 quan hệ hợp lệ 100%.
+  - ✅ **Documents**: 29/29 văn bản hợp lệ 100%.
+  - ✅ **Chunks**: 56/56 đoạn hợp lệ 100%.
+  - ✅ **Relations**: 93/93 quan hệ hợp lệ 100%.
   - ✅ **Faithfulness Samples**: 45/45 mẫu NLI hợp lệ 100%.
 
 ---
