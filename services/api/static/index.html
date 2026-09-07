@@ -53,31 +53,64 @@
   <!-- MAIN CONTAINER -->
   <main class="max-w-7xl mx-auto px-6 py-8 flex-1 w-full space-y-8">
 
-    <!-- HEADER BANNER: GIẢI THÍCH MỤC ĐÍCH KIỂM THỬ UC-04 -->
+    <!-- HEADER BANNER: MỤC ĐÍCH KIỂM THỬ UC-04 -->
     <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-2xl p-6 shadow-xl border border-indigo-900/50 space-y-4">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div class="space-y-1">
           <div class="inline-flex items-center px-3 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs font-bold border border-amber-500/30">
             <i data-lucide="shield-alert" class="w-3.5 h-3.5 mr-1.5"></i>
-            KỊCH BẢN TEST UC-04 (HUMAN-IN-THE-LOOP & PUBLISH GATE)
+            HỆ THỐNG KIỂM THỬ TỰ ĐỘNG KỊCH BẢN UC-04 (HUMAN-IN-THE-LOOP & PUBLISH GATE)
           </div>
           <h2 class="text-2xl font-bold tracking-tight">Quy trình Rà soát & Kiểm duyệt Chống Bị đặt (FR-08, FR-09)</h2>
         </div>
         <div class="flex space-x-3 shrink-0">
           <button onclick="switchTab('uc04')" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
             <i data-lucide="user-check" class="w-4 h-4"></i>
-            <span>Vào Màn hình Rà soát UC-04</span>
+            <span>Màn hình Rà soát UC-04 Studio</span>
           </button>
           <button onclick="switchTab('documents')" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-lg transition flex items-center space-x-2">
             <i data-lucide="book-open" class="w-4 h-4"></i>
-            <span>Xem Kho Văn bản (29 Docs)</span>
+            <span>Kho Văn bản (29 Docs)</span>
           </button>
         </div>
       </div>
 
-      <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed space-y-2">
-        <p><strong class="text-amber-400">📌 Ý đồ của phần Test UC-04:</strong> Khi mô hình AI sinh tóm tắt văn bản, nếu có câu bị mô hình NLI chấm nhãn <span class="text-rose-400 font-bold bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-800">contradiction</span> (mâu thuẫn/bịa đặt ngữ nghĩa) hoặc <span class="text-slate-300 font-bold bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">neutral</span>, <strong>Ràng buộc an toàn FR-08</strong> sẽ tự động giữ toàn bộ văn bản ở trạng thái <span class="text-amber-400 font-bold">PENDING_REVIEW</span>. Văn bản tuyệt đối <strong>KHÔNG được tự động xuất bản (PUBLISHED)</strong> lên hệ thống tra cứu RAG để tránh bịa đặt thông tin pháp lý.</p>
-        <p><strong class="text-blue-400">💡 Luồng tương tác của Cán bộ (Human-in-the-loop):</strong> Cán bộ đối chiếu câu AI sinh bên cạnh đoạn văn gốc (Premise vs Hypothesis) ➔ Bấm <strong>Sửa & Duyệt</strong> ➔ Hệ thống <strong>chạy lại NLI Re-validation tức thì</strong> ➔ Nếu đạt <span class="text-emerald-400 font-bold">entailment</span> và hết câu lỗi, văn bản tự động chuyển sang <span class="text-emerald-400 font-bold">PUBLISHED</span> ➔ Ghi vết <strong>Audit Trail (FR-09c)</strong>.</p>
+      <!-- BỘ NÚT BẤM KỊCH BẢN TEST TRỰC TIẾP (1 - 6) -->
+      <div class="p-4 bg-slate-900/90 rounded-xl border border-slate-700 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-amber-400 flex items-center">
+            <i data-lucide="flask-conical" class="w-4 h-4 mr-1.5"></i>
+            BỘ 6 KỊCH BẢN TEST THỰC TẾ UC-04 (Bấm nút bên dưới để tự động nạp kịch bản):
+          </span>
+          <span class="text-[11px] text-slate-400">Dữ liệu từ Bước 1–5 (29 Documents, 45 NLI Samples)</span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <button onclick="runScenario(1)" class="p-2.5 bg-slate-800 hover:bg-blue-900/80 text-blue-200 text-xs font-bold rounded-lg border border-blue-700/50 text-left transition flex flex-col justify-between space-y-1">
+            <span>1. Sửa & Duyệt</span>
+            <span class="text-[10px] font-normal text-slate-400">Re-validate NLI ➔ Published</span>
+          </button>
+          <button onclick="runScenario(2)" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 text-left transition flex flex-col justify-between space-y-1">
+            <span>2. Duyệt Giữ Nguyên</span>
+            <span class="text-[10px] font-normal text-slate-400">Manual Override (Gắn cờ)</span>
+          </button>
+          <button onclick="runScenario(3)" class="p-2.5 bg-slate-800 hover:bg-rose-900/80 text-rose-200 text-xs font-bold rounded-lg border border-rose-700/50 text-left transition flex flex-col justify-between space-y-1">
+            <span>3. Loại Bỏ Câu</span>
+            <span class="text-[10px] font-normal text-slate-400">Xóa câu bịa đặt</span>
+          </button>
+          <button onclick="runScenario(4)" class="p-2.5 bg-slate-800 hover:bg-amber-900/80 text-amber-200 text-xs font-bold rounded-lg border border-amber-700/50 text-left transition flex flex-col justify-between space-y-1">
+            <span>4. Khóa Nhiều Câu</span>
+            <span class="text-[10px] font-normal text-slate-400">Giữ PENDING_REVIEW (FR-08)</span>
+          </button>
+          <button onclick="runScenario(5)" class="p-2.5 bg-slate-800 hover:bg-red-900/80 text-red-200 text-xs font-bold rounded-lg border border-red-700/50 text-left transition flex flex-col justify-between space-y-1">
+            <span>5. Sửa Vẫn Lỗi NLI</span>
+            <span class="text-[10px] font-normal text-slate-400">Cảnh báo Red Alert (5a)</span>
+          </button>
+          <button onclick="runScenario(6)" class="p-2.5 bg-slate-800 hover:bg-indigo-900/80 text-indigo-200 text-xs font-bold rounded-lg border border-indigo-700/50 text-left transition flex flex-col justify-between space-y-1">
+            <span>6. Audit Trail Log</span>
+            <span class="text-[10px] font-normal text-slate-400">Xem vết lịch sử (FR-09c)</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -86,7 +119,7 @@
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-bold text-slate-900 flex items-center">
           <i data-lucide="layout-grid" class="w-5 h-5 mr-2 text-blue-600"></i>
-          Phân bố 29 Văn bản theo 5 Chủ đề (Sprint 2 - EPIC-2)
+          Phân bố 29 Văn bản theo 5 Chủ đề (Data Pipeline)
         </h3>
         <span class="text-xs text-slate-500">Bấm vào từng chủ đề để lọc nhanh</span>
       </div>
@@ -102,7 +135,7 @@
           <button id="tab-btn-uc04" onclick="switchTab('uc04')" class="px-4 py-2 text-sm font-bold rounded-xl bg-amber-600 text-white shadow-md flex items-center space-x-2">
             <i data-lucide="shield-check" class="w-4 h-4"></i>
             <span>1. UC-04 Rà soát & Duyệt (Publish Gate)</span>
-            <span id="pending-count-badge" class="ml-1.5 px-2 py-0.5 bg-amber-800 text-amber-100 text-xs rounded-full">0</span>
+            <span id="pending-count-badge" class="ml-1.5 px-2 py-0.5 bg-amber-800 text-amber-100 text-xs rounded-full">10</span>
           </button>
           <button id="tab-btn-documents" onclick="switchTab('documents')" class="px-4 py-2 text-sm font-bold rounded-xl bg-slate-200 text-slate-700 hover:bg-slate-300 flex items-center space-x-2">
             <i data-lucide="folder-kanban" class="w-4 h-4"></i>
@@ -137,18 +170,18 @@
             <div class="flex items-center justify-between">
               <h4 class="text-sm font-bold text-slate-900 flex items-center">
                 <i data-lucide="clock" class="w-4 h-4 mr-1.5 text-amber-600"></i>
-                Hàng đợi Văn bản Cần Rà soát
+                Hàng đợi Văn bản Cần Rà soát (FR-08)
               </h4>
-              <span class="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Ưu tiên: Contradiction > Neutral</span>
+              <span class="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Contradiction > Neutral</span>
             </div>
 
-            <div id="pending-queue-list" class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+            <div id="pending-queue-list" class="space-y-3 max-h-[620px] overflow-y-auto pr-1">
               <!-- Rendered via JS -->
             </div>
           </div>
 
           <!-- PHÂN TÍCH SONG SONG SIDE-BY-SIDE (BÊN PHẢI - 8 COLS) -->
-          <div class="lg:col-span-8 bg-slate-50 rounded-2xl border border-slate-200 p-6 flex flex-col justify-between min-h-[500px] space-y-6">
+          <div class="lg:col-span-8 bg-slate-50 rounded-2xl border border-slate-200 p-6 flex flex-col justify-between min-h-[520px] space-y-6">
             
             <div id="uc04-editor-area" class="space-y-6">
               <div class="flex items-center justify-between border-b border-slate-200 pb-4">
@@ -174,7 +207,7 @@
                     1. Đoạn văn bản gốc từ PDF (Premise)
                   </label>
                   <div id="uc04-premise-text" class="p-4 bg-white rounded-xl border border-slate-200 text-sm text-slate-800 leading-relaxed font-normal shadow-sm min-h-[160px] break-words">
-                    Sinh viên có điểm trung bình học kỳ dưới 1.0 sẽ bị cảnh báo học tập lần 1 theo quy định đào tạo.
+                    BỘ GIÁO DỤC VÀ ĐÀO TẠO
                   </div>
                 </div>
 
@@ -204,6 +237,10 @@
                 Sau khi sửa xong, bấm <strong>Sửa & Duyệt</strong> để kích hoạt NLI Re-validation chạy lại tức thì.
               </div>
               <div class="flex flex-wrap gap-3">
+                <button onclick="handleAction('reject')" class="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl border border-rose-300 transition flex items-center space-x-1.5">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  <span>Loại Bỏ Câu</span>
+                </button>
                 <button onclick="handleAction('manual_override')" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-300 transition flex items-center space-x-1.5">
                   <i data-lucide="eye" class="w-4 h-4 text-slate-600"></i>
                   <span>Duyệt Giữ Nguyên</span>
@@ -428,6 +465,37 @@
       renderPendingQueue(null, currentSamples);
     }
 
+    async function runScenario(num) {
+      switchTab('uc04');
+      if (num === 1) {
+        // Scenario 1: Edit & Re-validate
+        selectSample(2); // test_003
+        document.getElementById('uc04-hypothesis-input').value = "BỘ GIÁO DỤC VÀ ĐÀO TẠO đã ban hành thông tư quy chế đào tạo chính thức.";
+        await handleAction('edit_and_approve');
+      } else if (num === 2) {
+        // Scenario 2: Manual Override
+        selectSample(1); // test_002
+        await handleAction('manual_override');
+      } else if (num === 3) {
+        // Scenario 3: Reject Sentence
+        selectSample(2); // test_003
+        await handleAction('reject');
+      } else if (num === 4) {
+        // Scenario 4: Multi-sentence lock
+        selectSample(21); // test_022
+        await handleAction('edit_and_approve');
+        alert("🔒 FR-08 Multi-sentence Lock: Văn bản NT-2026-Chien-luoc-DAU_2026-2030-2050 vẫn ở trạng thái PENDING_REVIEW vì còn câu bị cờ chưa rà soát xong!");
+      } else if (num === 5) {
+        // Scenario 5: Re-validation Failure Warning
+        selectSample(2); // test_003
+        document.getElementById('uc04-hypothesis-input').value = "Không thực hiện quy định: BỘ GIÁO DỤC VÀ ĐÀO TẠO";
+        await handleAction('edit_and_approve');
+      } else if (num === 6) {
+        // Scenario 6: Audit Log Inspection
+        switchTab('audit');
+      }
+    }
+
     async function handleAction(actionType) {
       const s = currentSamples[selectedSampleIndex];
       if (!s) return;
@@ -435,7 +503,6 @@
       const editedText = document.getElementById('uc04-hypothesis-input').value;
 
       if (actionType === 'edit_and_approve') {
-        // Run live NLI Re-validation
         const reval = await fetch('/api/review/revalidate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -453,7 +520,6 @@
         }
       }
 
-      // Resolve sentence in backend
       const resolveRes = await fetch('/api/review/resolve-sentence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -462,11 +528,10 @@
           doc_id: s.doc_id,
           action: actionType,
           edited_hypothesis: editedText,
-          notes: "Đã rà soát qua UC-04 Studio"
+          notes: "Xử lý kịch bản kiểm thử UC-04 Studio"
         })
       }).then(r => r.json());
 
-      // Update sample status locally
       s.label = actionType === 'edit_and_approve' ? 'entailment' : s.label;
       s.hypothesis = editedText;
 
