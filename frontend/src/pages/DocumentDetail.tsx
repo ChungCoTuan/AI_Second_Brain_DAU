@@ -1,31 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, FileText, CheckCircle } from 'lucide-react';
 import { StatusBadge, NLILabelBadge, ManualOverrideBadge } from '../components/shared/Badge';
 import { RelationList } from '../components/shared/List';
 import { useAuth } from '../context/AuthContext';
+import { fetchDocumentDetail, DocumentItem, ChunkItem, RelationItem } from '../services/api';
+import type { DocStatus } from '../components/shared/Badge';
 
 const DocumentDetail: React.FC = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { role } = useAuth();
 
-  // Mock data
-  const isPending = id === '2'; // Just for demo
-  
-  const summarySentences = [
-    { text: 'Thời gian tối đa để hoàn thành khoá học đối với hệ đại học chính quy là thời gian thiết kế cộng thêm 4 học kỳ.', source: 'Điều 6', label: 'entailment' as const },
-    { text: 'Sinh viên được phép nghỉ học tạm thời tối đa 2 học kỳ liên tiếp.', source: 'Điều 8', label: 'entailment' as const, manualOverride: true },
-    { text: 'Sinh viên năm cuối không được phép đăng ký học vượt quá 20 tín chỉ.', source: 'Điều 12', label: 'contradiction' as const },
-    { text: 'Học phí được tính dựa trên số lượng tín chỉ đăng ký.', source: 'Điều 15', label: 'neutral' as const },
-  ];
+  const [doc, setDoc] = useState<DocumentItem | null>(null);
+  const [chunks, setChunks] = useState<ChunkItem[]>([]);
+  const [relations, setRelations] = useState<RelationItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const relationItems = [
-    { title: 'Quy chế 43/2007/QĐ-BGDĐT', meta: 'Văn bản căn cứ', type: 'direct' as const },
-    { title: 'Quyết định 12/QĐ-ĐHKT', meta: 'Văn bản thay thế', type: 'direct' as const },
-    { title: 'Hướng dẫn thực hiện quy chế đào tạo', meta: 'Văn bản liên quan', type: 'semantic' as const, level: 'direct_apply' as const, similarity: 92 },
-    { title: 'Quy định chuẩn đầu ra Tiếng Anh', meta: 'Văn bản liên quan', type: 'semantic' as const, level: 'general_apply' as const, similarity: 78 },
-  ];
+  useEffect(() => {
+    async function loadDetail() {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const data = await fetchDocumentDetail(id);
+        setDoc(data.document);
+        setChunks(data.chunks);
+        setRelations(data.relations);
+      } catch (err) {
+        console.error("Lỗi khi tải thông tin văn bản:", err);
+        setError("Không tìm thấy văn bản!");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDetail();
+  }, [id]);
+
+  if (loading) {
+    return <div className="dashboard-container"><p>Đang tải chi tiết văn bản thực tế...</p></div>;
+  }
+
+  if (error || !doc) {
+    return (
+      <div className="dashboard-container">
+        <h2>{error || "Không tìm thấy văn bản"}</h2>
+        <button onClick={() => navigate('/')}>Về trang chủ</button>
+      </div>
+    );
+  }
+
+  const isPending = doc.trang_thai_xuat_ban === 'PENDING_REVIEW';
+
+  const mappedRelations = relations.map(r => ({
+    title: r.document_id_b === doc.doc_id ? r.document_id_a : r.document_id_b,
+    meta: `Loại quan hệ: ${r.loai_quan_he} ${r.mo_ta ? '• ' + r.mo_ta : ''}`,
+    type: (r.loai_quan_he === 'LIEN_QUAN_NGU_NGHIA' ? 'semantic' : 'direct') as 'direct' | 'semantic',
+    similarity: r.diem_tuong_dong ? Math.round(r.diem_tuong_dong * 100) : undefined,
+    level: 'direct_apply' as const
+  }));
 
   return (
     <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -37,10 +70,12 @@ const DocumentDetail: React.FC = () => {
         </button>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-            <h1 className="title-h1" style={{ margin: 0 }}>Quy định quản lý điểm sinh viên hệ chính quy</h1>
-            <StatusBadge status={isPending ? 'pending_review' : 'published'} />
+            <h1 className="title-h1" style={{ margin: 0 }}>{doc.ten_van_ban}</h1>
+            <StatusBadge status={(doc.trang_thai_xuat_ban.toLowerCase() as DocStatus)} />
           </div>
-          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Số hiệu: 154/QĐ-ĐHKT • Ngày ban hành: 20/08/2026 • Chủ đề: Đào tạo</p>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+            Số hiệu: {doc.so_hieu} • Cơ quan ban hành: {doc.co_quan_ban_hanh} • Ngày ban hành: {doc.ngay_ban_hanh} • Chủ đề: {doc.chu_de}
+          </p>
         </div>
         <button onClick={() => navigate(`/report/${id}`)} className="hover-lift" style={{ 
           display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '0.75rem 1.25rem', borderRadius: 'var(--radius-md)', fontWeight: 600, border: '1px solid rgba(37, 99, 235, 0.2)'
@@ -53,7 +88,7 @@ const DocumentDetail: React.FC = () => {
         <div className="card" style={{ backgroundColor: 'var(--color-danger-light)', borderColor: 'var(--color-danger)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--color-danger-text)' }}>
             <AlertTriangle size={20} />
-            <span style={{ fontWeight: 600 }}>Văn bản chưa hoàn thiện — còn 2 câu chờ rà soát</span>
+            <span style={{ fontWeight: 600 }}>Văn bản ở trạng thái PENDING_REVIEW (Cần rà soát kiểm duyệt)</span>
           </div>
           <button onClick={() => navigate('/review')} style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--color-danger)', color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 600 }}>
             Xem trong Rà soát
@@ -63,57 +98,49 @@ const DocumentDetail: React.FC = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', flex: 1 }}>
         
-        {/* Đối chiếu trích dẫn (Màn hình 4) */}
+        {/* Danh sách Chunks Điều/Khoản */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <h2 className="title-h2" style={{ margin: 0 }}>Đối chiếu trích dẫn (Tóm tắt AI)</h2>
+          <h2 className="title-h2" style={{ margin: 0 }}>Các đoạn Chunks bóc tách ({chunks.length} đoạn)</h2>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {summarySentences.map((sentence, idx) => (
-              <div key={idx} style={{ 
-                padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)',
-                backgroundColor: sentence.label === 'contradiction' || sentence.label === 'neutral' ? 'var(--bg-main)' : 'var(--bg-surface)',
-                opacity: (sentence.label === 'contradiction' && !isPending) ? 0.5 : 1
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
-                  <p style={{ margin: 0, fontSize: '1rem', lineHeight: 1.5, 
-                    textDecoration: (sentence.label === 'contradiction' && !isPending) ? 'line-through' : 'none' 
-                  }}>
-                    {sentence.text}
+            {chunks.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)' }}>Chưa có chunk chi tiết bóc tách cho văn bản này.</p>
+            ) : (
+              chunks.map((chunk) => (
+                <div key={chunk.chunk_id} style={{ 
+                  padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-surface)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.5rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-primary)' }}>{chunk.title}</h3>
+                    <span className="badge badge-primary-light">Trang {chunk.so_trang}</span>
+                  </div>
+                  <p style={{ margin: '0.5rem 0', fontSize: '0.95rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    {chunk.content}
                   </p>
-                  <NLILabelBadge label={sentence.label} />
+                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    <span>Tokens: {chunk.token_count}</span>
+                    <span>Chủ đề: {chunk.chu_de}</span>
+                    <span>Mức độ: {chunk.muc_do_lien_quan_dau}</span>
+                  </div>
                 </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Nguồn: {sentence.source}</span>
-                  {sentence.manualOverride && <ManualOverrideBadge />}
-                  {isPending && (sentence.label === 'contradiction' || sentence.label === 'neutral') && role === 'admin' && (
-                    <button onClick={() => navigate('/review')} style={{ marginLeft: 'auto', fontSize: '0.875rem', color: 'var(--color-primary)', fontWeight: 500 }}>
-                      Xử lý ngay →
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        {/* Cây văn bản (Màn hình 6) */}
+        {/* Quan hệ văn bản (DocumentRelation) */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <h2 className="title-h2" style={{ margin: 0 }}>Cây văn bản</h2>
+          <h2 className="title-h2" style={{ margin: 0 }}>Mối quan hệ liên văn bản ({relations.length})</h2>
           
           <div style={{ padding: '1rem', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary-hover)', borderRadius: 'var(--radius-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <CheckCircle size={18} />
-            Áp dụng trực tiếp — có quy chế nội bộ
+            Mức độ liên quan DAU: {doc.muc_do_lien_quan_dau}
           </div>
 
           <div>
-            <h3 className="title-h3" style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Quan hệ trực tiếp</h3>
-            <RelationList items={relationItems.filter(item => item.type === 'direct')} />
-          </div>
-
-          <div>
-            <h3 className="title-h3" style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '1rem', marginTop: '1rem' }}>Quan hệ ngữ nghĩa (AI Gợi ý)</h3>
-            <RelationList items={relationItems.filter(item => item.type === 'semantic')} />
+            <h3 className="title-h3" style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Quan hệ trực tiếp ({relations.length})</h3>
+            <RelationList items={mappedRelations} />
           </div>
         </div>
         

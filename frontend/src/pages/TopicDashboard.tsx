@@ -1,29 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UploadCloud, AlertTriangle, BookOpen, Users, Banknote, Building, FileQuestion, ArrowLeft } from 'lucide-react';
 import { TopicCard, DocumentCard } from '../components/shared/Card';
 import type { DocStatus } from '../components/shared/Badge';
+import { fetchTopics, fetchDocuments, fetchReviewItems, DocumentItem, TopicSummary } from '../services/api';
 
 const TopicDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [topics, setTopics] = useState<TopicSummary[]>([]);
+  const [docs, setDocs] = useState<DocumentItem[]>([]);
+  const [pendingCount, setPendingCount] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const pendingCount = 12;
+  useEffect(() => {
+    async function loadInitialData() {
+      try {
+        setLoading(true);
+        const [topicData, reviewData] = await Promise.all([
+          fetchTopics(),
+          fetchReviewItems()
+        ]);
+        setTopics(topicData);
+        setPendingCount(reviewData.pending_count || 0);
+      } catch (err) {
+        console.error("Lỗi khi tải dữ liệu chủ đề:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadInitialData();
+  }, []);
 
-  const topics = [
-    { id: 'dao-tao', title: 'Đào tạo', count: 450, icon: <BookOpen size={24} /> },
-    { id: 'tuyen-sinh', title: 'Tuyển sinh', count: 120, icon: <Users size={24} /> },
-    { id: 'tai-chinh', title: 'Tài chính - Học phí', count: 85, icon: <Banknote size={24} /> },
-    { id: 'nhan-su', title: 'Nhân sự', count: 210, icon: <Users size={24} /> },
-    { id: 'co-so-vat-chat', title: 'Cơ sở vật chất', count: 54, icon: <Building size={24} /> },
-    { id: 'chua-phan-loai', title: 'Chưa phân loại', count: 18, icon: <FileQuestion size={24} /> },
-  ];
+  useEffect(() => {
+    async function loadDocs() {
+      if (!selectedTopic) return;
+      try {
+        setLoading(true);
+        const docList = await fetchDocuments({ topic: selectedTopic });
+        setDocs(docList);
+      } catch (err) {
+        console.error("Lỗi khi tải danh sách văn bản:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDocs();
+  }, [selectedTopic]);
 
-  const mockDocs = [
-    { id: '1', title: 'Quy chế đào tạo đại học hệ chính quy theo hệ thống tín chỉ', type: 'Quy chế', topic: 'Đào tạo', status: 'published' as DocStatus, date: '15/08/2026' },
-    { id: '2', title: 'Quy định quản lý điểm sinh viên hệ chính quy', type: 'Quy định', topic: 'Đào tạo', status: 'pending_review' as DocStatus, date: '20/08/2026' },
-    { id: '3', title: 'Hướng dẫn thực hiện khóa luận tốt nghiệp', type: 'Hướng dẫn', topic: 'Đào tạo', status: 'published' as DocStatus, date: '22/08/2026' },
-  ];
+  const getTopicIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'BookOpen': return <BookOpen size={24} />;
+      case 'Users': return <Users size={24} />;
+      case 'Banknote': return <Banknote size={24} />;
+      case 'Building': return <Building size={24} />;
+      default: return <FileQuestion size={24} />;
+    }
+  };
 
   return (
     <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -46,7 +79,7 @@ const TopicDashboard: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <AlertTriangle size={24} />
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.125rem' }}>Có {pendingCount} văn bản đang chờ rà soát</h3>
+              <h3 style={{ margin: 0, fontSize: '1.125rem' }}>Có {pendingCount} văn bản đang chờ rà soát PENDING_REVIEW</h3>
               <p style={{ margin: 0, fontSize: '0.875rem', opacity: 0.8 }}>Bấm vào đây để đi tới màn hình Rà soát & Duyệt</p>
             </div>
           </div>
@@ -65,7 +98,7 @@ const TopicDashboard: React.FC = () => {
       {!selectedTopic ? (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h1 className="title-h1" style={{ margin: 0 }}>Dashboard theo chủ đề</h1>
+            <h1 className="title-h1" style={{ margin: 0 }}>Dashboard theo chủ đề (Thực tế Pipeline)</h1>
             <button className="hover-lift" style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -87,22 +120,22 @@ const TopicDashboard: React.FC = () => {
                 key={topic.id} 
                 title={topic.title} 
                 count={topic.count} 
-                icon={topic.icon} 
+                icon={getTopicIcon(topic.icon)} 
                 onClick={() => setSelectedTopic(topic.id)}
               />
             ))}
           </div>
 
           <div className="card">
-            <h2 className="title-h2">Hàng đợi xử lý</h2>
+            <h2 className="title-h2">Trạng thái Pipeline dữ liệu thực tế</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                <span style={{ fontWeight: 500 }}>Quyết định ban hành khung học phí 2026.pdf</span>
-                <span className="badge badge-warning">Đang trích xuất OCR...</span>
+                <span style={{ fontWeight: 500 }}>Kiểm duyệt Pydantic Quality Gate: 29 Documents, 56 Chunks</span>
+                <span className="badge badge-success">✅ 100% Valid</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem' }}>
-                <span style={{ fontWeight: 500 }}>Kế hoạch tuyển sinh bổ sung đợt 2.docx</span>
-                <span className="badge badge-primary-light">Đang phân loại chủ đề...</span>
+                <span style={{ fontWeight: 500 }}>Phân loại chủ đề NER (Epic-2): 5 Nhóm Topic</span>
+                <span className="badge badge-primary-light">✅ Đã gán 29 văn bản</span>
               </div>
             </div>
           </div>
@@ -122,17 +155,30 @@ const TopicDashboard: React.FC = () => {
             >
               <ArrowLeft size={20} />
             </button>
-            <h1 className="title-h1" style={{ margin: 0 }}>Chủ đề: {topics.find(t => t.id === selectedTopic)?.title}</h1>
+            <h1 className="title-h1" style={{ margin: 0 }}>
+              Chủ đề: {topics.find(t => t.id === selectedTopic)?.title} ({docs.length} văn bản thực tế)
+            </h1>
           </div>
           
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {mockDocs.map(doc => (
-              <DocumentCard 
-                key={doc.id} 
-                {...doc} 
-                onClick={() => navigate(`/document/${doc.id}`)}
-              />
-            ))}
+            {loading ? (
+              <p>Đang tải danh sách văn bản...</p>
+            ) : docs.length === 0 ? (
+              <p>Chưa có văn bản thuộc chủ đề này.</p>
+            ) : (
+              docs.map(doc => (
+                <DocumentCard 
+                  key={doc.doc_id} 
+                  id={doc.doc_id}
+                  title={doc.ten_van_ban}
+                  type={doc.loai_van_ban}
+                  topic={doc.chu_de}
+                  status={(doc.trang_thai_xuat_ban.toLowerCase() as DocStatus)}
+                  date={doc.ngay_ban_hanh}
+                  onClick={() => navigate(`/document/${doc.doc_id}`)}
+                />
+              ))
+            )}
           </div>
         </div>
       )}
