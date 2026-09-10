@@ -17,8 +17,8 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="sidebar" style={{ width: '260px', background: '#fff', borderRight: '1px solid var(--line)', padding: '20px 0' }}>
       <div className="sidebar-header" style={{ padding: '0 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div className="logo" style={{ background: 'var(--blue)', color: '#fff', borderRadius: '8px', padding: '6px' }}>
-          <Book size={20} />
+        <div className="logo" style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src="/dau-logo.png" alt="DAU" style={{ maxWidth: '100%', maxHeight: '100%' }} />
         </div>
         <span style={{ fontWeight: 800, color: 'var(--blue)', fontSize: '18px' }}>Second Brain</span>
       </div>
