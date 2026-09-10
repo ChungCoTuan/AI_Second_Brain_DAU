@@ -1,6 +1,6 @@
 import React from 'react';
 
-type StatusType = 'success' | 'warning' | 'danger';
+type StatusType = 'success' | 'warning' | 'danger' | 'danger-alert' | 'neutral' | 'primary-light';
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -9,7 +9,7 @@ interface StatusBadgeProps {
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label }) => {
   return (
-    <span className={`status-badge status-${status}`}>
+    <span className={`badge badge-${status}`}>
       {label}
     </span>
   );

@@ -43,6 +43,15 @@
   border: 1px solid rgba(107, 114, 128, 0.2);
 }
 
+.badge-danger-alert {
+  background-color: var(--color-danger-alert);
+  color: white;
+  border: 1px solid #cc0000;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 10px rgba(255,0,0,0.4);
+}
+
 .badge-primary-light {
   background-color: var(--color-primary-light);
   color: var(--color-primary-hover);
