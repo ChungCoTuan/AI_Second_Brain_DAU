@@ -41,6 +41,7 @@
 | UC-07 Đối chiếu trích dẫn | ✔ | ✔ | |
 | UC-08 Xem văn bản liên quan ("Cây văn bản") | ✔ | ✔ | ✔ |
 | UC-09 Duyệt văn bản theo chủ đề | ✔ | | |
+| UC-10 Rà soát Cảnh báo Pháp lý (Auditing) | ✔ | | ✔ |
 
 ---
 
@@ -52,6 +53,7 @@
 | FR-02 | Hệ thống tự động chia văn bản thành các đoạn theo cấu trúc Điều/Khoản, mỗi đoạn có ID và số trang | UC-02 | Bắt buộc |
 | FR-03 | Hệ thống tự động phân loại văn bản theo **loại văn bản** (thông tư/quyết định/công văn/giáo trình) **và chủ đề/lĩnh vực** (theo danh mục cố định) | UC-02, UC-09 | Bắt buộc |
 | FR-04 | Hệ thống tự động trích xuất số hiệu, ngày ban hành, cơ quan ban hành | UC-02 | Bắt buộc |
+| FR-04b | Hệ thống tự động bóc tách **Nghĩa vụ (Obligations)** của nhà trường và **Con số luật đòi (Thresholds/KPIs)** từ văn bản pháp quy | UC-02 | Bắt buộc |
 | FR-05 | Hệ thống tự động phát hiện yêu cầu báo cáo trong văn bản (nếu có): nội dung, hạn nộp, đơn vị chịu trách nhiệm | UC-02 | Bắt buộc |
 | FR-06 | Hệ thống sinh bản tóm tắt, mỗi câu gắn kèm ID đoạn nguồn | UC-03 | Bắt buộc |
 | FR-07 | Hệ thống phân loại từng câu tóm tắt bằng mô hình NLI thành 1 trong 3 nhãn: `entailment`/`contradiction`/`neutral` trước khi hiển thị | UC-03 | Bắt buộc |
@@ -66,7 +68,9 @@
 | FR-14 | Người dùng có thể xem đối chiếu từng câu tóm tắt với đoạn nguồn kèm điểm độ tin cậy và nhãn NLI | UC-07 | Nên có |
 | FR-15 | Hệ thống ghi log mọi câu hỏi/câu trả lời kèm điểm faithfulness để phục vụ giám sát chất lượng | UC-06 | Nên có |
 | FR-16 | Hệ thống hiển thị danh sách văn bản liên quan tới văn bản đang xem, phân theo quan hệ tường minh (căn cứ/thay thế/sửa đổi) và quan hệ ngữ nghĩa (cùng chủ đề), kèm mức độ áp dụng đối với trường | UC-08 | Bắt buộc |
+| FR-16b | Hệ thống tự động cập nhật và hiển thị **mốc sự kiện hiệu lực** (còn hiệu lực, sắp hết hạn, đã hết hiệu lực, văn bản thay thế) | UC-08 | Bắt buộc |
 | FR-17 | Hệ thống nhóm và hiển thị văn bản theo chủ đề dạng dashboard, thay cho danh sách hàng đợi phẳng | UC-09 | Bắt buộc |
+| FR-18 | Hệ thống tự động **quét chéo Quy chế nội bộ**, phát cờ Cảnh báo nếu quy chế đang trích dẫn sai Luật/Nghị định/Thông tư đã hết hiệu lực | UC-10 | Bắt buộc (Giá trị cốt lõi) |
 
 ---
 
@@ -91,9 +95,9 @@
 | **Actor chính** | Hệ thống (tự động) |
 | **Mô tả** | Hệ thống tự động OCR (nếu cần), chia đoạn, phân loại và trích xuất thông tin từ văn bản |
 | **Điều kiện tiên quyết** | Văn bản đã hoàn tất UC-01 |
-| **Luồng chính** | 1. Nếu văn bản là ảnh scan → chạy OCR (PaddleOCR/Tesseract).<br>2. Chia văn bản thành các đoạn theo Điều/Khoản/Mục, gán ID + số trang cho từng đoạn.<br>3. Chạy mô hình phân loại xác định **loại văn bản** và **chủ đề/lĩnh vực** (theo danh mục cố định — phục vụ UC-09).<br>4. Chạy mô hình NER trích xuất: số hiệu, ngày ban hành, cơ quan ban hành.<br>5. Kiểm tra văn bản có chứa yêu cầu báo cáo không; nếu có, trích xuất nội dung yêu cầu, hạn nộp, đơn vị chịu trách nhiệm.<br>6. Lưu toàn bộ kết quả vào cơ sở dữ liệu, chuyển văn bản sang bước tóm tắt (kích hoạt UC-03). |
-| **Luồng ngoại lệ** | 1a. OCR chất lượng thấp (độ tin cậy < ngưỡng) → gắn cờ "cần nhập liệu thủ công", tạm dừng pipeline.<br>3a. Độ tin cậy phân loại chủ đề thấp → xếp vào nhóm "Chưa phân loại" trong UC-09, không tự ý gán bừa.<br>4a. NER trích xuất với độ tin cậy thấp → vẫn lưu nhưng gắn cờ "cần cán bộ xác nhận" |
-| **Điều kiện sau** | Văn bản có cấu trúc đoạn rõ ràng, kèm metadata đã trích xuất (bao gồm loại văn bản và chủ đề) |
+| **Luồng chính** | 1. Nếu văn bản là ảnh scan → chạy OCR (PaddleOCR/Tesseract).<br>2. Chia văn bản thành các đoạn theo Điều/Khoản/Mục, gán ID + số trang cho từng đoạn.<br>3. Chạy mô hình phân loại xác định **loại văn bản** và **chủ đề/lĩnh vực**.<br>4. Chạy mô hình NER trích xuất: số hiệu, ngày ban hành, cơ quan ban hành, hiệu lực thi hành.<br>5. **Bóc tách Pháp chế:** Trích xuất các **Nghĩa vụ** (yêu cầu báo cáo, nhiệm vụ của trường) và **Con số luật đòi** (chỉ tiêu, tỷ lệ, ngưỡng thời gian).<br>6. Lưu toàn bộ kết quả vào cơ sở dữ liệu, chuyển văn bản sang bước tóm tắt (kích hoạt UC-03) và kích hoạt đối chiếu chéo (UC-10). |
+| **Luồng ngoại lệ** | 1a. OCR chất lượng thấp (độ tin cậy < ngưỡng) → gắn cờ "cần nhập liệu thủ công", tạm dừng pipeline.<br>3a. Độ tin cậy phân loại chủ đề thấp → xếp vào nhóm "Chưa phân loại" trong UC-09, không tự ý gán bừa.<br>4a. NER/Bóc tách trích xuất với độ tin cậy thấp → vẫn lưu nhưng gắn cờ "cần cán bộ xác nhận" |
+| **Điều kiện sau** | Văn bản có cấu trúc đoạn rõ ràng, kèm metadata đã trích xuất, danh sách nghĩa vụ và con số chốt |
 | **Tiêu chí chấp nhận** | Độ chính xác NER (F1) đạt mức chấp nhận được trên tập test; 100% văn bản được chia đoạn có ID hợp lệ; độ chính xác phân loại chủ đề ≥ 85% trên tập test |
 
 ### UC-03 — Tóm tắt có trích dẫn *(use case lõi)*
@@ -167,10 +171,10 @@
 | **Actor chính** | Giảng viên, Cán bộ Phòng Đào tạo |
 | **Mô tả** | Khi xem một văn bản, người dùng thấy được các văn bản liên quan và mức độ áp dụng của văn bản đó đối với trường |
 | **Điều kiện tiên quyết** | Văn bản đang xem ở trạng thái `published` |
-| **Luồng chính** | 1. Người dùng mở chi tiết 1 văn bản.<br>2. Hệ thống hiển thị 2 nhóm: (a) **Quan hệ trực tiếp** — văn bản mà văn bản này căn cứ vào, hoặc thay thế/bị thay thế (phát hiện bằng rule/NER); (b) **Quan hệ ngữ nghĩa** — các văn bản `published` khác gần nghĩa nhất (tái sử dụng Embedding + Vector DB đã có ở UC-06, truy vấn bằng chính nội dung văn bản thay vì câu hỏi người dùng).<br>3. Hệ thống hiển thị nhãn **mức độ áp dụng cho trường** (ví dụ: "Áp dụng trực tiếp — có quy chế nội bộ trường cụ thể hóa" / "Áp dụng chung, chưa có văn bản nội bộ tương ứng" / "Chỉ mang tính tham khảo"). |
+| **Luồng chính** | 1. Người dùng mở chi tiết 1 văn bản.<br>2. Hệ thống hiển thị 2 nhóm: (a) **Quan hệ trực tiếp** — văn bản mà văn bản này căn cứ vào, hoặc thay thế/bị thay thế (phát hiện bằng rule/NER); (b) **Quan hệ ngữ nghĩa** — các văn bản `published` khác gần nghĩa nhất.<br>3. Hệ thống hiển thị **Trạng thái hiệu lực**: Còn hiệu lực, sắp hết hạn (kèm đồng hồ đếm ngược), hoặc Đã bị thay thế (highlight màu đỏ). Nếu bị thay thế, bắt buộc hiển thị kèm link của **văn bản thay thế**.<br>4. Hệ thống hiển thị nhãn **mức độ áp dụng cho trường**. |
 | **Luồng ngoại lệ** | Không tìm được văn bản nào đủ gần nghĩa (dưới ngưỡng similarity) → hiển thị "Chưa phát hiện văn bản liên quan", không ép hiển thị kết quả không đủ liên quan |
 | **Điều kiện sau** | Không thay đổi trạng thái hệ thống (chỉ xem), trừ khi cán bộ chủ động xác nhận lại nhãn mức độ áp dụng |
-| **Tiêu chí chấp nhận** | Với văn bản có quan hệ tường minh thực sự tồn tại trong kho (ví dụ văn bản B ghi rõ "thay thế văn bản A"), hệ thống phải phát hiện được quan hệ đó tối thiểu 90% trường hợp trên tập test |
+| **Tiêu chí chấp nhận** | Hệ thống phải cảnh báo UI nổi bật (màu đỏ) đối với các văn bản đã hết hiệu lực, đảm bảo người dùng không sử dụng nhầm thông tin pháp lý cũ. |
 
 ### UC-09 — Duyệt văn bản theo chủ đề (Topic Dashboard)
 
@@ -183,6 +187,18 @@
 | **Luồng ngoại lệ** | Văn bản chưa phân loại được chủ đề (độ tin cậy thấp) → xếp vào nhóm "Chưa phân loại" riêng, không gán bừa vào 1 chủ đề |
 | **Điều kiện sau** | Không thay đổi trạng thái hệ thống (chỉ xem/điều hướng) |
 | **Tiêu chí chấp nhận** | Văn bản được nhóm đúng chủ đề cho tối thiểu 85% trường hợp trên tập test (đối chiếu với gán nhãn tay) |
+
+### UC-10 — Rà soát Cảnh báo Pháp lý (Auditing)
+
+| | |
+|---|---|
+| **Actor chính** | Hệ thống (tự động), Cán bộ Phòng Đào tạo |
+| **Mô tả** | Tự động quét đối chiếu giữa Quy chế nội bộ của nhà trường và kho Văn bản pháp quy (Chính phủ/Bộ) để phát hiện sự lỗi thời. |
+| **Điều kiện tiên quyết** | Hệ thống đã có danh sách các văn bản hiệu lực và văn bản đã hết hiệu lực trong DB |
+| **Luồng chính** | 1. Mỗi khi có văn bản pháp quy mới được nạp (hoặc chạy định kỳ), Hệ thống tự động quét toàn bộ kho Quy chế nội bộ.<br>2. Hệ thống dò tìm các chuỗi tham chiếu (VD: "Căn cứ Thông tư 08/2021...").<br>3. Nếu tham chiếu trỏ đến một văn bản đã hết hiệu lực, hệ thống sinh ra một **Cảnh báo (Warning)**.<br>4. Cán bộ Phòng Đào tạo vào mục "Kiểm định pháp chế", xem danh sách các văn bản nội bộ đang bị "lỗi thời".<br>5. Cán bộ click vào chi tiết, xem rõ: *Quy chế A đang gọi Thông tư B đã chết, cần cập nhật theo Thông tư C mới*. |
+| **Luồng ngoại lệ** | Nếu văn bản quy chế là bản PDF scan OCR sai số hiệu → hệ thống có thể không nhận diện được tham chiếu, cần có chức năng báo cáo thủ công. |
+| **Điều kiện sau** | Danh sách Cảnh báo được lưu lại phục vụ việc họp bàn sửa đổi Quy chế của trường. |
+| **Tiêu chí chấp nhận** | Phát hiện 100% các chuỗi trích dẫn tường minh (như "Nghị định 99/2019/NĐ-CP") đã hết hiệu lực trong cơ sở dữ liệu test. |
 
 ---
 

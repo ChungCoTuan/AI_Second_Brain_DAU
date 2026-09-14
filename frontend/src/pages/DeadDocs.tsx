@@ -1,12 +1,13 @@
 import React from 'react';
-import { DEMO_DATA } from '../data';
+import { useData } from '../context/DataContext';
 import { fmtDate } from '../utils';
 import { useDetail } from '../context/DetailContext';
 
 const DeadDocs: React.FC = () => {
   const { openDetail } = useDetail();
-  const rows = DEMO_DATA.vbTuChet || [];
-  const sap = DEMO_DATA.vbSapChet || [];
+  const { data } = useData();
+  const rows = data.vbTuChet || [];
+  const sap = data.vbSapChet || [];
 
   if (!rows.length && !sap.length) {
     return (

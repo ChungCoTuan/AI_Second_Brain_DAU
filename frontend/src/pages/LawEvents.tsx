@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DEMO_DATA } from '../data';
+import { useData } from '../context/DataContext';
 import { badge, fmtDate, fold, hl } from '../utils';
 import { useDetail } from '../context/DetailContext';
 
 const LawEvents: React.FC = () => {
   const { openDetail } = useDetail();
+  const { data } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const events = DEMO_DATA.events || [];
-  const SK = DEMO_DATA.suKienHieuLuc || [];
+  const events = data.events || [];
+  const SK = data.suKienHieuLuc || [];
 
   const q = fold(searchTerm);
   const filteredSK = SK.filter((s: any) => {

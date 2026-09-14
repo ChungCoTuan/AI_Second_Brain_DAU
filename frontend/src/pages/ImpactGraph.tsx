@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { DEMO_DATA } from '../data';
+import { useData } from '../context/DataContext';
 import { useDetail } from '../context/DetailContext';
 
 const ImpactGraph: React.FC = () => {
   const { openDetail } = useDetail();
-  const impact = DEMO_DATA.impact || [];
+  const { data } = useData();
+  const impact = data.impact || [];
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   if (impact.length === 0) return null;
@@ -161,7 +162,7 @@ const ImpactGraph: React.FC = () => {
                             key={`node-${i}`}
                             className="dnode"
                             style={{ cursor: 'pointer' }}
-                            onClick={() => openDetail(d.docId)}
+                            onClick={() => openDetail(d.soHieu)}
                           >
                             <rect
                               x={dx}

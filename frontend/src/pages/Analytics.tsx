@@ -1,8 +1,9 @@
 import React from 'react';
-import { DEMO_DATA } from '../data';
+import { useData } from '../context/DataContext';
 
 const Analytics: React.FC = () => {
-  const I = DEMO_DATA.insights;
+  const { data } = useData();
+  const I = data.insights || {};
 
   const renderBars = (rows: any[], className = '') => {
     const max = Math.max(...rows.map((r) => r.n));
@@ -171,7 +172,7 @@ const Analytics: React.FC = () => {
         <div className="panels">
           <div className="panel">
             <div className="panel-h">Căn cứ bị viện nhiều nhất</div>
-            {renderBars(I.topCanCu.map((x: any) => ({ label: x.canCu, n: x.n })))}
+            {renderBars((I.topCanCu || []).map((x: any) => ({ label: x.canCu, n: x.n })))}
           </div>
           <div className="panel">
             <div className="panel-h">Thay thế / bãi bỏ</div>
@@ -180,7 +181,7 @@ const Analytics: React.FC = () => {
               Văn bản thay thế theo năm
             </div>
             {renderBars(
-              I.theoNam.map((x: any) => ({ label: x.nam, n: x.n })),
+              (I.theoNam || []).map((x: any) => ({ label: x.nam, n: x.n })),
               'barY'
             )}
           </div>

@@ -56,6 +56,7 @@
 | EPIC-4: Thư viện Template + Report Suggestion | R, A | C | I |
 | EPIC-5: Embedding + RAG Chatbot | C | R, A | I |
 | **EPIC-6: Cây văn bản** | C | R, A | I |
+| **EPIC-11: Rà soát Cảnh báo Pháp lý (Cross-Auditing, WF-09/UC-10 — mở rộng từ EPIC-6, tái dùng chung logic phát hiện quan hệ tường minh)** | C | R, A | I |
 | **EPIC-10: Dashboard theo chủ đề** | R, A | C | I |
 | EPIC-7: Tích hợp end-to-end | R, A | R | I |
 | EPIC-8: Đánh giá định lượng | R | R, A | C |
@@ -75,7 +76,7 @@
 | Sprint 1 | 3–4 | Xây Ingestion Service, chia đoạn Điều/Khoản | Chạy baseline TextRank; chạy thử nhanh checkpoint pretrained trên vài văn bản đầu để có cảm nhận sớm | Kiểm tra output của TV1 (chunk có ID) tương thích với input mà TV2 cần |
 | Sprint 2 | 5–6 | Classification (loại + **chủ đề**) + NER cơ bản | Đánh giá sơ bộ mô hình pretrained trên tập đã có; cân nhắc LoRA nhẹ nếu kết quả kém (Kế hoạch Dữ liệu, Bước 3 — tùy chọn) | Demo nội bộ giữa 2 người: dữ liệu đã trích xuất từ TV1 chạy thử qua model của TV2 |
 | Sprint 3 | 7–8 | **Cùng làm:** NLI 3 nhãn (entailment/contradiction/neutral) + citation mapping + **Review Service** (hàng đợi ưu tiên, audit trail, cơ chế publish theo văn bản) | **Cùng làm:** (như cột bên trái — không tách việc) | Cả 2 cùng ngồi code chung phần này — đây là sprint nặng nhất, không tách việc |
-| Sprint 4 | 9–10 | **Thư viện Template** + Report Suggestion theo từng loại; bắt đầu UI **Dashboard theo chủ đề** | Embedding + RAG chatbot (chỉ trên văn bản `published`); **Cây văn bản** (tái sử dụng Vector DB của RAG, không xây thêm mô hình) | Chạy thử độc lập 2 module, chuẩn bị ghép ở Sprint 5 |
+| Sprint 4 | 9–10 | **Thư viện Template** + Report Suggestion theo từng loại; bắt đầu UI **Dashboard theo chủ đề** | Embedding + RAG chatbot (chỉ trên văn bản `published`); **Cây văn bản** (tái sử dụng Vector DB của RAG, không xây thêm mô hình); **Cross-Auditing** (tái dùng logic phát hiện "Căn cứ..." của Cây văn bản, thêm bước tra `ValidityEvent` để sinh `Warning` — chi phí thấp vì dùng lại hạ tầng đã có) | Chạy thử độc lập 2 module, chuẩn bị ghép ở Sprint 5 |
 | Sprint 5 | 11 | Hoàn thiện Dashboard theo chủ đề, ghép nối toàn bộ pipeline | Hỗ trợ ghép nối phần AI vào Dashboard + hiển thị Cây văn bản, kiểm thử end-to-end | Test toàn bộ luồng cùng nhau, danh sách lỗi cần sửa gấp |
 | Sprint 6 | 12 | Chạy đánh giá phần dữ liệu/NER/chủ đề, viết phần kiến trúc-triển khai trong báo cáo | Chạy đánh giá ROUGE/BERTScore/phân phối 3 nhãn NLI/Cây văn bản, viết phần mô hình-kết quả trong báo cáo | Ghép báo cáo hoàn chỉnh, tổng duyệt trước khi nộp/demo |
 

@@ -81,24 +81,38 @@ dau-second-brain/
 └── README.md
 ```
 
-## Bắt đầu nhanh
+## Bắt đầu nhanh (Môi trường Local Development)
 
-**Yêu cầu:** Docker, Docker Compose, Python 3.10+
+**Yêu cầu:** Node.js (v18+), Python 3.10+, PostgreSQL.
 
+**1. Cấu hình CSDL PostgreSQL**
+- Tạo một database mới trong pgAdmin tên là `dau_second_brain`.
+- Cấu hình file `backend/.env` với chuỗi kết nối tương ứng:
+  `DATABASE_URL="postgresql://postgres:<MAT_KHAU>@localhost:5432/dau_second_brain"`
+
+**2. Khởi động Backend (FastAPI)**
+Mở một terminal mới (trong VS Code hoặc PowerShell) và chạy:
 ```bash
-# 1. Clone repository
-git clone <repository-url>
-cd dau-second-brain
-
-# 2. Cấu hình biến môi trường
-cp .env.example .env
-
-# 3. Khởi động toàn bộ hệ thống
-docker-compose up --build
-
-# 4. Mở dashboard
-# http://localhost:8501 (hoặc cổng đã cấu hình trong .env)
+cd backend
+# Cài đặt thư viện (nếu chưa cài)
+.\venv\Scripts\pip install -r requirements.txt
+# Chạy API Server
+.\venv\Scripts\uvicorn app.main:app --reload --port 8000
 ```
+
+**3. Khởi động Frontend (React/Vite)**
+Mở thêm một terminal thứ hai và chạy:
+```bash
+cd frontend
+# Cài đặt thư viện (nếu chưa cài)
+npm install
+# Chạy Web UI
+npm run dev
+```
+
+**4. Truy cập hệ thống**
+- Giao diện người dùng: http://localhost:5173
+- Tài liệu API (Swagger UI): http://localhost:8000/docs
 
 ## Tài liệu dự án
 

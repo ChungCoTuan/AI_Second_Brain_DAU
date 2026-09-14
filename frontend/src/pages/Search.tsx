@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { DEMO_DATA } from '../data';
+import React, { useState, useEffect } from 'react';
 import { fold, hl } from '../utils';
 import { useDetail } from '../context/DetailContext';
 
@@ -8,23 +7,44 @@ const Search: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [nguon, setNguon] = useState('all');
   const [loai, setLoai] = useState('all');
+  
+  const [results, setResults] = useState<any[]>([]);
+  const [total, setTotal] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const C = DEMO_DATA.corpus || [];
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      setLoading(true);
+      const params = new URLSearchParams({
+        q: searchTerm,
+        nguon: nguon,
+        loai: loai
+      });
+      
+      fetch(`http://localhost:8000/api/v1/search?${params.toString()}`)
+        .then(res => res.json())
+        .then(data => {
+          setResults(data.results || []);
+          setTotal(data.total || 0);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Lỗi khi tìm kiếm:", err);
+          setLoading(false);
+        });
+    }, 300);
 
-  const nBo = C.filter((r: any) => r.nguon === 'bộ').length;
-  const nTr = C.length - nBo;
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, nguon, loai]);
 
-  const loais = Array.from(new Set(C.map((r: any) => r.loai).filter(Boolean))).sort();
+  const nBo = results.filter((r: any) => r.nguon === 'bộ').length;
+  const nTr = results.length - nBo;
+
+  // Giả lập danh sách loại văn bản để hiển thị trong select box
+  const loais = ['Công văn', 'Quyết định', 'Quy chế', 'Thông tư'];
 
   const q = fold(searchTerm);
-  const kq = C.filter((r: any) => {
-    if (nguon !== 'all' && r.nguon !== nguon) return false;
-    if (loai !== 'all' && r.loai !== loai) return false;
-    if (!q) return true;
-    return fold([r.soHieu, r.tomTat, (r.chuDe || []).join(' '), (r.tags || []).join(' '), r.coQuan].join(' ')).includes(q);
-  });
-
-  const show = kq.slice(0, 120);
+  const show = results;
 
   const cat = (s: string, n: number) => {
     s = String(s == null ? '' : s);
@@ -39,9 +59,7 @@ const Search: React.FC = () => {
       <div className="wrap">
         <h2>Tra cứu kho văn bản</h2>
         <p className="sub">
-          <b>{C.length}</b> bản ghi tra được: <b>{nTr}</b> văn bản của trường và <b>{nBo}</b> văn bản của Bộ vừa bóc. Đây{' '}
-          <b>không</b> phải toàn bộ kho: hệ thống khai {DEMO_DATA.tongCorpus || '?'} văn bản nhưng chỉ {nTr} cái có bản
-          trích xuất. Phần chênh được nói rõ ở mục <a>Chỗ hệ thống chưa biết</a>.
+          <b>{results.length}</b> bản ghi phù hợp trên tổng số <b>{total}</b> văn bản trong kho (được trả về qua API động).
         </p>
         <div className="srow">
           <input
@@ -67,18 +85,17 @@ const Search: React.FC = () => {
             ))}
           </select>
           <span className="cnt" id="traCnt">
-            <b>{kq.length}</b> / {C.length} bản ghi
+            {loading ? <b>Đang tìm...</b> : <><b>{results.length}</b> / {total} bản ghi</>}
           </span>
         </div>
 
         <div className="rlist" id="traList">
-          {show.length > 0 ? (
-            show.map((r: any) => (
+          {show.map((r: any) => (
               <div
-                key={r.id}
+                key={r.id || r.soHieu}
                 className="r"
-                data-did={r.id}
-                onClick={() => openDetail(r.id)}
+                data-did={r.id || r.soHieu}
+                onClick={() => openDetail(r.soHieu)}
               >
                 <div>
                   <span className="rs">{hl(r.soHieu, q)}</span>
@@ -110,12 +127,9 @@ const Search: React.FC = () => {
                   ) : null}
                 </div>
               </div>
-            ))
-          ) : (
+            ))}
+          {results.length === 0 && !loading && (
             <div className="empty">Không tìm thấy. Thử gõ số hiệu, ví dụ 54/2026, hoặc từ khoá không dấu.</div>
-          )}
-          {kq.length > show.length && (
-            <div className="empty">Còn {kq.length - show.length} bản ghi nữa, gõ thêm để thu hẹp.</div>
           )}
         </div>
       </div>

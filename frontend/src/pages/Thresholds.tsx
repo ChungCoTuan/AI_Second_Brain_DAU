@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { DEMO_DATA } from '../data';
+import { useData } from '../context/DataContext';
 import { fold, hl, fmtDate } from '../utils';
 import { useDetail } from '../context/DetailContext';
 
 const Thresholds: React.FC = () => {
   const { openDetail } = useDetail();
-  const CS = DEMO_DATA.conSoChot || [];
+  const { data, loading } = useData();
+  const CS = data.conSoChot || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [vb, setVb] = useState('all');
 
@@ -38,11 +39,8 @@ const Thresholds: React.FC = () => {
   return (
     <section id="nguong" style={{ background: 'var(--soft)' }}>
       <div className="wrap">
-        <h2>Sổ tra ngưỡng và định mức</h2>
-        <p className="sub">
-          Bóc tách mọi con số từ các nghị định, thông tư. Có ích khi cần viết tờ trình mà không nhớ chính xác con số nằm
-          ở đâu.
-        </p>
+        <h2>Sổ tra ngưỡng & Định mức {loading && <span style={{fontSize: '14px', color: '#888'}}>(Đang tải...)</span>}</h2>
+        <p className="sub">Tra cứu nhanh các con số, tỷ lệ, thời hạn, định mức bắt buộc.</p>
 
         <div className="srow">
           <input

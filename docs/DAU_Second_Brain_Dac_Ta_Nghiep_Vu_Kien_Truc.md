@@ -41,9 +41,11 @@ Tài liệu này đặc tả kiến trúc hệ thống, quy trình nghiệp vụ
 - Thu thập, số hóa văn bản pháp quy từ **chinhphu.vn** và **tài liệu liên quan trực tiếp tới trường**, cùng tài liệu giảng dạy (giáo trình, slide, đề cương).
 - Tóm tắt tự động có trích dẫn nguồn theo điều/khoản, đảm bảo tính trung thực (faithfulness) — **văn bản có câu bị NLI chấm "contradiction" không được tự động xuất bản, phải qua rà soát con người (human-in-the-loop) trước khi phục vụ tra cứu.**
 - Trích xuất thông tin có cấu trúc: số hiệu, ngày ban hành, cơ quan ban hành, yêu cầu báo cáo, hạn nộp, **chủ đề/lĩnh vực, mức độ liên quan tới trường.**
+- **Bóc tách Pháp chế & Kiểm định:** Tự động bóc tách **Nghĩa vụ** (yêu cầu báo cáo, nhiệm vụ của trường) và **Con số luật đòi** (chỉ tiêu, tỷ lệ, ngưỡng).
 - Gợi ý dàn ý/khung báo cáo cho giảng viên dựa trên yêu cầu trong văn bản — **mỗi loại báo cáo có template riêng phù hợp, không dùng chung 1 khuôn cho mọi văn bản.**
 - Tra cứu ngữ nghĩa (semantic search) và hỏi-đáp (chatbot RAG) có trích dẫn, **chỉ trên các văn bản đã hoàn tất rà soát.**
-- **Hiển thị "Cây văn bản" — văn bản liên quan (quan hệ căn cứ/dẫn chiếu, cùng chủ đề) và mức độ áp dụng đối với trường**, ở phạm vi rút gọn (xem ghi chú bên dưới).
+- **Hiển thị "Cây văn bản" & Cảnh báo Hiệu lực** — văn bản liên quan (quan hệ căn cứ/dẫn chiếu, cùng chủ đề) và theo dõi sát sao mốc sự kiện hiệu lực (Cảnh báo đỏ khi văn bản hết hiệu lực hoặc bị thay thế).
+- **Rà soát Cảnh báo chéo (Cross-Auditing):** Tự động phát hiện các Quy chế nội bộ của trường đang trích dẫn sai luật đã hết hiệu lực.
 - **Dashboard duyệt văn bản theo chủ đề** cho Cán bộ Phòng Đào tạo, thay cho màn hình quản trị thuần túy dạng hàng đợi.
 
 **Ngoài phạm vi (Out of scope, giai đoạn 1):**
@@ -51,9 +53,8 @@ Tài liệu này đặc tả kiến trúc hệ thống, quy trình nghiệp vụ
 - Speech-to-text cho bài giảng ghi âm (đưa vào roadmap giai đoạn 2).
 - Ứng dụng di động (chỉ làm web trước).
 - Tích hợp trực tiếp với hệ thống quản lý đào tạo (LMS/SIS) hiện có của trường.
-- **Theo dõi đầy đủ vòng đời văn bản** (cảnh báo tự động khi văn bản hết hiệu lực, quy trình xác nhận thay thế có kiểm duyệt) — đây là phần **nặng hơn** "Cây văn bản" (chỉ hiển thị quan hệ, không tự động quản lý trạng thái hiệu lực); do khối lượng công việc đã tăng đáng kể sau các yêu cầu bổ sung, phần quản lý vòng đời đầy đủ vẫn giữ ở roadmap tương lai.
 
-> **Lưu ý về áp lực phạm vi:** so với bản trước, 12 tuần/2 người giờ phải gánh thêm: cổng rà soát contradiction (đáng kể), Cây văn bản (đáng kể), Dashboard theo chủ đề (vừa phải), đa dạng hóa template báo cáo (vừa phải). Đây là khối lượng không nhỏ — xem Risk Register (mục 7) đã cập nhật rủi ro tương ứng. Đề xuất: nếu tiến độ Sprint 3-4 chậm, ưu tiên cắt giảm trước ở "Cây văn bản" (làm ở mức tối thiểu — chỉ quan hệ "Căn cứ" trích xuất tự động, bỏ qua phần tính điểm liên quan bằng embedding) thay vì cắt giảm cơ chế rà soát contradiction, vì đây là yêu cầu an toàn cốt lõi không thể bỏ.
+> **Lưu ý về áp lực phạm vi:** Dự án đã được nâng cấp đáng kể nhờ tích hợp mảng Pháp chế & Kiểm định (Rà soát chéo hiệu lực văn bản nội bộ, Sổ tra ngưỡng, Nghĩa vụ). Đây là cốt lõi để giải quyết pain point thực tế của nhà trường. Khối lượng công việc tăng, đòi hỏi tập trung mạnh vào chất lượng dữ liệu bóc tách (Extraction) ở giai đoạn đầu.
 
 ### 0.3 Đối tượng người dùng (Personas)
 
@@ -204,8 +205,9 @@ Văn bản (PDF/scan, từ chinhphu.vn hoặc tài liệu của trường)
 - **Các bước:**
   1. OCR nếu là ảnh scan (PaddleOCR/Tesseract).
   2. Chia văn bản thành các đoạn theo cấu trúc Điều/Khoản/Mục, mỗi đoạn có ID + số trang.
-  3. Chạy Classification model để xác định **loại văn bản** (thông tư/quyết định/công văn/giáo trình...) **và chủ đề/lĩnh vực** (Đào tạo, Tuyển sinh, Tài chính — Học phí, Nhân sự, Cơ sở vật chất, Khác — theo danh mục chủ đề cố định đã định nghĩa trước, xem mục 5) — phục vụ Dashboard theo chủ đề (WF-08).
-  4. Chạy NER để trích số hiệu, ngày ban hành, cơ quan ban hành, và **yêu cầu báo cáo** nếu có (nội dung, hạn nộp, đơn vị chịu trách nhiệm).
+  3. Chạy Classification model để xác định **loại văn bản** (thông tư/quyết định/công văn/giáo trình...) **và chủ đề/lĩnh vực** (Đào tạo, Tuyển sinh, Tài chính...).
+  4. Chạy NER để trích số hiệu, ngày ban hành, cơ quan ban hành, và **hiệu lực thi hành**.
+  5. **Bóc tách Pháp chế & Kiểm định:** Trích xuất các **Nghĩa vụ** (yêu cầu báo cáo, công việc cần làm) và **Con số luật đòi** (các ngưỡng định lượng thời gian, tỷ lệ, con số) để đưa vào Sổ tra ngưỡng.
 - **Output:** Văn bản có cấu trúc + các trường metadata đã trích xuất (bao gồm loại văn bản và chủ đề)
 - **Ngoại lệ:** Độ tin cậy NER hoặc phân loại chủ đề thấp → gắn cờ để cán bộ xác nhận thủ công thay vì tự động lưu
 
@@ -273,14 +275,14 @@ Văn bản (PDF/scan, từ chinhphu.vn hoặc tài liệu của trường)
 - **Actor:** Giảng viên, Cán bộ Phòng Đào tạo (xem), Hệ thống (đề xuất tự động)
 - **Trigger:** Người dùng mở chi tiết một văn bản bất kỳ
 - **Input:** Văn bản đang xem, toàn bộ kho văn bản đã `published`
-- **Các bước (phạm vi rút gọn — tận dụng hạ tầng đã có ở WF-05, không xây thêm mô hình mới):**
+- **Các bước:**
   1. **Quan hệ tường minh (rule-based, chi phí thấp):** NER/regex phát hiện cụm từ chỉ quan hệ ("thay thế", "sửa đổi", "bãi bỏ", "căn cứ") kèm số hiệu văn bản được nhắc tới → tạo quan hệ `can_cu`/`thay_the`/`sua_doi` giữa 2 văn bản.
-  2. **Quan hệ ngữ nghĩa (tái sử dụng Embedding + Vector DB đã xây cho WF-05):** dùng chính vector của văn bản đang xem để truy vấn top-k văn bản gần nghĩa nhất trong kho — không cần huấn luyện thêm mô hình nào, chỉ đổi "câu hỏi" đầu vào của Retrieval Service (SVC-05) từ câu hỏi người dùng thành nội dung văn bản hiện tại.
-  3. **Mức độ áp dụng cho trường:** mỗi văn bản được gắn 1 trong các nhãn `pham_vi_ap_dung` (ví dụ: "Áp dụng trực tiếp — có quy chế nội bộ trường cụ thể hóa", "Áp dụng chung, chưa có văn bản nội bộ tương ứng", "Chỉ mang tính tham khảo"). Gán ban đầu bán tự động: nếu quan hệ ngữ nghĩa ở bước 2 tìm thấy một văn bản nội bộ trường đủ gần nghĩa → đề xuất nhãn "Áp dụng trực tiếp", cán bộ xác nhận lại (human-in-the-loop, tương tự WF-07 nhưng không bắt buộc gắn cờ contradiction).
-  4. Hiển thị kết quả dạng danh sách/cây: văn bản liên quan trực tiếp (thay thế/căn cứ) tách riêng khỏi văn bản liên quan về chủ đề (ngữ nghĩa).
-- **Output:** Danh sách văn bản liên quan phân theo loại quan hệ, kèm nhãn mức độ áp dụng cho trường
-- **Ngoại lệ:** Không tìm được văn bản liên quan nào đủ gần nghĩa (dưới ngưỡng similarity) → hiển thị "Chưa phát hiện văn bản liên quan", không ép hiển thị kết quả không đủ liên quan
-- **Ghi chú phạm vi:** Đây là **bản rút gọn** của việc quản lý vòng đời văn bản đầy đủ — chỉ hiển thị quan hệ, **không tự động cập nhật trạng thái hiệu lực** (việc này vẫn đòi hỏi cán bộ tự xác nhận thủ công trong `Document.trang_thai_hieu_luc`, xem mục 5). Quản lý vòng đời tự động đầy đủ (cảnh báo hết hiệu lực, quy trình phê duyệt thay thế) vẫn nằm ngoài phạm vi 12 tuần (xem mục 0.2).
+  2. **Trạng thái hiệu lực (Validity Tracking):** Cập nhật vòng đời văn bản (Còn hiệu lực / Sắp hết hạn / Bị thay thế). Gắn cờ cảnh báo đỏ nếu văn bản đã hết hiệu lực, yêu cầu người dùng chuyển sang văn bản thay thế.
+  3. **Quan hệ ngữ nghĩa (tái sử dụng Embedding + Vector DB đã xây cho WF-05):** dùng chính vector của văn bản đang xem để truy vấn top-k văn bản gần nghĩa nhất trong kho — không cần huấn luyện thêm mô hình nào.
+  4. **Mức độ áp dụng cho trường:** mỗi văn bản được gắn 1 trong các nhãn `pham_vi_ap_dung` (ví dụ: "Áp dụng trực tiếp", "Áp dụng chung", "Chỉ mang tính tham khảo").
+  5. Hiển thị kết quả dạng danh sách/cây: văn bản liên quan trực tiếp tách riêng khỏi văn bản liên quan về ngữ nghĩa.
+- **Output:** Danh sách văn bản liên quan phân theo loại quan hệ, trạng thái hiệu lực (cảnh báo đỏ nếu chết), kèm nhãn mức độ áp dụng cho trường.
+- **Ngoại lệ:** Không tìm được văn bản liên quan nào đủ gần nghĩa (dưới ngưỡng similarity) → hiển thị "Chưa phát hiện văn bản liên quan", không ép hiển thị kết quả không đủ liên quan.
 
 ---
 
@@ -293,6 +295,21 @@ Văn bản (PDF/scan, từ chinhphu.vn hoặc tài liệu của trường)
   3. Khu vực nạp văn bản mới (WF-01) và hàng đợi xử lý vẫn hiển thị như một khu vực riêng trong cùng màn hình, không thay thế — Dashboard theo chủ đề là **cách tổ chức lại phần duyệt/xem**, không phải bỏ đi phần vận hành.
 - **Output:** Cán bộ tìm đúng nhóm văn bản cần theo chủ đề, thay vì lướt một danh sách phẳng
 - **Ngoại lệ:** Văn bản chưa được phân loại chủ đề (độ tin cậy classification thấp) → xếp vào nhóm "Chưa phân loại", không tự ý gán bừa vào 1 chủ đề
+
+---
+
+### WF-09 — Rà soát Cảnh báo Pháp lý & Kiểm định (Cross-Auditing)
+- **Actor:** Hệ thống (tự động), Cán bộ Phòng Đào tạo
+- **Trigger:** Sau khi hệ thống nạp thêm một văn bản pháp quy (của Bộ/Chính phủ) hoặc nạp một Quy chế nội bộ mới của trường.
+- **Input:** Toàn bộ kho Quy chế nội bộ của nhà trường.
+- **Các bước:**
+  1. Hệ thống sử dụng NER quét toàn bộ văn bản nội bộ của trường, dò tìm các cụm từ tham chiếu pháp lý (VD: "Căn cứ Thông tư 08/2021/TT-BGDĐT").
+  2. Đối chiếu số hiệu tìm được với kho văn bản pháp quy.
+  3. Nếu số hiệu đó thuộc về một văn bản **Đã hết hiệu lực** (được xác định ở WF-06), hệ thống sinh ra một cảnh báo nguy hiểm (Warning).
+  4. Cảnh báo này sẽ hiển thị ở khu vực "Kiểm định pháp chế" trên Dashboard của Cán bộ Phòng Đào tạo.
+  5. Cán bộ click vào chi tiết để xem: *Văn bản A của trường đang dẫn chiếu sai Luật B, cần cập nhật Luật B bằng Luật C mới*.
+- **Output:** Danh sách các Quy chế nội bộ "lỗi thời" cần được Hội đồng nhà trường xem xét sửa đổi lại.
+- **Giá trị cốt lõi:** Tính năng này giúp giải quyết hoàn toàn rủi ro pháp lý do sử dụng quy chế nội bộ cũ nát (ví dụ: đang dùng luật tuyển sinh cũ từ năm 2012 để áp dụng cho năm 2026).
 
 ---
 
@@ -318,7 +335,7 @@ Vì chỉ có 2 người, cần chia việc theo track rõ ràng để làm song
 | Track | Người phụ trách | Phạm vi |
 |---|---|---|
 | **Track A — Data & Pipeline** | Thành viên 1 | Ingestion (EPIC-1), Extraction/OCR/Classification (bao gồm phân loại chủ đề) /NER (EPIC-2), Thư viện Template + Report Suggestion (EPIC-4), Dashboard theo chủ đề & DevOps (EPIC-7, EPIC-10) |
-| **Track B — AI Core** | Thành viên 2 | Fine-tune tóm tắt (EPIC-3), NLI 3 nhãn + Review Service (EPIC-3, EPIC-9), Embedding + RAG chatbot + Cây văn bản (EPIC-5, EPIC-6 — dùng lại cùng hạ tầng embedding) |
+| **Track B — AI Core** | Thành viên 2 | Fine-tune tóm tắt (EPIC-3), NLI 3 nhãn + Review Service (EPIC-3, EPIC-9), Embedding + RAG chatbot + Cây văn bản + Cross-Auditing (EPIC-5, EPIC-6, **EPIC-11** — dùng lại cùng hạ tầng embedding/quan hệ tường minh) |
 
 Cả hai cùng tham gia Sprint đánh giá & viết báo cáo cuối kỳ (EPIC-8), và cùng làm phần **NLI 3 nhãn + cơ chế rà soát/publish** (Sprint 3) vì đây là phần lõi quan trọng nhất, cần cả 2 người tập trung thay vì chỉ 1 người làm.
 
@@ -332,6 +349,7 @@ Cả hai cùng tham gia Sprint đánh giá & viết báo cáo cuối kỳ (EPIC-
 | EPIC-4 | Gợi ý khung báo cáo theo Thư viện Template | WF-04 |
 | EPIC-5 | Tra cứu & Chatbot RAG (chỉ trên văn bản `published`) | WF-05 |
 | EPIC-6 | "Cây văn bản" — quan hệ + mức độ áp dụng cho trường | WF-06 — **đưa lại vào phạm vi, bản rút gọn (tận dụng hạ tầng EPIC-5)** |
+| EPIC-11 | Rà soát Cảnh báo Pháp lý (Cross-Auditing) — phát hiện Quy chế nội bộ viện dẫn luật đã hết hiệu lực | WF-09/UC-10 — **mở rộng từ EPIC-6, chi phí thấp vì dùng chung logic phát hiện "Căn cứ..."** |
 | EPIC-7 | Dashboard & trải nghiệm người dùng | Toàn bộ |
 | EPIC-8 | Đánh giá hệ thống & viết báo cáo đồ án | Toàn bộ |
 | EPIC-9 | Review Service — rà soát & duyệt (human-in-the-loop) | WF-07 |
@@ -345,7 +363,7 @@ Cả hai cùng tham gia Sprint đánh giá & viết báo cáo cuối kỳ (EPIC-
 | Sprint 1 | 3–4 | EPIC-1: Ingestion service, lưu trữ file + metadata, chia đoạn theo Điều/Khoản | Chuẩn bị dữ liệu fine-tune, cài baseline TextRank |
 | Sprint 2 | 5–6 | EPIC-2: OCR, Classification (loại văn bản **+ chủ đề**), NER cơ bản | EPIC-3 (phần 1): Fine-tune BARTpho/ViT5 cho tóm tắt |
 | Sprint 3 | 7–8 | **Cả 2 người cùng làm:** EPIC-3 (phần 2) — NLI phân loại 3 nhãn (entailment/contradiction/neutral) + citation mapping; **EPIC-9** — Review Service (hàng đợi rà soát, audit trail, cơ chế publish theo văn bản) | |
-| Sprint 4 | 9–10 | EPIC-4: Thư viện Template + Report Suggestion theo từng loại; bắt đầu UI Dashboard theo chủ đề (EPIC-10) | EPIC-5: Embedding + RAG chatbot (chỉ trên văn bản `published`); **EPIC-6** — Cây văn bản (tái sử dụng Vector DB của EPIC-5, không xây thêm mô hình) |
+| Sprint 4 | 9–10 | EPIC-4: Thư viện Template + Report Suggestion theo từng loại; bắt đầu UI Dashboard theo chủ đề (EPIC-10) | EPIC-5: Embedding + RAG chatbot (chỉ trên văn bản `published`); **EPIC-6** — Cây văn bản (tái sử dụng Vector DB của EPIC-5, không xây thêm mô hình); **EPIC-11** — Cross-Auditing (tái dùng logic "Căn cứ..." của EPIC-6, thêm bước tra ValidityEvent → sinh Warning) |
 | Sprint 5 | 11 | **Cả 2 người:** Ghép nối toàn bộ pipeline end-to-end, hoàn thiện Dashboard theo chủ đề + hiển thị Cây văn bản, sửa lỗi | |
 | Sprint 6 | 12 | **Cả 2 người:** EPIC-8 — Đánh giá (ROUGE/BERTScore/Faithfulness theo 3 nhãn, chất lượng gợi ý văn bản liên quan), viết báo cáo, chuẩn bị demo | |
 
@@ -444,19 +462,22 @@ Push code lên branch
 
 | Bảng/Entity | Trường chính | Mô tả |
 |---|---|---|
-| **Document** | id, ten_van_ban, so_hieu, loai_van_ban, **chu_de**, **pham_vi_ap_dung**, nguon_du_lieu (chinhphu.vn/moet.gov.vn/noi_bo_truong), ngay_ban_hanh, co_quan_ban_hanh, file_goc_url, trang_thai_hieu_luc, **trang_thai_xuat_ban** (`pending_review`/`published`) | Thông tin văn bản gốc |
+| **Document** | id, ten_van_ban, so_hieu, loai_van_ban, **chu_de** (mảng chuỗi — đa nhãn, KHÔNG phải 1 giá trị đơn từ danh mục cố định), **tags** (mảng chuỗi tự do, tách riêng khỏi chu_de), **pham_vi_ap_dung**, nguon_du_lieu (chinhphu.vn/moet.gov.vn/noi_bo_truong), **nguoi_ky**, ngay_ban_hanh, co_quan_ban_hanh, file_goc_url, trang_thai_hieu_luc, **hieu_luc_tu**, **hieu_luc_den** (nullable), **trang_thai_xuat_ban** (`pending_review`/`published`), **conf** (float 0-1, độ tin cậy trích xuất tự đánh giá — hiển thị dạng % trên UI), **ocr** (bool — văn bản có đọc qua OCR không) | Thông tin văn bản gốc — *đã bổ sung `nguoi_ky`/`hieu_luc_tu`/`hieu_luc_den`/`conf`/`ocr` vì giao diện tĩnh đã build (lấy từ repo tham khảo) hiển thị các trường này ở panel chi tiết, trước đó Data Model chưa có* |
 | **DocumentChunk** | id, document_id, dieu_khoan, noi_dung, so_trang | Từng đoạn văn bản có thể trích dẫn |
 | **Summary** | id, document_id, noi_dung_tom_tat, ngay_tao, phien_ban_model | Bản tóm tắt sinh ra |
-| **Citation** | id, summary_id (hoặc query_log_id), chunk_id, cau_tom_tat, diem_faithfulness, **nhan_nli** (`entailment`/`contradiction`/`neutral`) | Ánh xạ câu tóm tắt/trả lời ↔ đoạn nguồn, kèm nhãn phân loại NLI |
+| **Citation** | id, summary_id (hoặc query_log_id), chunk_id, cau_tom_tat, diem_faithfulness, **nhan_nli** (`entailment`/`contradiction`/`neutral`) | Ánh xạ câu tóm tắt/trả lời ↔ đoạn nguồn, kèm nhãn phân loại NLI — dùng cho nội dung **AI sinh tự do** (tóm tắt, chatbot) |
 | **ReviewItem** *(mới — EPIC-9)* | id, citation_id, document_id, nhan_nli, do_uu_tien, trang_thai (`pending`/`approved`/`edited`/`rejected`) | Hàng đợi rà soát cho các câu bị gắn cờ `contradiction`/`neutral` |
 | **ReviewLog** *(mới — EPIC-9)* | id, review_item_id, cau_ai_sinh, cau_sau_sua (nullable), reviewer_id, hanh_dong, diem_nli_sau_sua (nullable), thoi_gian | Audit trail — lưu vết mọi quyết định rà soát |
 | **ReportTemplate** *(mới — EPIC-4)* | id, loai_bao_cao, chu_de_ap_dung, danh_sach_de_muc (JSON) | Thư viện mẫu khung báo cáo — mỗi loại báo cáo một cấu trúc đề mục riêng |
 | **ReportSuggestion** | id, document_id, template_id (nullable — null nếu tự dựng khung từ văn bản gốc), loai_bao_cao, khung_noi_dung, han_nop | Khung báo cáo được gợi ý cho 1 văn bản cụ thể |
 | **QueryLog** | id, cau_hoi, cau_tra_loi, danh_sach_citation, diem_faithfulness, thoi_gian | Nhật ký hỏi-đáp phục vụ giám sát chất lượng |
 | **DocumentRelation** *(mở rộng — EPIC-6)* | id, document_id_a, document_id_b, loai_quan_he (`can_cu`/`thay_the`/`sua_doi`/`bai_bo`/**`lien_quan_ngu_nghia`**), diem_tuong_dong (nullable, chỉ dùng cho quan hệ ngữ nghĩa) | Quan hệ giữa các văn bản — cả tường minh (rule-based) lẫn ngữ nghĩa (embedding) |
-| **Topic** *(mới — EPIC-10)* | id, ten_chu_de | Danh mục chủ đề cố định (Đào tạo, Tuyển sinh, Tài chính...) phục vụ Dashboard theo chủ đề |
+| **Topic** *(mới — EPIC-10)* | id, ten_chu_de | Danh mục chủ đề **gợi ý** (Đào tạo, Tuyển sinh, Tài chính...) phục vụ Dashboard theo chủ đề — không ràng buộc unique với `Document.chu_de` vì chu_de giờ là đa nhãn tự do |
+| **Obligation** *(mới - Compliance)* | id, document_id, noi_dung, dieu_khoan, chu_the, han_chot (nullable), loai_nghia_vu, **nguon** (text — trích nguyên văn câu chứa nghĩa vụ, lưu trực tiếp để hiển thị không cần join), **nguon_ngay** (`chep`/`tinh`, chỉ áp dụng khi có han_chot — ngày chép nguyên văn hay tính suy ra) | Bóc tách chi tiết các công việc/nghĩa vụ nhà trường phải thực hiện, kèm cờ minh bạch nguồn gốc |
+| **Threshold** *(mới - Compliance)* | id, document_id, gia_tri (con số), y_nghia, dieu_khoan, **nguon** (text — trích nguyên văn), **nguon_do_so** (bool — câu nguồn có chứa đúng con số này hay là kết quả đếm/suy ra) | Sổ tra ngưỡng: Bóc tách các định lượng (chỉ tiêu, tỷ lệ, thời gian), kèm cờ minh bạch |
+| **Warning** *(mới - Compliance)* | id, internal_doc_id (Quy chế nội bộ), external_doc_id (Luật/NĐ bị trỏ sai), ly_do, trang_thai, **co_nguon** (bool — có nguyên văn đối chứng câu viện dẫn hay chỉ suy luận từ số hiệu xuất hiện gần nhau), **nguon_thay** (text, nullable — trích nguyên văn nếu co_nguon=true), **pham_vi** (`toan_bo`/`co_ngoai_le`) | Lưu các cảnh báo khi quy chế nội bộ dùng sai luật đã hết hạn — phục vụ WF-09/UC-10 |
+| **ValidityEvent** *(mới - Compliance)* | id, document_id (văn bản hết hiệu lực), loai_su_kien (hết hiệu lực, bị thay thế), ngay_ap_dung, thay_the_bang_doc_id, **danh_sach_document_id_bi_anh_huong** (mảng ID — các văn bản nội bộ đang viện dẫn document_id này, phục vụ "Đồ thị tác động" 1-nhiều) | Lưu mốc sự kiện vòng đời của văn bản để đếm ngược/cảnh báo |
 | **User** | id, ho_ten, vai_tro (giang_vien/can_bo/admin) | Người dùng hệ thống |
-
 ---
 
 ## 6. YÊU CẦU PHI CHỨC NĂNG & BẢO MẬT

@@ -10,7 +10,10 @@ import {
   Search,
   CheckSquare,
   Book,
-  Network
+  Network,
+  Bot,
+  Layers,
+  Settings
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -51,13 +54,21 @@ const Sidebar: React.FC = () => {
           <ClipboardList size={18} />
           <span>Cần rà soát</span>
         </NavLink>
+        <NavLink to="/topics" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <Layers size={18} />
+          <span>Chủ đề văn bản</span>
+        </NavLink>
         
         <div style={{ padding: '16px 12px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Tra cứu & Dữ liệu
         </div>
         <NavLink to="/search" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
           <Search size={18} />
-          <span>Tra cứu kho</span>
+          <span>Tra cứu thủ công</span>
+        </NavLink>
+        <NavLink to="/chat" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <Bot size={18} />
+          <span>Tra cứu AI (Chatbot)</span>
         </NavLink>
         <NavLink to="/obligations" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
           <CheckSquare size={18} />
@@ -70,6 +81,14 @@ const Sidebar: React.FC = () => {
         <NavLink to="/graph" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
           <Network size={18} />
           <span>Đồ thị ảnh hưởng</span>
+        </NavLink>
+
+        <div style={{ padding: '16px 12px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Hệ thống
+        </div>
+        <NavLink to="/admin" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <Settings size={18} />
+          <span>Tải tài liệu (Admin)</span>
         </NavLink>
       </nav>
       

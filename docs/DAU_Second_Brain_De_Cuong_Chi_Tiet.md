@@ -39,12 +39,13 @@ Xây dựng một hệ thống AI hỗ trợ quản lý tri thức cho trường
 |---|---|---|
 | 1 | Tóm tắt tự động văn bản tiếng Việt, có trích dẫn theo từng câu | ROUGE-L, BERTScore so với baseline extractive |
 | 2 | Đảm bảo tính trung thực của bản tóm tắt (không bịa, không thiếu ý quan trọng) | Điểm Faithfulness (qua kiểm tra NLI **3 nhãn**) ≥ ngưỡng đề ra |
-| 3 | Trích xuất thông tin có cấu trúc từ văn bản (số hiệu, ngày ban hành, yêu cầu báo cáo...) và **phân loại chủ đề/lĩnh vực** theo danh mục cố định | Độ chính xác (F1) của mô hình NER; độ chính xác phân loại chủ đề ≥ 85% trên tập test |
-| 4 | Gợi ý khung báo cáo cho giảng viên, **mỗi loại văn bản có template riêng** từ Thư viện Template, không tự sinh số liệu | Tỷ lệ khung báo cáo đúng cấu trúc; ≥ 2 template khác nhau rõ rệt trên tập test |
-| 5 | Tra cứu ngữ nghĩa và hỏi-đáp (chatbot) có trích dẫn, **chỉ trên văn bản đã `published`** | Tỷ lệ câu trả lời đúng & có trích dẫn hợp lệ; không dùng văn bản `pending_review` |
-| 6 | **Cơ chế rà soát & duyệt (Review Service)** — cán bộ kiểm tra câu bị NLI gắn nhãn `contradiction`/`neutral`, có audit trail đầy đủ | 100% văn bản có câu `contradiction` không được `published` trước khi rà soát xong |
-| 7 | **Cây văn bản** — hiển thị văn bản liên quan (quan hệ tường minh + ngữ nghĩa) và mức độ áp dụng đối với trường | ≥ 80% văn bản có văn bản liên quan thực sự tìm được trong kho; quan hệ tường minh phát hiện ≥ 90% trường hợp |
-| 8 | **Dashboard theo chủ đề** — cán bộ duyệt văn bản theo nhóm chủ đề thay vì danh sách hàng đợi phẳng | Văn bản được nhóm đúng chủ đề ≥ 85% trường hợp trên tập test |
+| 3 | Trích xuất thông tin có cấu trúc và **phân loại chủ đề/lĩnh vực** theo danh mục cố định | Độ chính xác (F1) của mô hình NER; độ chính xác phân loại ≥ 85% |
+| 4 | **Bóc tách Pháp chế & Kiểm định:** Xây dựng Sổ tra ngưỡng (các định lượng) và danh sách Nghĩa vụ | Độ bao phủ và F1-score của việc bóc tách số liệu/nghĩa vụ |
+| 5 | Gợi ý khung báo cáo cho giảng viên, **mỗi loại văn bản có template riêng** từ Thư viện Template | Tỷ lệ khung báo cáo đúng cấu trúc; ≥ 2 template khác nhau |
+| 6 | Tra cứu ngữ nghĩa và hỏi-đáp (chatbot) có trích dẫn, **chỉ trên văn bản đã `published`** | Tỷ lệ câu trả lời đúng & có trích dẫn hợp lệ |
+| 7 | **Cơ chế rà soát & duyệt (Review Service)** — cán bộ kiểm tra câu bị NLI gắn nhãn | 100% văn bản có câu `contradiction` không được `published` trước khi rà soát xong |
+| 8 | **Cây văn bản & Cảnh báo Pháp lý** — hiển thị văn bản liên quan và tự động phát hiện Quy chế nội bộ trích dẫn sai Luật hết hiệu lực (Cross-Auditing) | Phát hiện ≥ 95% trường hợp trỏ sai luật đã hết hạn |
+| 9 | **Dashboard theo chủ đề** — cán bộ duyệt văn bản theo nhóm chủ đề thay vì danh sách hàng đợi phẳng | Văn bản được nhóm đúng chủ đề ≥ 85% trường hợp |
 
 ---
 
@@ -61,20 +62,20 @@ Xây dựng một hệ thống AI hỗ trợ quản lý tri thức cho trường
 - Thu thập và xử lý văn bản pháp quy từ **Cổng Thông tin điện tử Chính phủ (chinhphu.vn) và tài liệu liên quan trực tiếp tới trường** (không dùng dataset công khai ngoài ngành)
 - Tóm tắt có trích dẫn, kiểm tra độ trung thực bằng mô hình **NLI 3 nhãn** (entailment/contradiction/neutral)
 - **Review Service** — cơ chế rà soát & duyệt (Human-in-the-loop), gồm Publish Gate và audit trail đầy đủ
-- Trích xuất thông tin có cấu trúc (NER) và **phân loại văn bản theo loại + chủ đề**
+- Trích xuất thông tin có cấu trúc (NER), **bóc tách Pháp chế (Sổ tra ngưỡng, Nghĩa vụ)** và **phân loại văn bản theo loại + chủ đề**
 - Gợi ý khung báo cáo theo **Thư viện Template** (mỗi loại văn bản có template riêng — không dùng 1 khuôn chung) — không tự sinh nội dung/số liệu thực tế
 - Tra cứu ngữ nghĩa và chatbot hỏi-đáp có trích dẫn (chỉ trên văn bản `published`)
-- **Cây văn bản** (phạm vi rút gọn) — hiển thị văn bản liên quan (quan hệ tường minh + ngữ nghĩa), mức độ áp dụng cho trường; tái sử dụng hạ tầng embedding đã xây
+- **Cây văn bản & Rà soát chéo (Cross-Auditing)** — quản lý vòng đời văn bản (Validity), hiển thị Cây văn bản, và rà soát tự động Quy chế nội bộ trích dẫn sai Luật hết hiệu lực.
 - **Dashboard theo chủ đề** — cán bộ duyệt văn bản theo nhóm chủ đề (thống kê, quản lý)
 - Dashboard demo (web) cho toàn bộ luồng trên
 
 **Ngoài phạm vi (định hướng phát triển tương lai):**
-- **Quản lý vòng đời văn bản đầy đủ** (cảnh báo tự động khi văn bản hết hiệu lực, quy trình phê duyệt thay thế có kiểm duyệt) — Cây văn bản (hiển thị quan hệ) và quản lý vòng đời đầy đủ là 2 khái niệm khác nhau
+- Tự động ký số / phát hành văn bản chính thức.
 - Chuyển giọng nói thành văn bản (speech-to-text) cho bài giảng ghi âm
 - Ứng dụng di động
 - Tích hợp trực tiếp với hệ thống quản lý đào tạo (LMS/SIS) hiện có của trường
 
-> Lý do thu hẹp phạm vi: với nhóm 2 người và 12 tuần, việc giữ trọng tâm vào cơ chế **tóm tắt có trích dẫn đáng tin cậy + Review Service an toàn** — phần khó và có giá trị học thuật cao nhất — quan trọng hơn việc dàn trải nhiều tính năng nhưng làm nông.
+> Lý do điều chỉnh phạm vi: Tích hợp thêm module Pháp chế (Cảnh báo chéo, Sổ tra ngưỡng) làm tăng tính thực tiễn và giải quyết trực tiếp pain point (nỗi đau) hiện tại của trường là quản lý quy chế nội bộ. Đồ án sẽ chú trọng nhiều vào phần Data Extraction để đảm bảo dữ liệu bóc tách là chính xác.
 
 ---
 

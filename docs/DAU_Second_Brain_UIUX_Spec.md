@@ -39,9 +39,9 @@
         │               │       │       │               │
         ▼               ▼       ▼       ▼               ▼
 ┌───────────────┐ ┌───────────┐ (mở 1 VB) ┌──────────┐ ┌─────────────┐
-│ Màn hình 4:     │ │ Màn hình 6:│         │Màn hình 3:│ │  (chi tiết   │
-│ Đối chiếu       │ │ Cây văn bản│         │Khung báo  │ │   văn bản)   │
-│ trích dẫn       │ │            │         │cáo gợi ý  │ │              │
+│ Màn hình 4:     │ │ Màn hình 6:│         │Màn hình 3:│ │ Màn hình 7:   │
+│ Đối chiếu       │ │ Cây văn bản│         │Khung báo  │ │ Sổ tra ngưỡng │
+│ trích dẫn       │ │ & Cảnh báo │         │cáo gợi ý  │ │ & Nghĩa vụ    │
 └───────┬─────────┘ └───────────┘         └──────────┘ └─────────────┘
         │ (nếu có câu contradiction/neutral)
         ▼
@@ -51,12 +51,12 @@
 │ (chỉ Cán bộ Đào tạo)   │
 └─────────────────────┘
 
-┌───────────────────────┐
-│ Màn hình 2:              │
-│ Dashboard theo chủ đề    │  ← điểm vào riêng cho Cán bộ Đào tạo
-│ (chỉ Cán bộ Đào tạo)     │     (thay cho "Quản trị nội dung" cũ)
-└───────────┬───────────────┘
-            │ bấm vào 1 chủ đề → danh sách văn bản → mở chi tiết (như trên)
+┌───────────────────────┐         ┌─────────────────────────┐
+│ Màn hình 2:              │         │ Màn hình 8:               │
+│ Dashboard theo chủ đề    │ ──────► │ Rà soát Cảnh báo Pháp lý  │
+│ (chỉ Cán bộ Đào tạo)     │         │ (Cross-Auditing)          │
+└───────────┬───────────────┘         └─────────────────────────┘
+            │ bấm vào 1 chủ đề → danh sách văn bản → Sidebar Chi tiết
             │ bấm "Cần rà soát" → Màn hình 5
             ▼
       (danh sách văn bản theo chủ đề)
@@ -76,26 +76,27 @@
 | Màu | Ý nghĩa | Áp dụng |
 |---|---|---|
 | Xanh lá (success) | Đạt / Còn hiệu lực / `entailment` / Đã `published` | Badge "Còn hiệu lực", nhãn NLI `entailment`, trạng thái văn bản "Đã published" |
-| Vàng (warning) | Cần chú ý / Cần hành động / `neutral` | Badge "Cần báo cáo", nhãn NLI `neutral`, trạng thái "Chưa phân loại chủ đề" |
-| Đỏ (danger) | Từ chối / `contradiction` / Hết hiệu lực | Badge "Đã thay thế", nhãn NLI `contradiction`, trạng thái "Đang chờ rà soát" |
-| Xanh dương (accent) | Thông tin trích dẫn, thao tác chính | Badge trích dẫn, icon thương hiệu |
+| Vàng (warning) | Cần chú ý / Cần hành động / `neutral` | Badge "Cần báo cáo", nhãn NLI `neutral`, Cảnh báo OCR |
+| Đỏ chói (danger) | Hết hiệu lực / Văn bản bị thay thế / Lỗi thời | Cảnh báo cực kỳ nổi bật trên UI khi xem văn bản chết hoặc quy chế nội bộ trỏ sai luật |
+| Đỏ nhạt (danger-muted) | Từ chối / `contradiction` | Nhãn NLI `contradiction`, trạng thái "Đang chờ rà soát" |
+| Xanh dương (accent) | Thông tin trích dẫn, thao tác chính | Badge trích dẫn, icon thương hiệu, Con số định lượng (KPI) |
 | Xám (muted) | Thông tin phụ, siêu dữ liệu | Ngày tháng, số trang nguồn, nhãn "Đã xác nhận thủ công" |
 
-> Quy ước này áp dụng nhất quán trên toàn bộ 6 màn hình để người dùng không phải học lại ý nghĩa màu sắc ở mỗi nơi. **Lưu ý quan trọng:** đỏ dùng chung cho cả "hết hiệu lực" và "contradiction" — 2 khái niệm khác nhau — nên luôn đi kèm text rõ ràng, không dùng màu đơn độc để phân biệt.
+> Quy ước này áp dụng nhất quán trên toàn bộ các màn hình. **Lưu ý quan trọng:** Đỏ chói dành riêng cho rủi ro Pháp lý (văn bản chết). Đỏ nhạt dành cho lỗi AI sinh ra (contradiction).
 
 ### 3.2 Thành phần dùng chung (Shared Components)
 
 | Thành phần | Mô tả | Dùng ở màn hình |
 |---|---|---|
-| Citation Badge | Thẻ nhỏ hiển thị nguồn trích dẫn (số hiệu văn bản + điều/khoản), có thể bấm để mở nguồn gốc | 1, 3, 4, 5 |
-| Status Badge | Thẻ trạng thái văn bản: còn hiệu lực/đã thay thế/**đã published/đang chờ rà soát** | 1, 2, 4 |
-| NLI Label Badge *(mới)* | Thẻ hiển thị nhãn `entailment`/`contradiction`/`neutral` kèm màu tương ứng — thay thế cách gọi "Faithfulness Score" đơn thuần bằng số % | 4, 5 |
-| Priority Indicator *(mới)* | Chỉ báo mức độ ưu tiên rà soát (contradiction = cao, neutral = thấp hơn), dùng để sắp xếp danh sách | 5 |
-| Manual Override Badge *(mới)* | Nhãn xám "Đã xác nhận thủ công" — gắn cho câu cán bộ chọn giữ nguyên dù điểm NLI thấp, để không lẫn với câu tự động đạt | 4, 5 |
+| Citation Badge | Thẻ nhỏ hiển thị nguồn trích dẫn (số hiệu văn bản + điều/khoản), có thể bấm để mở nguồn gốc | 1, 3, 4, 5, 7 |
+| Status Badge | Thẻ trạng thái văn bản: còn hiệu lực/đã thay thế/**đã published/đang chờ rà soát** | 1, 2, 4, 6, 8 |
+| NLI Label Badge | Thẻ hiển thị nhãn `entailment`/`contradiction`/`neutral` kèm màu tương ứng | 4, 5 |
+| Priority Indicator | Chỉ báo mức độ ưu tiên rà soát (contradiction = cao, neutral = thấp hơn) | 5, 8 |
 | Document Card | Khối hiển thị 1 văn bản: tên, loại, chủ đề, trạng thái | 1, 2 |
-| Topic Card *(mới)* | Thẻ đại diện 1 chủ đề, hiển thị tên + số lượng văn bản, bấm để xem danh sách | 2 |
-| Relation List *(mới)* | Danh sách văn bản liên quan, chia 2 nhóm (quan hệ trực tiếp / quan hệ ngữ nghĩa) kèm nhãn mức độ áp dụng | 6 |
-| Chat Bubble | Khối hội thoại hỏi-đáp, phân biệt người dùng/hệ thống | 1 |
+| Topic Card | Thẻ đại diện 1 chủ đề, hiển thị tên + số lượng văn bản, bấm để xem danh sách | 2 |
+| Relation List | Danh sách văn bản liên quan, chia 2 nhóm (quan hệ trực tiếp / quan hệ ngữ nghĩa) kèm nhãn mức độ áp dụng | 6 |
+| Table Row Highlight | Dòng dữ liệu (nghĩa vụ/con số) với phần giá trị cốt lõi được in đậm, có tag Điều/Khoản kế bên | 7 |
+| Validation Sidebar | Khung bên phải hiển thị metadata văn bản: Loại, cơ quan, hiệu lực, và danh sách các văn bản khác bị văn bản này khai tử | Mọi nơi khi click vào văn bản |
 
 ---
 
@@ -215,9 +216,36 @@
 | Relation List — Quan hệ ngữ nghĩa | Danh sách văn bản `published` khác có nội dung gần nhất (tận dụng lại Vector DB của Màn hình 1), kèm % độ tương đồng |
 
 **Hành vi tương tác:**
-- Bấm vào 1 văn bản trong Relation List → điều hướng sang chi tiết văn bản đó (mở lại đúng bộ Màn hình 4/6 tương ứng).
-- Nếu không tìm được văn bản liên quan nào đủ gần nghĩa → hiển thị "Chưa phát hiện văn bản liên quan" thay vì ép hiển thị kết quả không liên quan (theo UC-08, luồng ngoại lệ).
-- 2 nhóm quan hệ hiển thị **tách biệt rõ ràng** (không gộp chung 1 danh sách) — để người dùng phân biệt được đâu là quan hệ chắc chắn (tường minh) và đâu là gợi ý (ngữ nghĩa, có thể không hoàn toàn chính xác).
+- 2 nhóm quan hệ hiển thị **tách biệt rõ ràng** (tường minh vs ngữ nghĩa).
+- Các văn bản BỊ KHAI TỬ bởi văn bản đang xem sẽ được highlight màu đỏ/cam.
+- Khi người dùng click vào một văn bản trong Cây, **Sidebar Chi tiết (Validation Sidebar)** trượt ra từ bên phải, hiển thị:
+  - Khung màu hồng cảnh báo nếu đọc từ bản scan OCR (có rủi ro).
+  - Khung ĐIỀU KHOẢN HIỆU LỰC (Highlight nguyên văn từ văn bản).
+  - Khung LÀM VĂN BẢN KHÁC HẾT HIỆU LỰC.
+
+### Màn hình 7 — Sổ tra ngưỡng & Nghĩa vụ (Compliance Dashboard)
+
+**Mục đích:** Phục vụ tra cứu siêu tốc các chỉ tiêu định lượng và công việc nhà trường phải làm.
+**Actor:** Giảng viên, Cán bộ Phòng Đào tạo
+
+**Thành phần giao diện:**
+| Vùng | Nội dung |
+|---|---|
+| Thanh tìm kiếm | Nhập từ khóa (không dấu) tự động lọc danh sách nghĩa vụ/con số bên dưới. |
+| Bộ lọc | Lọc theo Nguồn văn bản (Mọi văn bản / Thông tư A / Quyết định B). |
+| Danh sách Con số định lượng | Cột trái: Con số in đậm (VD: **12 tháng**, **30 ngày**). Cột giữa: Ý nghĩa con số. Cột phải: Nguyên văn Điều khoản & Số hiệu luật (có link bấm vào Sidebar chi tiết). |
+| Danh sách Nghĩa vụ | Liệt kê các việc trường phải làm, hiển thị kèm Hạn chót (màu đỏ nếu sắp hết hạn). |
+
+### Màn hình 8 — Rà soát Cảnh báo Pháp lý (Cross-Auditing)
+
+**Mục đích:** Hiển thị danh sách các Quy chế nội bộ của ĐH Kiến trúc Đà Nẵng đang bị "lỗi thời" vì viện dẫn sai luật cũ.
+**Actor:** Cán bộ Phòng Đào tạo
+
+**Thành phần giao diện:**
+| Vùng | Nội dung |
+|---|---|
+| Danh sách Cảnh báo | Mỗi hàng là 1 Quy chế nội bộ đang có lỗi. Highlight bằng cờ đỏ chói. |
+| Khung Chi tiết Cảnh báo | Hiển thị: Quy chế A đang Căn cứ vào Văn bản B (ĐÃ BỊ THAY THẾ). Gợi ý: Hãy thay thế bằng Văn bản C. Kèm nút "Đánh dấu đã cập nhật". |
 
 ---
 

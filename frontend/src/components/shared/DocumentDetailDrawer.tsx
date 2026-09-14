@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useDetail } from '../../context/DetailContext';
-import { DEMO_DATA } from '../../data';
 import { fmtDate, badge } from '../../utils';
 
 const DocumentDetailDrawer: React.FC = () => {
@@ -25,26 +24,20 @@ const DocumentDetailDrawer: React.FC = () => {
       return;
     }
 
-    let m = DEMO_DATA.docMeta?.[docId];
-    
-    // Văn bản của Bộ
-    if (docId.startsWith('bo:')) {
-      const so = docId.slice(3);
-      const o = (DEMO_DATA.vbBo || []).find((x: any) => x.soHieu === so);
-      if (o) {
-        setData({ type: 'bo', data: o });
-        return;
-      }
-    }
-
-    if (!m) {
-      setData({ type: 'not-found' });
-      return;
-    }
-
-    const w = DEMO_DATA.warnings.find((x: any) => x.docId === docId);
-    const items = w ? w.items : null;
-    setData({ type: 'truong', data: m, items });
+    // Fetch dữ liệu thật từ API
+    fetch(`http://localhost:8000/api/v1/documents/detail/${encodeURIComponent(docId)}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Not found');
+        return res.json();
+      })
+      .then(d => {
+        // API trả về d.type là 'bo' hoặc 'truong'
+        setData({ type: d.type, data: d.data, items: d.items });
+      })
+      .catch(e => {
+        console.error(e);
+        setData({ type: 'not-found' });
+      });
   }, [docId]);
 
   const row = (k: string, v: string | undefined | null) => {

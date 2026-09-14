@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { DEMO_DATA } from '../data';
+import { useData } from '../context/DataContext';
 import { fold, hl, nhanNgay, fmtDate } from '../utils';
 import { useDetail } from '../context/DetailContext';
 
 const Obligations: React.FC = () => {
   const { openDetail } = useDetail();
-  const NV = DEMO_DATA.nghiaVu || [];
+  const { data, loading } = useData();
+  const NV = data.nghiaVu || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [vb, setVb] = useState('all');
   const [loai, setLoai] = useState('all');
-  const [ct, setCt] = useState('trường');
+  const [ct, setCt] = useState('all');
 
   const vbs = Array.from(new Set(NV.map((n: any) => n.vb))).sort();
   const los = Array.from(new Set(NV.map((n: any) => n.loai).filter(Boolean))).sort();
@@ -47,7 +48,7 @@ const Obligations: React.FC = () => {
   return (
     <section id="viec">
       <div className="wrap">
-        <h2>Việc phải làm</h2>
+        <h2>Việc phải làm {loading && <span style={{fontSize: '14px', color: '#888'}}>(Đang tải dữ liệu từ AI...)</span>}</h2>
         <p className="sub">Tập hợp mọi điều khoản mang tính bắt buộc (nghĩa vụ, trách nhiệm).</p>
         <div className="srow">
           <input

@@ -1,10 +1,11 @@
 import React from 'react';
-import { DEMO_DATA } from '../data';
+import { useData } from '../context/DataContext';
 import { useDetail } from '../context/DetailContext';
 
 const PriorityList: React.FC = () => {
   const { openDetail } = useDetail();
-  const rows = DEMO_DATA.insights.uuTien || [];
+  const { data } = useData();
+  const rows = data.insights?.uuTien || [];
 
   return (
     <section id="uu-tien">
@@ -32,10 +33,17 @@ const PriorityList: React.FC = () => {
                 key={r.docId}
                 className="prow"
                 data-did={r.docId}
-                onClick={() => openDetail(r.docId)}
+                onClick={() => openDetail(r.soHieu)}
               >
                 <span className="pk">{i + 1}</span>
-                <span className="pd">{r.soHieu}</span>
+                <span className="pd" style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>{r.soHieu}</span>
+                  {r.chiTietLoi && (
+                    <span style={{ fontSize: '12px', color: 'var(--red)', marginTop: '4px' }}>
+                      Cảnh báo: {r.chiTietLoi}
+                    </span>
+                  )}
+                </span>
                 <span className="pl">{r.loai || ''}</span>
                 <span className="pn">{r.n}</span>
                 <span>{lvl}</span>
