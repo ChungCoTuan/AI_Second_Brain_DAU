@@ -10,6 +10,7 @@ import Search from './pages/Search';
 import Obligations from './pages/Obligations';
 import Thresholds from './pages/Thresholds';
 import ImpactGraph from './pages/ImpactGraph';
+import TopicDashboardPage from './pages/TopicDashboardPage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/priority" replace />} />
           <Route path="priority" element={<PriorityList />} />
+          <Route path="topics" element={<TopicDashboardPage />} />
           <Route path="dead-docs" element={<DeadDocs />} />
           <Route path="deadlines" element={<Deadlines />} />
           <Route path="analytics" element={<Analytics />} />

@@ -76,16 +76,17 @@ def extract_metadata_from_text(file_path: Path, full_text: str, folder_type: str
         co_quan_ban_hanh = "Bộ Giáo dục và Đào tạo"
         muc_do_lien_quan = "GENERAL"
 
-    # 5. Loại văn bản
-    if "TT" in stem or "Thông tư" in full_text[:300]:
+    # 5. Loại văn bản chính xác
+    head_text = full_text[:500]
+    if re.search(r"\b(\d+/\d{4}/TT-[A-ZĐ]+|\d+/\d{4}/TT)\b", stem) or re.search(r"\bTHÔNG TƯ\b|\bThông tư\b", head_text):
         loai_van_ban = "Thông tư"
-    elif "QD" in stem or "Quyết định" in full_text[:300]:
-        loai_van_ban = "Quyết định"
-    elif "ND" in stem or "Nghị định" in full_text[:300]:
+    elif re.search(r"\b(\d+/\d{4}/NĐ-CP|\d+/\d{4}/NĐ)\b", stem) or re.search(r"\bNGHỊ ĐỊNH\b|\bNghị định\b", head_text):
         loai_van_ban = "Nghị định"
-    elif "Luật" in stem or "QH" in stem:
+    elif re.search(r"\b(\d+/[QĐ|Qd|-]+[A-ZĐ]+|\d+/\d{4}/QĐ)\b", stem) or re.search(r"\bQUYẾT ĐỊNH\b|\bQuyết định\b", head_text):
+        loai_van_ban = "Quyết định"
+    elif re.search(r"\bLuật\b|\bQH\d+\b", stem) or re.search(r"\bLUẬT\b|\bLuật số\b", head_text):
         loai_van_ban = "Luật"
-    elif "CV" in stem or "Công văn" in full_text[:300]:
+    elif re.search(r"\bCV\b|\bCông văn\b", stem) or re.search(r"\bCÔNG VĂN\b|\bCông văn số\b", head_text):
         loai_van_ban = "Công văn"
     else:
         loai_van_ban = "Quy định"
@@ -100,16 +101,19 @@ def extract_metadata_from_text(file_path: Path, full_text: str, folder_type: str
 
     # 7. Chủ đề (TopicEnum)
     full_lower = full_text.lower()
-    if any(k in full_lower for k in ["tuyển sinh", "xét tuyển", "chỉ tiêu"]):
-        chu_de = "TUYEN_SINH"
-    elif any(k in full_lower for k in ["học phí", "tài chính", "ngân sách", "lệ phí"]):
-        chu_de = "TAI_CHINH"
-    elif any(k in full_lower for k in ["giảng viên", "cán bộ", "nhân sự", "tuyển dụng"]):
-        chu_de = "NHAN_SU"
-    elif any(k in full_lower for k in ["chuyển đổi số", "cơ sở vật chất", "thiết bị"]):
-        chu_de = "CO_SO_VAT_CHAT"
-    elif any(k in full_lower for k in ["đào tạo", "chương trình", "tín chỉ", "quy chế"]):
+    stem_lower = stem.lower()
+    search_text = f"{stem_lower} {full_lower}"
+
+    if any(k in search_text for k in ["đào tạo", "dao tao", "học vụ", "hoc vu", "quy chế đào tạo", "chương trình đào tạo", "tín chỉ", "tin chi", "giáo trình"]):
         chu_de = "DAO_TAO"
+    elif any(k in search_text for k in ["tuyển sinh", "tuyen sinh", "xét tuyển", "xet tuyen", "chỉ tiêu", "chi tieu", "nhập học", "trúng tuyển"]):
+        chu_de = "TUYEN_SINH"
+    elif any(k in search_text for k in ["học phí", "hoc phi", "tài chính", "tai chinh", "ngân sách", "ngan sach", "lệ phí", "hỗ trợ tài chính"]):
+        chu_de = "TAI_CHINH"
+    elif any(k in search_text for k in ["cơ sở vật chất", "co so vat chat", "thiết bị", "thiet bi", "phòng học", "ký túc xá", "chuyển đổi số"]):
+        chu_de = "CO_SO_VAT_CHAT"
+    elif any(k in search_text for k in ["giảng viên", "giang vien", "cán bộ", "can bo", "nhân sự", "nhan su", "tuyển dụng", "tiền lương"]):
+        chu_de = "NHAN_SU"
     else:
         chu_de = "KHAC"
 
@@ -122,20 +126,111 @@ def extract_metadata_from_text(file_path: Path, full_text: str, folder_type: str
     except ValueError:
         rel_path = str(file_path)
 
+    ten_van_ban = (
+        f"{loai_van_ban} {so_hieu}: {trich_yeu}"
+        if len(trich_yeu) < 100
+        else f"{loai_van_ban} {so_hieu}"
+    )
+
+    # ── Xác định trạng thái xuất bản ──────────────────────────────────────
+    if muc_do_lien_quan == "DIRECT":
+        trang_thai_xuat_ban = "PUBLISHED"
+    else:
+        trang_thai_xuat_ban = "PUBLISHED"
+
     return {
         "doc_id": doc_id,
         "so_hieu": so_hieu,
-        "ten_van_ban": f"{loai_van_ban} {so_hieu}: {trich_yeu}" if len(trich_yeu) < 100 else f"{loai_van_ban} {so_hieu}",
+        "ten_van_ban": ten_van_ban,
         "co_quan_ban_hanh": co_quan_ban_hanh,
         "ngay_ban_hanh": ngay_ban_hanh,
         "loai_van_ban": loai_van_ban,
         "trich_yeu": trich_yeu,
         "chu_de": chu_de,
         "muc_do_lien_quan_dau": muc_do_lien_quan,
-        "trang_thai_xuat_ban": "PENDING_REVIEW",
+        "trang_thai_xuat_ban": trang_thai_xuat_ban,
         "can_cu_dan_chieu": can_cu_list,
         "file_path": rel_path,
     }
+
+
+def split_chunk_into_khoan_subchunks(
+    dieu_num: int,
+    dieu_title: str,
+    lines: List[str],
+    doc_meta: Dict[str, Any],
+    page_start: int,
+) -> List[Dict[str, Any]]:
+    """Tách chunk theo Khoản (1., 2., 3...) nếu Điều dài và có nhiều Khoản thực tế."""
+    doc_id = doc_meta["doc_id"]
+    so_hieu = doc_meta["so_hieu"]
+    chu_de = doc_meta["chu_de"]
+    muc_do = doc_meta["muc_do_lien_quan_dau"]
+    pub_status = doc_meta.get("trang_thai_xuat_ban", "PUBLISHED")
+    ten_vb = doc_meta.get("ten_van_ban", "")
+
+    khoan_pattern = re.compile(r"^\s*(\d+)\.\s+(.+)")
+
+    khoan_groups: List[Tuple[int, List[str]]] = []
+    current_khoan = 1
+    current_lines: List[str] = []
+
+    for line in lines:
+        m = khoan_pattern.match(line)
+        if m and len(m.group(1)) <= 2 and int(m.group(1)) <= 30:
+            new_khoan = int(m.group(1))
+            if current_lines:
+                khoan_groups.append((current_khoan, current_lines))
+            current_khoan = new_khoan
+            current_lines = [line]
+        else:
+            current_lines.append(line)
+
+    if current_lines:
+        khoan_groups.append((current_khoan, current_lines))
+
+    total_words = sum(len(l.split()) for l in lines)
+    if len(khoan_groups) <= 1 or total_words < 250:
+        content = normalize_nfc("\n".join(lines))
+        if len(content) <= 20:
+            return []
+        first_khoan = khoan_groups[0][0] if khoan_groups else 1
+        return [{
+            "chunk_id": f"{doc_id}_D{dieu_num}",
+            "doc_id": doc_id,
+            "so_hieu": so_hieu,
+            "ten_van_ban": ten_vb,
+            "dieu_so": dieu_num,
+            "khoan_so": first_khoan,
+            "so_trang": page_start,
+            "title": dieu_title or f"Điều {dieu_num}",
+            "content": content,
+            "token_count": max(1, len(content.split())),
+            "chu_de": chu_de,
+            "muc_do_lien_quan_dau": muc_do,
+            "trang_thai_xuat_ban": pub_status,
+        }]
+
+    sub_chunks = []
+    for k_num, k_lines in khoan_groups:
+        k_content = normalize_nfc("\n".join(k_lines))
+        if len(k_content) > 20:
+            sub_chunks.append({
+                "chunk_id": f"{doc_id}_D{dieu_num}_K{k_num}",
+                "doc_id": doc_id,
+                "so_hieu": so_hieu,
+                "ten_van_ban": ten_vb,
+                "dieu_so": dieu_num,
+                "khoan_so": k_num,
+                "so_trang": page_start,
+                "title": f"{dieu_title} — Khoản {k_num}" if dieu_title else f"Điều {dieu_num} — Khoản {k_num}",
+                "content": k_content,
+                "token_count": max(1, len(k_content.split())),
+                "chu_de": chu_de,
+                "muc_do_lien_quan_dau": muc_do,
+                "trang_thai_xuat_ban": pub_status,
+            })
+    return sub_chunks
 
 
 def chunk_document_by_dieu(pages_text: List[Tuple[int, str]], doc_meta: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -144,9 +239,6 @@ def chunk_document_by_dieu(pages_text: List[Tuple[int, str]], doc_meta: Dict[str
     relations = []
 
     doc_id = doc_meta["doc_id"]
-    so_hieu = doc_meta["so_hieu"]
-    chu_de = doc_meta["chu_de"]
-    muc_do_lien_quan = doc_meta["muc_do_lien_quan_dau"]
 
     line_page_tuples = []
     for page_num, text in pages_text:
@@ -223,22 +315,15 @@ def chunk_document_by_dieu(pages_text: List[Tuple[int, str]], doc_meta: Dict[str
         dieu_m = dieu_pattern.match(line_str)
         if dieu_m:
             if current_chunk_lines:
-                chunk_content = normalize_nfc("\n".join(current_chunk_lines))
-                if len(chunk_content) > 20:
-                    chunks.append({
-                        "chunk_id": f"{doc_id}_D{current_dieu_num or chunk_index}",
-                        "doc_id": doc_id,
-                        "so_hieu": so_hieu,
-                        "dieu_so": current_dieu_num or chunk_index,
-                        "khoan_so": 1,
-                        "so_trang": current_page_start,
-                        "title": current_dieu_title or f"Điều {current_dieu_num or chunk_index}",
-                        "content": chunk_content,
-                        "token_count": max(1, len(chunk_content.split())),
-                        "chu_de": chu_de,
-                        "muc_do_lien_quan_dau": muc_do_lien_quan,
-                    })
-                    chunk_index += 1
+                sub_c = split_chunk_into_khoan_subchunks(
+                    dieu_num=current_dieu_num or chunk_index,
+                    dieu_title=current_dieu_title,
+                    lines=current_chunk_lines,
+                    doc_meta=doc_meta,
+                    page_start=current_page_start,
+                )
+                chunks.extend(sub_c)
+                chunk_index += 1
 
             current_dieu_num = int(dieu_m.group(2))
             current_dieu_title = dieu_m.group(1)
@@ -248,21 +333,14 @@ def chunk_document_by_dieu(pages_text: List[Tuple[int, str]], doc_meta: Dict[str
             current_chunk_lines.append(line_str)
 
     if current_chunk_lines:
-        chunk_content = normalize_nfc("\n".join(current_chunk_lines))
-        if len(chunk_content) > 20:
-            chunks.append({
-                "chunk_id": f"{doc_id}_D{current_dieu_num or chunk_index}",
-                "doc_id": doc_id,
-                "so_hieu": so_hieu,
-                "dieu_so": current_dieu_num or chunk_index,
-                "khoan_so": 1,
-                "so_trang": current_page_start,
-                "title": current_dieu_title or f"Điều {current_dieu_num or chunk_index}",
-                "content": chunk_content,
-                "token_count": max(1, len(chunk_content.split())),
-                "chu_de": chu_de,
-                "muc_do_lien_quan_dau": muc_do_lien_quan,
-            })
+        sub_c = split_chunk_into_khoan_subchunks(
+            dieu_num=current_dieu_num or chunk_index,
+            dieu_title=current_dieu_title,
+            lines=current_chunk_lines,
+            doc_meta=doc_meta,
+            page_start=current_page_start,
+        )
+        chunks.extend(sub_c)
 
     return chunks, relations
 

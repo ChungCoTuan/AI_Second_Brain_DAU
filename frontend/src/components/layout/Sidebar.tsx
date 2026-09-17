@@ -10,7 +10,8 @@ import {
   Search,
   CheckSquare,
   Book,
-  Network
+  Network,
+  LayoutGrid
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -27,6 +28,10 @@ const Sidebar: React.FC = () => {
         <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Cảnh báo & Rà soát
         </div>
+        <NavLink to="/topics" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <LayoutGrid size={18} />
+          <span>Dashboard Chủ Đề</span>
+        </NavLink>
         <NavLink to="/priority" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
           <AlertTriangle size={18} />
           <span>Ưu tiên xử lý</span>

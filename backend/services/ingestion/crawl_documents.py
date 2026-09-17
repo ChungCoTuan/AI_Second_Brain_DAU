@@ -119,6 +119,35 @@ THỨ TRƯỞNG
     return text
 
 
+def get_system_font_path() -> Optional[str]:
+    """Tìm đường dẫn font Tiếng Việt phù hợp theo hệ điều hành (Windows, macOS, Linux/Docker)."""
+    import platform
+    sys_name = platform.system()
+    candidates = []
+    if sys_name == "Windows":
+        candidates = [
+            "C:/Windows/Fonts/arial.ttf",
+            "C:/Windows/Fonts/times.ttf",
+            "C:/Windows/Fonts/segoeui.ttf",
+        ]
+    elif sys_name == "Darwin":  # macOS
+        candidates = [
+            "/Library/Fonts/Arial.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+        ]
+    else:  # Linux / Docker / Container
+        candidates = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        ]
+
+    for p in candidates:
+        if Path(p).exists():
+            return p
+    return None
+
+
 def save_pdf_file(filepath: Path, content: bytes, doc_item: dict):
     """Lưu nội dung vào file PDF."""
     filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -126,11 +155,15 @@ def save_pdf_file(filepath: Path, content: bytes, doc_item: dict):
         import pymupdf as fitz
         doc = fitz.open()
         page = doc.new_page()
-        # Sử dụng font Arial mặc định của Windows để hiển thị Tiếng Việt
-        page.insert_font(fontname="F0", fontfile="C:/Windows/Fonts/arial.ttf")
+        font_path = get_system_font_path()
+        if font_path:
+            page.insert_font(fontname="F0", fontfile=font_path)
+            font_name = "F0"
+        else:
+            font_name = "helv"
         text_content = content.decode("utf-8", errors="ignore") if isinstance(content, bytes) else content
         rect = fitz.Rect(50, 50, 550, 800)
-        page.insert_textbox(rect, text_content, fontsize=11, fontname="F0")
+        page.insert_textbox(rect, text_content, fontsize=11, fontname=font_name)
         doc.save(str(filepath))
         doc.close()
     except Exception:
@@ -153,6 +186,8 @@ def crawl_documents(max_files: int = 50, base_dir: Path = None):
 
     print(f"🚀 Bắt đầu quá trình cào tự động tối đa {max_files} file PDF...")
     downloaded_count = 0
+
+    font_path = get_system_font_path()
 
     for idx, item in enumerate(DOCUMENT_TARGETS, 1):
         if downloaded_count >= max_files:
@@ -193,9 +228,13 @@ def crawl_documents(max_files: int = 50, base_dir: Path = None):
                 for page_idx in range(0, len(lines), lines_per_page):
                     page_lines = lines[page_idx:page_idx + lines_per_page]
                     page = doc.new_page(width=595, height=842)
-                    page.insert_font(fontname="F0", fontfile="C:/Windows/Fonts/arial.ttf")
+                    if font_path:
+                        page.insert_font(fontname="F0", fontfile=font_path)
+                        f_name = "F0"
+                    else:
+                        f_name = "helv"
                     rect = fitz.Rect(40, 40, 555, 800)
-                    page.insert_textbox(rect, "\n".join(page_lines), fontsize=10, fontname="F0")
+                    page.insert_textbox(rect, "\n".join(page_lines), fontsize=10, fontname=f_name)
 
                 doc.save(str(target_path))
                 doc.close()

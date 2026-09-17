@@ -2,10 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useDetail } from '../../context/DetailContext';
 import { DEMO_DATA } from '../../data';
 import { fmtDate, badge } from '../../utils';
+import { ReportSuggestionModal } from '../ReportSuggestionModal';
+import { DocumentTreeTab } from '../DocumentTreeTab';
+
+import { fetchDocumentDetail } from '../../services/api';
 
 const DocumentDetailDrawer: React.FC = () => {
   const { docId, closeDetail } = useDetail();
   const [data, setData] = useState<any>(null);
+  const [showReportModal, setShowReportModal] = useState<boolean>(false);
+
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -25,26 +31,59 @@ const DocumentDetailDrawer: React.FC = () => {
       return;
     }
 
-    let m = DEMO_DATA.docMeta?.[docId];
-    
-    // Văn bản của Bộ
-    if (docId.startsWith('bo:')) {
-      const so = docId.slice(3);
-      const o = (DEMO_DATA.vbBo || []).find((x: any) => x.soHieu === so);
-      if (o) {
-        setData({ type: 'bo', data: o });
+    let isMounted = true;
+    const loadDetail = async () => {
+      try {
+        const res = await fetchDocumentDetail(docId);
+        if (res && res.document && isMounted) {
+          const doc = res.document;
+          setData({
+            type: 'truong',
+            data: {
+              soHieu: doc.so_hieu || doc.doc_id,
+              loai: doc.loai_van_ban || 'Quy định',
+              coQuan: doc.co_quan_ban_hanh || 'Hệ thống DAU',
+              nguoiKy: 'Cán bộ Đào tạo',
+              ngayKy: doc.ngay_ban_hanh || '',
+              hieuLucTu: doc.ngay_ban_hanh || '',
+              status: doc.trang_thai_xuat_ban,
+              tomTat: doc.ten_van_ban,
+              chuDe: [doc.chu_de],
+              conf: 1.0,
+              chunks: res.chunks || []
+            },
+            items: null
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn("API doc detail fetch error:", e);
+      }
+
+      if (!isMounted) return;
+      let m = DEMO_DATA.docMeta?.[docId];
+      
+      if (docId.startsWith('bo:')) {
+        const so = docId.slice(3);
+        const o = (DEMO_DATA.vbBo || []).find((x: any) => x.soHieu === so);
+        if (o) {
+          setData({ type: 'bo', data: o });
+          return;
+        }
+      }
+
+      if (!m) {
+        setData({ type: 'not-found' });
         return;
       }
-    }
 
-    if (!m) {
-      setData({ type: 'not-found' });
-      return;
-    }
+      const w = DEMO_DATA.warnings.find((x: any) => x.docId === docId);
+      const items = w ? w.items : null;
+      setData({ type: 'truong', data: m, items });
+    };
 
-    const w = DEMO_DATA.warnings.find((x: any) => x.docId === docId);
-    const items = w ? w.items : null;
-    setData({ type: 'truong', data: m, items });
+    loadDetail();
+    return () => { isMounted = false; };
   }, [docId]);
 
   const row = (k: string, v: string | undefined | null) => {
@@ -269,6 +308,9 @@ const DocumentDetailDrawer: React.FC = () => {
                 <div className="sum">{o.ghiChu}</div>
               </>
             )}
+
+            <div className="sec-t" style={{ marginTop: '20px' }}>🌳 Mối Quan Hệ & Cây Văn Bản (UC-06)</div>
+            {docId && <DocumentTreeTab docId={docId} />}
           </div>
         </>
       );
@@ -353,6 +395,23 @@ const DocumentDetailDrawer: React.FC = () => {
                 </div>
               </>
             )}
+
+            {m.chunks && m.chunks.length > 0 && (
+              <>
+                <div className="sec-t">Danh sách Các Đoạn (Chunks trích xuất) ({m.chunks.length})</div>
+                {m.chunks.map((c: any, i: number) => (
+                  <div key={i} className="ev-q" style={{ marginBottom: '10px' }}>
+                    <span className="lbl">{c.title || `Điều ${c.dieu_so || i+1}`} (Trang {c.so_trang || 1})</span>
+                    <div style={{ marginTop: '4px', fontSize: '13px', lineHeight: '1.5', color: '#334155' }}>
+                      {c.content}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            <div className="sec-t" style={{ marginTop: '20px' }}>🌳 Mối Quan Hệ & Cây Văn Bản (UC-06)</div>
+            {docId && <DocumentTreeTab docId={docId} />}
           </div>
         </>
       );
@@ -364,7 +423,36 @@ const DocumentDetailDrawer: React.FC = () => {
       <div className={`ov ${docId ? 'show' : ''}`} onClick={closeDetail}></div>
       <div className={`drawer ${docId ? 'show' : ''}`}>
         {renderContent()}
+        {docId && (
+          <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+            <button
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(30, 64, 175, 0.25)',
+              }}
+              onClick={() => setShowReportModal(true)}
+            >
+              📄 Tạo Khung Báo Cáo Gợi Ý (.docx)
+            </button>
+          </div>
+        )}
       </div>
+
+      {showReportModal && docId && (
+        <ReportSuggestionModal docId={docId} onClose={() => setShowReportModal(false)} />
+      )}
     </>
   );
 };
