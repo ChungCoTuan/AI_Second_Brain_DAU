@@ -1,8 +1,27 @@
+# Environment & Dependencies
 .ast-graph/
 .venv/
 **/.venv/
+venv/
+**/venv/
+.superpowers/
+superpowers/
+.gemini/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Python Cache & Logs
 __pycache__/
 **/__pycache__/
 *.pyc
 *.pyo
+*.log
+.env
+
+# Data & Vector Database (Big binary / generated files)
+data/raw/
+data/processed/
+data/vector_db/
+*.jsonl.bak_*
 drive-download-*/
