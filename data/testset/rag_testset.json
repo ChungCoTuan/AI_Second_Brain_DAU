@@ -1,0 +1,27 @@
+[
+  {
+    "query": "Sinh viên học cùng lúc 2 chương trình có được bảo lưu kết quả không?",
+    "reference": "Theo Quy định học cùng lúc 2 chương trình, sinh viên được quyền bảo lưu điểm của các học phần có nội dung và khối lượng kiến thức tương đương trong chương trình thứ hai.",
+    "doc_category": "Đào tạo"
+  },
+  {
+    "query": "Sinh viên đi thực tập tại Nhật Bản cần những điều kiện gì?",
+    "reference": "Theo Quy chế tổ chức chương trình thực tập Nhật Bản, sinh viên cần đạt chuẩn tiếng Nhật N4 trở lên và hoàn thành các môn học theo yêu cầu của chương trình đào tạo.",
+    "doc_category": "Thực tập"
+  },
+  {
+    "query": "Mức miễn giảm học phí cho giảng viên là bao nhiêu?",
+    "reference": "Theo quy định, giảng viên có thể được miễn giảm từ 50% đến 100% học phí tuỳ thuộc vào đối tượng và thâm niên công tác.",
+    "doc_category": "Tài chính"
+  },
+  {
+    "query": "Làm thế nào để được miễn học phần tiếng Anh?",
+    "reference": "Sinh viên có chứng chỉ tiếng Anh quốc tế IELTS từ 5.5 trở lên (hoặc tương đương) còn hạn sử dụng sẽ được xét miễn học và thi các học phần tiếng Anh cơ sở.",
+    "doc_category": "Ngoại ngữ"
+  },
+  {
+    "query": "Sinh viên đăng ký rút học phần khi nào?",
+    "reference": "Sinh viên được phép rút bớt học phần đã đăng ký trong vòng 2 tuần đầu tiên của học kỳ chính và không bị ghi điểm F.",
+    "doc_category": "Đào tạo"
+  }
+]
