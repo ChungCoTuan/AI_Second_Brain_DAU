@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 const emptyData = {
+  hasNewDocs: false,
+  pendingCount: 0,
   soCanhBao: 0,
   soSuKien: 0,
   warnings: [],
@@ -54,24 +56,36 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     Promise.all([
       fetch('http://localhost:8000/api/v1/legal-data').then(res => res.ok ? res.json() : {} as any),
       fetch('http://localhost:8000/api/v1/auditing/warnings').then(res => res.ok ? res.json() : {} as any),
-      fetch('http://localhost:8000/api/v1/analytics').then(res => res.ok ? res.json() : {} as any)
+      fetch('http://localhost:8000/api/v1/analytics').then(res => res.ok ? res.json() : {} as any),
+      fetch('http://localhost:8000/api/v1/review/pending').then(res => res.ok ? res.json() : {} as any),
+      fetch('http://localhost:8000/api/v1/system/status').then(res => res.ok ? res.json() : {} as any)
     ])
-      .then(([apiData, auditingData, analyticsData]) => {
+      .then(([legalData, warningsData, analyticsData, reviewData, systemData]) => {
+        
+        const nghiaVuList = reviewData?.nghiaVu || [];
+        const conSoChotList = reviewData?.conSoChot || [];
+        const combinedReviewCount = nghiaVuList.length + conSoChotList.length;
+
         setData({
           ...emptyData,
-          nghiaVu: apiData.nghiaVu || [],
-          conSoChot: apiData.conSoChot || [],
-          hanChot: apiData.hanChot || [],
-          chuaHieuLuc: apiData.chuaHieuLuc || [],
-          vbTuChet: apiData.vbTuChet || [],
-          vbSapChet: apiData.vbSapChet || [],
-          events: apiData.events || [],
-          suKienHieuLuc: apiData.suKienHieuLuc || [],
-          impact: apiData.impact || [],
+          hasNewDocs: systemData?.has_new_docs || false,
+          pendingCount: combinedReviewCount,
+          nghiaVu: legalData.nghiaVu || [],
+          conSoChot: legalData.conSoChot || [],
+          hanChot: legalData.hanChot || [],
+          chuaHieuLuc: legalData.chuaHieuLuc || [],
+          vbTuChet: legalData.vbTuChet || [],
+          vbSapChet: legalData.vbSapChet || [],
+          events: legalData.events || [],
+          suKienHieuLuc: legalData.suKienHieuLuc || [],
+          impact: legalData.impact || [],
+          soCanhBao: (warningsData.warnings || []).length,
+          soSuKien: (legalData.events || []).length,
+          warnings: warningsData.warnings || [],
           insights: {
             ...emptyData.insights,
             ...(analyticsData.insights || {}),
-            uuTien: auditingData.warnings || []
+            uuTien: warningsData.warnings || []
           }
         });
         setLoading(false);

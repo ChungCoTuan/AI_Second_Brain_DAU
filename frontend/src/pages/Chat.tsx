@@ -10,13 +10,27 @@ interface Message {
 }
 
 const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: 'Xin chào! Tôi là Trợ lý AI của DAU Second Brain. Bạn có thể hỏi tôi bất kỳ thông tin nào về các Thông tư, Quy chế đã được duyệt (Published). Ví dụ: "Chuẩn chương trình đào tạo quy định thế nào?"'
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem('chat_history');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Lỗi đọc lịch sử chat:", e);
+      }
     }
-  ]);
+    return [
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: 'Xin chào! Tôi là Trợ lý AI của DAU Second Brain. Bạn có thể hỏi tôi bất kỳ thông tin nào về các Thông tư, Quy chế đã được duyệt (Published). Ví dụ: "Chuẩn chương trình đào tạo quy định thế nào?"'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(messages));
+  }, [messages]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);

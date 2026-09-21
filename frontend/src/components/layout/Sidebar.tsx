@@ -16,7 +16,11 @@ import {
   Settings
 } from 'lucide-react';
 
+import { useData } from '../../context/DataContext';
+
 const Sidebar: React.FC = () => {
+  const { data } = useData();
+  
   return (
     <aside className="sidebar" style={{ width: '260px', background: '#fff', borderRight: '1px solid var(--line)', padding: '20px 0' }}>
       <div className="sidebar-header" style={{ padding: '0 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -50,9 +54,23 @@ const Sidebar: React.FC = () => {
           <History size={18} />
           <span>Sự kiện luật</span>
         </NavLink>
-        <NavLink to="/review" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
-          <ClipboardList size={18} />
-          <span>Cần rà soát</span>
+        <NavLink to="/review" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+            <ClipboardList size={18} />
+            <span>Cần rà soát</span>
+          </div>
+          {data?.pendingCount > 0 && (
+            <span style={{
+              background: '#ef4444', 
+              color: 'white', 
+              fontSize: '11px', 
+              fontWeight: 700, 
+              padding: '2px 8px', 
+              borderRadius: '12px'
+            }}>
+              {data.pendingCount}
+            </span>
+          )}
         </NavLink>
         <NavLink to="/topics" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
           <Layers size={18} />
@@ -88,7 +106,19 @@ const Sidebar: React.FC = () => {
         </div>
         <NavLink to="/admin" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
           <Settings size={18} />
-          <span>Tải tài liệu (Admin)</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span>Tải tài liệu (Admin)</span>
+            {data.hasNewDocs && (
+              <div style={{
+                background: 'var(--red)', color: 'white', borderRadius: '50%',
+                width: '8px', height: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}></div>
+            )}
+          </div>
+        </NavLink>
+        <NavLink to="/audit" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <History size={18} />
+          <span>Nhật ký thao tác</span>
         </NavLink>
       </nav>
       

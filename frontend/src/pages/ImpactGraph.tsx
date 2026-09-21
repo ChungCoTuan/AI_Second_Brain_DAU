@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useDetail } from '../context/DetailContext';
 
@@ -6,20 +6,58 @@ const ImpactGraph: React.FC = () => {
   const { openDetail } = useDetail();
   const { data } = useData();
   const impact = data.impact || [];
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [filterType, setFilterType] = useState('Tất cả');
+  const [selectedCanCu, setSelectedCanCu] = useState<string>('');
+
+  const filteredImpact = useMemo(() => {
+    if (filterType === 'Tất cả') return impact;
+    return impact.filter((item: any) => {
+      const name = item.canCu.toLowerCase();
+      if (filterType === 'Khác') {
+        return !name.includes('nghị định') && !name.includes('thông tư') && !name.includes('quyết định') && !name.includes('luật');
+      }
+      return name.includes(filterType.toLowerCase());
+    });
+  }, [impact, filterType]);
+
+  useEffect(() => {
+    if (filteredImpact.length > 0) {
+      if (!selectedCanCu || !filteredImpact.find((item: any) => item.canCu === selectedCanCu)) {
+        setSelectedCanCu(filteredImpact[0].canCu);
+      }
+    } else {
+      setSelectedCanCu('');
+    }
+  }, [filteredImpact, selectedCanCu]);
 
   if (impact.length === 0) return null;
 
-  const x = impact[selectedIndex];
+  const x = filteredImpact.find((item: any) => item.canCu === selectedCanCu) || filteredImpact[0];
   const deps = x ? x.dependents : [];
 
-  const W = 740;
+  // Calculate dynamic widths based on text length
+  const charWidth = 7.5;
+  const boxPadding = 30;
+  
+  let rootTextLen = x && x.canCu ? x.canCu.length : 0;
+  if (x && x.thayBang && x.thayBang.length > rootTextLen) {
+    rootTextLen = x.thayBang.length;
+  }
+  const bw = Math.max(214, rootTextLen * charWidth + boxPadding);
+  
+  let maxDepLen = 0;
+  deps.forEach((d: any) => {
+    if (d.soHieu && d.soHieu.length > maxDepLen) maxDepLen = d.soHieu.length;
+  });
+  const dw = Math.max(250, maxDepLen * charWidth + boxPadding);
+
+  const bx = 18;
+  const arrowSpacing = 80;
+  const dx = bx + bw + arrowSpacing;
+  const W = dx + dw + 20;
+  
   const rowH = 50;
   const pad = 44;
-  const bx = 18;
-  const bw = 214;
-  const dx = 474;
-  const dw = 250;
   const dh = 38;
   const H = Math.max(240, pad * 2 + deps.length * rowH);
   const by = H / 2;
@@ -31,36 +69,67 @@ const ImpactGraph: React.FC = () => {
         <p className="sub">Trực quan hoá dây chuyền "văn bản kéo văn bản".</p>
 
         <div className="impact">
-          <div style={{ marginBottom: '14px' }}>
-            <span style={{ fontSize: '13px', color: 'var(--muted)', display: 'inline-block', width: '130px' }}>
-              Chọn căn cứ thay đổi:
-            </span>
-            <select
-              value={selectedIndex}
-              onChange={(e) => setSelectedIndex(Number(e.target.value))}
-              style={{
-                fontSize: '14px',
-                padding: '8px 10px',
-                border: '1px solid var(--line)',
-                borderRadius: '8px',
-                width: '100%',
-                maxWidth: '420px',
-              }}
-            >
-              {impact.map((item: any, i: number) => (
-                <option key={i} value={i}>
-                  {item.canCu} ({item.dependents.length} văn bản phụ thuộc)
-                </option>
-              ))}
-            </select>
+          <div style={{ marginBottom: '14px', display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                Lọc loại văn bản:
+              </span>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                style={{
+                  fontSize: '14px',
+                  padding: '8px 10px',
+                  border: '1px solid var(--line)',
+                  borderRadius: '8px',
+                  minWidth: '150px',
+                }}
+              >
+                <option value="Tất cả">Tất cả</option>
+                <option value="Nghị định">Nghị định</option>
+                <option value="Thông tư">Thông tư</option>
+                <option value="Quyết định">Quyết định</option>
+                <option value="Luật">Luật</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1' }}>
+              <span style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                Chọn căn cứ thay đổi:
+              </span>
+              <select
+                value={selectedCanCu}
+                onChange={(e) => setSelectedCanCu(e.target.value)}
+                style={{
+                  fontSize: '14px',
+                  padding: '8px 10px',
+                  border: '1px solid var(--line)',
+                  borderRadius: '8px',
+                  width: '100%',
+                  maxWidth: '500px',
+                }}
+              >
+                {filteredImpact.length === 0 ? (
+                  <option value="">Không có dữ liệu phù hợp</option>
+                ) : (
+                  filteredImpact.map((item: any) => (
+                    <option key={item.canCu} value={item.canCu}>
+                      {item.canCu} ({item.dependents.length} văn bản phụ thuộc)
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
 
           <div id="impactOut">
             {x && (
               <>
                 <div className="note">
-                  Nếu <b>{x.canCu}</b> thay đổi ({x.lyDo} → <b>{x.thayBang}</b>), {deps.length} văn bản dưới đây cần rà
-                  lại.
+                  Nếu <b>{x.canCu}</b> thay đổi {x.thayBang ? `(${x.lyDo} → ` : `(${x.lyDo})`}
+                  {x.thayBang && <b>{x.thayBang}</b>}
+                  {x.thayBang ? ')' : ''}, {deps.length} văn bản dưới đây cần rà lại.
                 </div>
                 {deps.length === 0 ? (
                   <p className="sub">Không có văn bản phụ thuộc trong kho.</p>
@@ -137,23 +206,27 @@ const ImpactGraph: React.FC = () => {
                         </text>
                       </g>
 
-                      <g>
-                        <rect
-                          x={bx}
-                          y={by + 40}
-                          width={bw}
-                          height={30}
-                          rx={8}
-                          fill="#f0fdf4"
-                          stroke="#15803d"
-                          strokeWidth="1.4"
-                        />
-                        <text x={bx + bw / 2} y={by + 59} textAnchor="middle" fontSize="11.5" fill="#15803d">
-                          thay bằng:{' '}
-                          <tspan fontWeight="700">{x.thayBang}</tspan>
-                        </text>
-                      </g>
-                      <line x1={bx + bw / 2} y1={by + 28} x2={bx + bw / 2} y2={by + 40} stroke="#15803d" strokeWidth="1.2" />
+                      {x.thayBang && (
+                        <>
+                          <g>
+                            <rect
+                              x={bx}
+                              y={by + 40}
+                              width={bw}
+                              height={30}
+                              rx={8}
+                              fill="#f0fdf4"
+                              stroke="#15803d"
+                              strokeWidth="1.4"
+                            />
+                            <text x={bx + bw / 2} y={by + 59} textAnchor="middle" fontSize="11.5" fill="#15803d">
+                              thay bằng:{' '}
+                              <tspan fontWeight="700">{x.thayBang}</tspan>
+                            </text>
+                          </g>
+                          <line x1={bx + bw / 2} y1={by + 28} x2={bx + bw / 2} y2={by + 40} stroke="#15803d" strokeWidth="1.2" />
+                        </>
+                      )}
 
                       {deps.map((d: any, i: number) => {
                         const dy = pad + i * rowH + dh / 2;

@@ -6,6 +6,7 @@
 
 import re
 import os
+import warnings
 from typing import Dict, Any
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -15,48 +16,155 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
+# Lazy loading cho embedding model siêu nhẹ
+_embedding_model = None
+
+def get_embedding_model():
+    global _embedding_model
+    if _embedding_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            print("Dang tai mo hinh Embedding (MiniLM - 15MB)...")
+            _embedding_model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+        except Exception as e:
+            print(f"Lỗi tải MiniLM: {e}")
+    return _embedding_model
+
 class LegalInformationExtractor:
     def __init__(self, use_ai=False):
         self.use_ai = use_ai
         self.pipeline = None
         if self.use_ai:
-            try:
-                from transformers import AutoTokenizer, AutoModelForQuestionAnswering, pipeline
-                import torch
-                print("Dang tai mo hinh AI QA...")
-                # Khởi tạo mô hình QA đa ngữ trực tiếp
-                self.model_name = "timpal0l/mdeberta-v3-base-squad2"
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-                self.qa_model = AutoModelForQuestionAnswering.from_pretrained(self.model_name)
-                self.torch = torch
-                
-                print("Dang tai mo hinh Summarization (BARTpho/ViT5)...")
-                self.summarizer = pipeline("summarization", model="VietAI/vit5-base-vietnews-summarization", max_length=150)
-                
-                print("Dang tai mo hinh NLI (3 nhan)...")
-                self.nli_model = pipeline("zero-shot-classification", model="MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7")
-            except Exception as e:
-                print(f"Canh bao: Khong the tai mo hinh AI. Chuyen sang Heuristic. Loi: {e}")
-                self.use_ai = False
+            import torch
+            self.torch = torch
+            
+            # Khởi tạo None (Lazy Loading)
+            self.model_name_qa = "timpal0l/mdeberta-v3-base-squad2"
+            self.tokenizer = None
+            self.qa_model = None
+            
+            self.sum_tokenizer = None
+            self.sum_model = None
+            
+            self.nli_tokenizer = None
+            self.nli_model = None
+
+    def _manage_memory(self, active_model: str):
+        """Chỉ giữ 1 mô hình lớn trong RAM để tránh tràn RAM (WinError 1455)"""
+        import gc
+        cleared = False
+        if active_model != 'qa' and self.qa_model is not None:
+            self.qa_model = None
+            self.tokenizer = None
+            cleared = True
+        if active_model != 'sum' and self.sum_model is not None:
+            self.sum_model = None
+            self.sum_tokenizer = None
+            cleared = True
+        if active_model != 'nli' and self.nli_model is not None:
+            self.nli_model = None
+            self.nli_tokenizer = None
+            cleared = True
+            
+        if cleared:
+            gc.collect()
+            
+    def _get_qa_model(self):
+        self._manage_memory('qa')
+        if self.qa_model is None:
+            from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+            print("Dang tai mo hinh AI QA...")
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_qa)
+            self.qa_model = AutoModelForQuestionAnswering.from_pretrained(self.model_name_qa)
+        return self.tokenizer, self.qa_model
+        
+    def _get_sum_model(self):
+        self._manage_memory('sum')
+        if self.sum_model is None:
+            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+            import os
+            print("Dang tai mo hinh Summarization (BARTpho/ViT5)...")
+            BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            patched_dir = os.path.join(BASE_DIR, "bin", "patched_tokenizer")
+            if os.path.exists(patched_dir):
+                self.sum_tokenizer = AutoTokenizer.from_pretrained(patched_dir, use_fast=False)
+            else:
+                self.sum_tokenizer = AutoTokenizer.from_pretrained("VietAI/vit5-base-vietnews-summarization", use_fast=False)
+            self.sum_model = AutoModelForSeq2SeqLM.from_pretrained("VietAI/vit5-base-vietnews-summarization")
+        return self.sum_tokenizer, self.sum_model
+        
+    def _get_nli_model(self):
+        self._manage_memory('nli')
+        if self.nli_model is None:
+            from transformers import AutoTokenizer, AutoModelForSequenceClassification
+            print("Dang tai mo hinh NLI (3 nhan)...")
+            self.nli_tokenizer = AutoTokenizer.from_pretrained("MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7")
+            self.nli_model = AutoModelForSequenceClassification.from_pretrained("MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7")
+        return self.nli_tokenizer, self.nli_model
 
     def _ask_qa(self, question, context):
-        inputs = self.tokenizer(question, context, return_tensors="pt", truncation=True, max_length=512)
+        tokenizer, qa_model = self._get_qa_model()
+        inputs = tokenizer(question, context, return_tensors="pt", truncation=True, max_length=512)
         with self.torch.no_grad():
-            outputs = self.qa_model(**inputs)
+            outputs = qa_model(**inputs)
         
         start_idx = self.torch.argmax(outputs.start_logits)
         end_idx = self.torch.argmax(outputs.end_logits)
         
         start_prob = self.torch.max(self.torch.softmax(outputs.start_logits, dim=-1))
         end_prob = self.torch.max(self.torch.softmax(outputs.end_logits, dim=-1))
-        score = float(start_prob * end_prob)
+        
+        score = (start_prob + end_prob) / 2.0
         
         if start_idx > end_idx or start_idx == 0: # 0 is CLS token meaning no answer
             return {"answer": "", "score": 0.0}
             
-        answer_tokens = inputs.input_ids[0][start_idx:end_idx+1]
-        answer = self.tokenizer.decode(answer_tokens, skip_special_tokens=True).strip()
-        return {"answer": answer, "score": score}
+        answer_tokens = inputs.input_ids[0][start_idx : end_idx + 1]
+        answer = tokenizer.decode(answer_tokens, skip_special_tokens=True)
+        
+        return {
+            "answer": answer.strip(),
+            "score": score.item()
+        }
+        
+    def extract_temporal(self, text: str) -> str:
+        """
+        Thuật toán nhận diện Mốc thời gian (Temporal) chuyên sâu cho Tiếng Việt pháp lý.
+        Nhận diện Ngày tuyệt đối, Thời hạn tương đối, và Mốc học thuật.
+        """
+        text_lower = text.lower()
+        
+        # 1. Tương đối (Khoảng thời gian: trong vòng 30 ngày, sau 15 ngày làm việc...)
+        rel_pattern = r"(trong thời hạn|trong vòng|sau|trước|chậm nhất|ít nhất)\s+(\d+)\s+(ngày|tháng|năm|giờ|tuần)(?:\s+(?:làm việc|kể từ ngày))?"
+        match_rel = re.search(rel_pattern, text_lower)
+        if match_rel:
+            return f"{match_rel.group(1).capitalize()} {match_rel.group(2)} {match_rel.group(3)}"
+            
+        # 2. Tuyệt đối (Ngày tháng năm chuẩn)
+        abs_pattern = r"(?:ngày\s+)?(\d{1,2})\s*(?:/|-|tháng)\s*(\d{1,2})(?:\s*(?:/|-|năm)\s*(\d{4}))?\b"
+        match_abs = re.search(abs_pattern, text_lower)
+        if match_abs and int(match_abs.group(2)) <= 12: # Tháng phải hợp lệ <= 12
+            day = match_abs.group(1)
+            month = match_abs.group(2)
+            year = match_abs.group(3) if match_abs.group(3) else "hàng năm"
+            return f"Ngày {day}/{month}/{year}"
+            
+        # 3. Mốc học thuật (Đầu năm học, kết thúc học kỳ...)
+        acad_pattern = r"(đầu|kết thúc|cuối|trước|sau|trong)\s+(năm học|học kỳ|khoá học|kỳ thi|đợt tuyển sinh)(?:\s+(20\d{2}-20\d{2}))?"
+        match_acad = re.search(acad_pattern, text_lower)
+        if match_acad:
+            period = f"{match_acad.group(1)} {match_acad.group(2)}"
+            if match_acad.group(3):
+                period += f" {match_acad.group(3)}"
+            return period.capitalize()
+            
+        # 4. Định kỳ (Hàng năm, định kỳ)
+        freq_pattern = r"(định kỳ|hàng năm|hàng tháng|hàng tuần|mỗi năm|mỗi tháng)"
+        match_freq = re.search(freq_pattern, text_lower)
+        if match_freq:
+            return match_freq.group(1).capitalize()
+            
+        return "Không quy định cụ thể"
 
     def extract_obligation(self, text_chunk: str) -> Dict[str, str]:
         """
@@ -91,15 +199,7 @@ class LegalInformationExtractor:
                 
         # --- LUỒNG HEURISTIC (DỰ PHÒNG) ---
         # 1. Trích xuất Hạn chót (Deadline)
-        deadline = "Không quy định cụ thể"
-        date_pattern = r"(?:trước ngày|ngày|từ ngày|đến ngày|hạn)\s+(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)"
-        match = re.search(date_pattern, text_chunk.lower())
-        if match:
-            deadline = f"Theo mốc thời gian: {match.group(1)}"
-        else:
-            year_match = re.search(r"(?:năm học|năm)\s+(20\d{2})", text_chunk.lower())
-            if year_match:
-                deadline = f"Trong năm {year_match.group(1)}"
+        deadline = self.extract_temporal(text_chunk)
 
         # 2. Trích xuất Chủ thể (Subject)
         subject = "Các đơn vị, cá nhân liên quan"
@@ -181,12 +281,15 @@ class LegalInformationExtractor:
         """
         Tóm tắt văn bản dùng mô hình BARTpho / ViT5
         """
-        if self.use_ai and hasattr(self, 'summarizer'):
+        if self.use_ai:
             try:
+                sum_tokenizer, sum_model = self._get_sum_model()
                 # Cắt bớt input nếu quá dài để tránh lỗi OOM
                 input_text = text[:1024]
-                summary = self.summarizer(input_text, max_length=100, min_length=15, do_sample=False)
-                return summary[0]['summary_text']
+                inputs = sum_tokenizer(input_text, return_tensors="pt", max_length=1024, truncation=True)
+                outputs = sum_model.generate(**inputs, max_length=100, min_length=15, do_sample=False)
+                summary = sum_tokenizer.decode(outputs[0], skip_special_tokens=True)
+                return summary
             except Exception as e:
                 print(f"Lỗi tóm tắt AI: {e}")
                 
@@ -200,16 +303,20 @@ class LegalInformationExtractor:
         """
         Kiểm tra độ trung thực NLI (Entailment, Contradiction, Neutral).
         """
-        if self.use_ai and hasattr(self, 'nli_model'):
+        if self.use_ai:
             try:
-                labels = ["entailment", "contradiction", "neutral"]
-                result = self.nli_model(f"Context: {premise} Hypothesis: {hypothesis}", labels, multi_label=False)
-                best_label = result['labels'][0]
+                nli_tokenizer, nli_model = self._get_nli_model()
+                inputs = nli_tokenizer(premise, hypothesis, truncation=True, max_length=512, return_tensors="pt")
+                with self.torch.no_grad():
+                    output = nli_model(**inputs)
+                
+                prediction = self.torch.softmax(output["logits"][0], -1).tolist()
+                label_names = ["entailment", "neutral", "contradiction"]
+                prediction_dict = {name: float(pred) for pred, name in zip(prediction, label_names)}
+                best_label = max(prediction_dict, key=prediction_dict.get)
                 return best_label
             except Exception as e:
-                print(f"Lỗi NLI: {e}")
-                
-        # Fallback Heuristic
+                print(f"Lỗi suy luận NLI: {e}")
         return "neutral"
 
     def extract_document_relations(self, text: str, source_doc: str) -> list[Dict[str, str]]:
@@ -219,15 +326,26 @@ class LegalInformationExtractor:
         relations = []
         text_lower = text.lower()
         
-        # Mẫu regex để tìm "thay thế", "bãi bỏ", "căn cứ" + "Thông tư/Nghị định/Quyết định/Luật + Số hiệu"
-        # Bắt Số hiệu VD: 08/2021/TT-BGDĐT, 123/QĐ-UBND, Luật Giáo dục đại học...
-        pattern = r"(thay thế|bãi bỏ|căn cứ)\s+((?:toàn bộ\s+)?(?:thông tư|nghị định|quyết định|luật|công văn)[^,\.\n;\(]+)"
+        pattern = r"(căn cứ|bãi bỏ toàn bộ|bãi bỏ một phần|bãi bỏ|thay thế|sửa đổi,? bổ sung)\s+(?:.*?)(thông tư|nghị định|quyết định|luật|công văn)\s+(số\s+)?(\d+/[^\s,\.\(]+)"
         
         matches = re.finditer(pattern, text_lower)
         for match in matches:
-            rel_type = match.group(1).strip()
-            target_doc = match.group(2).strip().upper() # VD: THÔNG TƯ 08/2021/TT-BGDĐT
+            action = match.group(1).strip().replace(',', '')
+            doc_type = match.group(2).strip().capitalize()
+            doc_number = match.group(4).strip().upper()
             
+            target_doc = f"{doc_type} {doc_number}"
+            
+            # Chuẩn hoá quan hệ
+            rel_type = "căn cứ"
+            if "bãi bỏ" in action:
+                rel_type = "bị bãi bỏ toàn bộ" if "toàn bộ" in action else "bị bãi bỏ một phần"
+                if action == "bãi bỏ": rel_type = "bị bãi bỏ một phần"
+            elif "thay thế" in action:
+                rel_type = "bị thay thế"
+            elif "sửa đổi" in action:
+                rel_type = "được sửa đổi bổ sung"
+                
             relations.append({
                 "source_doc": source_doc,
                 "target_doc": target_doc,
@@ -276,10 +394,16 @@ def classify_text(text: str) -> str:
     return best_topic
 def create_embedding(text: str) -> list[float]:
     """
-    Interface tạo Vector nhúng cho văn bản.
+    Tạo Vector nhúng bằng mô hình siêu nhẹ (MiniLM).
     """
-    # TODO: Tích hợp model tạo embedding tại đây (VD: PhoBERT, vncorenlp)
-    return [0.0] * 768
+    model = get_embedding_model()
+    if model is not None:
+        try:
+            return model.encode(text).tolist()
+        except Exception as e:
+            print(f"Lỗi tạo embedding: {e}")
+            
+    return [0.0] * 384
 
 def generate_rag_answer(query: str, context_chunks: list[str]) -> str:
     """
@@ -306,4 +430,7 @@ CÂU HỎI CỦA NGƯỜI DÙNG: {query}
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"Xin lỗi, đã xảy ra lỗi khi gọi AI: {str(e)}"
+        error_msg = str(e)
+        if "429" in error_msg or "Quota exceeded" in error_msg:
+            return "Hệ thống đang quá tải do hết lượt gọi AI miễn phí (Lỗi 429 Quota Exceeded). Sếp vui lòng đợi khoảng 1-2 phút rồi hỏi lại nhé!"
+        return f"Xin lỗi, đã xảy ra lỗi khi gọi AI: {error_msg}"

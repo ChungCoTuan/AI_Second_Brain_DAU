@@ -14,6 +14,7 @@ import Thresholds from './pages/Thresholds';
 import ImpactGraph from './pages/ImpactGraph';
 import Topics from './pages/Topics';
 import Admin from './pages/Admin';
+import AuditLogs from './pages/AuditLogs';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
             <Route path="graph" element={<ImpactGraph />} />
             <Route path="topics" element={<Topics />} />
             <Route path="admin" element={<Admin />} />
+            <Route path="audit" element={<AuditLogs />} />
           </Route>
         </Routes>
       </Router>

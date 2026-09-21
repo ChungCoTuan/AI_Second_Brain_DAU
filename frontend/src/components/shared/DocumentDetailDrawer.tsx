@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useDetail } from '../../context/DetailContext';
 import { fmtDate, badge } from '../../utils';
+import { Download, Eye, X } from 'lucide-react';
 
 const DocumentDetailDrawer: React.FC = () => {
   const { docId, closeDetail } = useDetail();
   const [data, setData] = useState<any>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,6 +41,26 @@ const DocumentDetailDrawer: React.FC = () => {
         setData({ type: 'not-found' });
       });
   }, [docId]);
+
+  const handleDownloadReport = async (soHieu: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/reports/template/${encodeURIComponent(soHieu)}`);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Khung_Bao_Cao_${soHieu.replace(/[\/\\]/g, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi khi tải khung báo cáo!');
+    }
+  };
 
   const row = (k: string, v: string | undefined | null) => {
     if (!v) return null;
@@ -225,7 +247,20 @@ const DocumentDetailDrawer: React.FC = () => {
 
             {nv.length > 0 && (
               <>
-                <div className="sec-t">Nghĩa vụ ({nv.length})</div>
+                <div className="sec-t" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Nghĩa vụ ({nv.length})</span>
+                  <button 
+                    onClick={() => setShowPreview(true)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      background: 'var(--red)', color: '#fff', border: 'none',
+                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
+                      fontSize: '12px', fontWeight: '500'
+                    }}
+                  >
+                    <Eye size={14} /> Xem trước Khung Báo Cáo
+                  </button>
+                </div>
                 {nv.map((n: any, i: number) => (
                   <div className="nvrow" key={i}>
                     <div className="h">
@@ -311,6 +346,36 @@ const DocumentDetailDrawer: React.FC = () => {
               </>
             )}
 
+            {m.nghiaVu && m.nghiaVu.length > 0 && (
+              <>
+                <div className="sec-t" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Nghĩa vụ ({m.nghiaVu.length})</span>
+                  <button 
+                    onClick={() => setShowPreview(true)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      background: 'var(--red)', color: '#fff', border: 'none',
+                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
+                      fontSize: '12px', fontWeight: '500'
+                    }}
+                  >
+                    <Eye size={14} /> Xem trước Khung Báo Cáo
+                  </button>
+                </div>
+                {m.nghiaVu.map((n: any, i: number) => (
+                  <div className="nvrow" key={i}>
+                    <div className="h">
+                      <span className="tag2">{n.dieu || ''}</span>
+                      <span className="tag2">{n.loai || 'khác'}</span>
+                      {n.hanChot && <span className="tag2 han">hạn {nhanNgay(n.hanChot)}</span>}
+                    </div>
+                    <div>{n.noiDung || ''}</div>
+                    {bangChung(n.nguon)}
+                  </div>
+                ))}
+              </>
+            )}
+
             {items && (
               <>
                 <div className="sec-t">Căn cứ đã hết hiệu lực</div>
@@ -358,6 +423,95 @@ const DocumentDetailDrawer: React.FC = () => {
       <div className={`drawer ${docId ? 'show' : ''}`}>
         {renderContent()}
       </div>
+
+      {showPreview && data && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', zIndex: 10000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#fff', width: '600px', maxWidth: '90vw', maxHeight: '90vh',
+            borderRadius: '8px', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ 
+              padding: '16px 24px', borderBottom: '1px solid #eee', 
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
+            }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#111' }}>Bản xem trước Khung Báo Cáo</h3>
+              <button 
+                onClick={() => setShowPreview(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#666' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, fontSize: '14px', lineHeight: '1.6' }}>
+              <div style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: '24px' }}>
+                CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br/>
+                Độc lập - Tự do - Hạnh phúc
+              </div>
+              <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px', marginBottom: '24px' }}>
+                BÁO CÁO THỰC HIỆN<br/>
+                ({data.data.soHieu})
+              </div>
+              
+              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
+              <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu}.</div>
+              
+              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. KẾT QUẢ THỰC HIỆN NGHĨA VỤ</div>
+              <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>
+                {data.data.nghiaVu?.map((nv: any, i: number) => (
+                  <div key={i} style={{ marginBottom: '16px' }}>
+                    <b>{i + 1}. {nv.noiDung}</b>
+                    {nv.hanChot && nv.hanChot !== 'Không quy định cụ thể' && (
+                      <i style={{ color: '#666' }}> (Hạn chót: {nv.hanChot})</i>
+                    )}
+                    <div style={{ color: '#888', marginTop: '4px' }}>
+                      - Đơn vị phụ trách: (Tự điền)<br/>
+                      - Số liệu / Kết quả đạt được: ......................................................<br/>
+                      - Khó khăn vướng mắc: ..............................................................
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. ĐỀ XUẤT, KIẾN NGHỊ</div>
+              <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                1. ....................................................................................<br/>
+                2. ....................................................................................
+              </div>
+            </div>
+            
+            <div style={{ 
+              padding: '16px 24px', borderTop: '1px solid #eee', 
+              display: 'flex', justifyContent: 'flex-end', gap: '12px', background: '#f9f9f9', borderRadius: '0 0 8px 8px' 
+            }}>
+              <button 
+                onClick={() => setShowPreview(false)}
+                style={{
+                  padding: '8px 16px', border: '1px solid #ddd', background: '#fff', 
+                  borderRadius: '4px', cursor: 'pointer', fontWeight: '500'
+                }}
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={() => handleDownloadReport(data.data.soHieu)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  background: 'var(--red)', color: '#fff', border: 'none', 
+                  padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: '500'
+                }}
+              >
+                <Download size={16} /> Tải file Word (.docx)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

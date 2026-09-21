@@ -1,13 +1,53 @@
-import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, FileSearch, PlayCircle } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 const Admin: React.FC = () => {
+  const { data, refreshData } = useData();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error' | 'crawling'>('idle');
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  const [crawledFiles, setCrawledFiles] = useState<{filename: string, domain: string}[]>([]);
+  const [processingFiles, setProcessingFiles] = useState<Record<string, boolean>>({});
+  const [isPinging, setIsPinging] = useState(false);
+
+  const handlePing = async () => {
+    setIsPinging(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/system/ping', { method: 'POST' });
+      const data = await response.json();
+      if (data.has_new_docs) {
+        setStatus('success');
+        setMessage(`Đã phát hiện văn bản mới trên chinhphu.vn! (Quét ${data.scanned} VB, bỏ qua ${data.skipped} VB đã xử lý)`);
+        refreshData();
+      } else {
+        setStatus('success');
+        setMessage(`Không có văn bản mới nào vào lúc này. Đã quét ${data.scanned} VB và bỏ qua ${data.skipped} VB đã xử lý từ trước.`);
+      }
+    } catch (e) {
+      setStatus('error');
+      setMessage('Lỗi khi rà soát văn bản mới.');
+    } finally {
+      setIsPinging(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCrawledFiles();
+  }, []);
+
+  const fetchCrawledFiles = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/system/crawled_files');
+      const result = await response.json();
+      setCrawledFiles(result.unprocessed_files || []);
+    } catch (error) {
+      console.error("Lỗi khi fetch danh sách file cào:", error);
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -67,6 +107,7 @@ const Admin: React.FC = () => {
       if (response.ok) {
         setStatus('success');
         setMessage(data.message || 'Xử lý thành công!');
+        setFile(null); // Clear file sau khi xong
       } else {
         setStatus('error');
         setMessage(data.detail || 'Lỗi khi xử lý file.');
@@ -78,14 +119,173 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleCrawl = async () => {
+    setStatus('crawling');
+    setMessage('Đang kết nối Chinhphu.vn và tải văn bản về...');
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/system/crawl', { method: 'POST' });
+      if (response.ok) {
+        setStatus('success');
+        setMessage('Đã cào xong văn bản mới! Vui lòng kiểm tra danh sách bên dưới để bắt đầu xử lý.');
+        refreshData(); // To hide the hasNewDocs banner since API clears it
+        fetchCrawledFiles(); // Tải lại danh sách
+      } else {
+        setStatus('error');
+        setMessage('Lỗi khi cào dữ liệu.');
+      }
+    } catch (error) {
+      setStatus('error');
+      setMessage('Lỗi khi gọi API đồng bộ.');
+    }
+  };
+
+  const handleProcessCrawled = async (filename: string) => {
+    setProcessingFiles(prev => ({ ...prev, [filename]: true }));
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/documents/process_crawled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename })
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Bỏ file khỏi danh sách
+        setCrawledFiles(prev => prev.filter(f => f.filename !== filename));
+        setStatus('success');
+        setMessage(`Xử lý thành công: ${filename}`);
+      } else {
+        setStatus('error');
+        setMessage(`Lỗi khi xử lý ${filename}: ${data.detail}`);
+      }
+    } catch (error) {
+      setStatus('error');
+      setMessage(`Không thể kết nối đến máy chủ để xử lý ${filename}`);
+    } finally {
+      setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+    }
+  };
+
   return (
     <section id="admin-upload" style={{ background: 'var(--soft)', minHeight: '100vh', paddingBottom: '40px' }}>
       <div className="wrap" style={{ maxWidth: '800px', margin: '0 auto', paddingTop: '32px' }}>
         
+        {/* Nút Rà soát văn bản mới (Ping) */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handlePing} 
+            disabled={isPinging}
+            style={{
+              background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', padding: '10px 20px', 
+              borderRadius: '8px', fontWeight: 600, cursor: isPinging ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+            }}>
+            {isPinging ? <RefreshCw size={18} className="spin" /> : <FileSearch size={18} />}
+            {isPinging ? 'Đang rà soát...' : 'Rà soát văn bản mới'}
+          </button>
+        </div>
+
+        {/* Banner phát hiện văn bản mới */}
+        {data.hasNewDocs && (
+          <div style={{
+            background: 'linear-gradient(90deg, #fffbe6, #fff)', border: '1px solid #ffe58f',
+            padding: '24px', borderRadius: '16px', marginBottom: '24px',
+            boxShadow: '0 4px 12px rgba(250, 173, 20, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <div>
+              <h3 style={{ color: 'var(--amber)', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <AlertCircle size={20} /> Phát hiện văn bản mới trên Chinhphu.vn!
+              </h3>
+              <p style={{ margin: 0, fontSize: '14px', color: 'var(--muted)' }}>
+                Hệ thống phát hiện có văn bản pháp luật mới vừa được ban hành. Bấm Đồng bộ để tải các văn bản này về máy chủ (Quá trình có thể mất vài giây).
+              </p>
+            </div>
+            <button className="btn" onClick={handleCrawl} disabled={status === 'crawling'} style={{
+              background: 'var(--amber)', color: '#fff', border: 'none', padding: '10px 20px', 
+              borderRadius: '8px', fontWeight: 600, cursor: status === 'crawling' ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: '8px'
+            }}>
+              {status === 'crawling' ? <RefreshCw size={16} className="spin" /> : null}
+              {status === 'crawling' ? 'Đang đồng bộ...' : 'Đồng bộ ngay'}
+            </button>
+          </div>
+        )}
+
+        {/* Global Status Message */}
+        {status !== 'idle' && (
+          <div style={{ 
+            marginBottom: '24px',
+            padding: '16px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            background: status === 'error' ? 'var(--red-50)' : status === 'success' ? 'var(--green-50)' : 'var(--blue-50)',
+            color: status === 'error' ? 'var(--red)' : status === 'success' ? 'var(--green)' : 'var(--blue)',
+            border: `1px solid ${status === 'error' ? 'var(--red-200)' : status === 'success' ? 'var(--green-200)' : 'var(--blue-200)'}`
+          }}>
+            {status === 'error' && <AlertCircle size={20} />}
+            {status === 'success' && <CheckCircle2 size={20} />}
+            {(status === 'uploading' || status === 'crawling') && <div className="spinner" style={{ width: '20px', height: '20px', borderTopColor: 'currentColor', borderRightColor: 'currentColor', borderRadius: '50%', border: '2px solid transparent' }}></div>}
+            
+            <span style={{ fontWeight: 500, fontSize: '14px' }}>{message}</span>
+          </div>
+        )}
+
+        {/* Khu vực file cào tự động chờ xử lý */}
+        {crawledFiles.length > 0 && (
+          <div style={{ marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <FileSearch size={24} /> Văn bản chờ xử lý (Từ Bot)
+            </h2>
+            <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid var(--amber-200)', overflow: 'hidden' }}>
+              {crawledFiles.map((fileObj, index) => (
+                <div key={fileObj.filename} style={{
+                  padding: '16px 20px',
+                  borderBottom: index < crawledFiles.length - 1 ? '1px solid var(--line)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: index % 2 === 0 ? '#fafafa' : '#fff',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ padding: '8px', background: 'var(--amber-50)', borderRadius: '8px', color: 'var(--amber)' }}>
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>{fileObj.filename}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-light)' }}>
+                        <span style={{ padding: '2px 8px', background: '#e0e7ff', color: '#4338ca', borderRadius: '12px', fontSize: '11px', fontWeight: 600 }}>{fileObj.domain}</span>
+                        <span>Đã tải về qua Bot tự động</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleProcessCrawled(fileObj.filename)}
+                    disabled={processingFiles[fileObj.filename]}
+                    style={{
+                      background: 'var(--blue)', color: 'white', border: 'none', padding: '8px 16px',
+                      borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: processingFiles[fileObj.filename] ? 'not-allowed' : 'pointer',
+                      opacity: processingFiles[fileObj.filename] ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px'
+                    }}
+                  >
+                    {processingFiles[fileObj.filename] ? <RefreshCw size={14} className="spin" /> : <PlayCircle size={14} />}
+                    {processingFiles[fileObj.filename] ? 'Đang bóc tách...' : 'Bắt đầu xử lý'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Khu vực Upload thủ công */}
         <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--ink)' }}>Tải tài liệu lên hệ thống</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--ink)' }}>Tải tài liệu thủ công</h2>
           <p className="sub" style={{ color: 'var(--muted)', marginTop: '4px' }}>
-            Quá trình này bao gồm: Tải file PDF &rarr; Chạy OCR đọc chữ &rarr; Gọi AI bóc tách (Mock) &rarr; Đẩy vào hàng đợi duyệt.
+            Tải file PDF từ máy tính của bạn &rarr; Chạy OCR &rarr; Gọi AI bóc tách (Mock) &rarr; Đẩy vào hàng đợi duyệt.
           </p>
         </div>
 
@@ -177,26 +377,6 @@ const Admin: React.FC = () => {
             >
               {status === 'uploading' ? 'Đang xử lý...' : 'Bắt đầu Xử lý'}
             </button>
-          </div>
-        )}
-
-        {status !== 'idle' && (
-          <div style={{ 
-            marginTop: '16px',
-            padding: '16px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            background: status === 'error' ? 'var(--red-50)' : status === 'success' ? 'var(--green-50)' : 'var(--blue-50)',
-            color: status === 'error' ? 'var(--red)' : status === 'success' ? 'var(--green)' : 'var(--blue)',
-            border: `1px solid ${status === 'error' ? 'var(--red-200)' : status === 'success' ? 'var(--green-200)' : 'var(--blue-200)'}`
-          }}>
-            {status === 'error' && <AlertCircle size={20} />}
-            {status === 'success' && <CheckCircle2 size={20} />}
-            {status === 'uploading' && <div className="spinner" style={{ width: '20px', height: '20px', borderTopColor: 'var(--blue)', borderRightColor: 'var(--blue)', borderRadius: '50%', border: '2px solid transparent' }}></div>}
-            
-            <span style={{ fontWeight: 500, fontSize: '14px' }}>{message}</span>
           </div>
         )}
       </div>

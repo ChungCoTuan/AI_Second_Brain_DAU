@@ -1,4 +1,4 @@
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 import os
 import re
 from typing import List, Dict
@@ -7,25 +7,76 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     """
     Đọc file PDF và trích xuất toàn bộ văn bản thô.
     Sử dụng PyMuPDF (fitz) để giải quyết lỗi font (cid:xxx) của các file scan hoặc subset fonts.
+    Hỗ trợ Fallback OCR nếu phát hiện file scan.
     """
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"Không tìm thấy file PDF tại: {pdf_path}")
         
     extracted_text = []
+    total_words = 0
+    total_pages = 0
     
     try:
         # Mở file PDF bằng PyMuPDF
         with fitz.open(pdf_path) as pdf:
-            for i in range(len(pdf)):
+            total_pages = len(pdf)
+            for i in range(total_pages):
                 page = pdf[i]
                 text = page.get_text("text")
                 if text.strip():
                     extracted_text.append(f"--- TRANG {i+1} ---\n{text.strip()}")
+                    total_words += len(text.split())
     except Exception as e:
         print(f"Error reading PDF {pdf_path}: {e}")
+
+    # Fallback OCR
+    if total_pages > 0 and (total_words / total_pages < 20):
+        print(f"Phát hiện file scan ({total_words} từ / {total_pages} trang), kích hoạt luồng Fallback OCR (Tesseract)...")
+        ocr_result = _extract_text_via_ocr(pdf_path)
+        if ocr_result:
+            extracted_text = ocr_result
                 
     full_text = "\n\n".join(extracted_text)
     return full_text
+
+def _extract_text_via_ocr(pdf_path: str) -> List[str]:
+    """
+    Sử dụng pdf2image và pytesseract để trích xuất văn bản từ bản scan.
+    Đã được cấu hình tự động trỏ tới thư mục bin cục bộ.
+    """
+    try:
+        from pdf2image import convert_from_path
+        import pytesseract
+        import platform
+        
+        # Đường dẫn thư mục bin cục bộ
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        tesseract_local = os.path.join(BASE_DIR, "bin", "Tesseract-OCR", "tesseract.exe")
+        tesseract_global = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        poppler_path = os.path.join(BASE_DIR, "bin", "poppler", "Library", "bin")
+        tessdata_dir = os.path.join(BASE_DIR, "bin", "tessdata")
+        if os.path.exists(tessdata_dir):
+            os.environ["TESSDATA_PREFIX"] = tessdata_dir
+        
+        if platform.system() == "Windows":
+            if os.path.exists(tesseract_local):
+                pytesseract.pytesseract.tesseract_cmd = tesseract_local
+            elif os.path.exists(tesseract_global):
+                pytesseract.pytesseract.tesseract_cmd = tesseract_global
+            
+        print(f"Bắt đầu convert PDF sang ảnh để OCR: {pdf_path}")
+        images = convert_from_path(pdf_path, poppler_path=poppler_path if os.path.exists(poppler_path) else None)
+        extracted = []
+        
+        for i, img in enumerate(images):
+            print(f"OCR trang {i+1}...")
+            text = pytesseract.image_to_string(img, lang='vie')
+            if text.strip():
+                extracted.append(f"--- TRANG {i+1} ---\n{text.strip()}")
+        return extracted
+    except Exception as e:
+        print(f"Lỗi Fallback OCR: {e}. Vui lòng kiểm tra lại quá trình cài đặt Tesseract/Poppler.")
+        return []
 
 def chunk_document(text: str) -> List[Dict[str, str]]:
     """
