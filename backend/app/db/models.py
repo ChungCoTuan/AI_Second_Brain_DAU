@@ -26,6 +26,7 @@ class Document(Base):
     ocr = Column(Boolean, default=True)
     conf = Column(Float, default=0.98)
     tags = Column(String, nullable=True)
+    tom_tat = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now)
     
     # Relationships``
@@ -87,6 +88,7 @@ class DocumentRelation(Base):
     target_doc = Column(String, nullable=False) # VD: TT 17/2021
     relation_type = Column(String, nullable=False) # can_cu, thay_the, sua_doi, bai_bo
     status = Column(String, default="published")
+    nguyen_van = Column(String, nullable=True)
 
 class AuditTrail(Base):
     __tablename__ = "audit_trails"

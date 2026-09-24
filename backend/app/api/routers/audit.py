@@ -22,8 +22,11 @@ async def get_auditing_warnings(db: Session = Depends(get_db)):
     """
     warnings = []
     
-    # Lấy tất cả quan hệ "căn cứ"
-    can_cu_relations = db.query(DocumentRelation).filter(DocumentRelation.relation_type == "căn cứ").all()
+    # Lấy tất cả quan hệ "căn cứ" chưa được resolve
+    can_cu_relations = db.query(DocumentRelation).filter(
+        DocumentRelation.relation_type == "căn cứ",
+        DocumentRelation.status == "published"
+    ).all()
     
     # Lấy tất cả văn bản đã bị thay thế/bãi bỏ
     het_hieu_luc = db.query(DocumentRelation).filter(
@@ -33,20 +36,49 @@ async def get_auditing_warnings(db: Session = Depends(get_db)):
     # Tạo dictionary map văn bản bị thay thế -> văn bản mới
     het_hieu_luc_map = {rel.source_doc: rel for rel in het_hieu_luc}
     
+    warnings_map = {}
+    
     for rel in can_cu_relations:
         if rel.target_doc in het_hieu_luc_map:
             thay_the_rel = het_hieu_luc_map[rel.target_doc]
             
-            warnings.append({
-                "docId": str(rel.id), # Dùng ID tạm
-                "soHieu": rel.source_doc, # Tên văn bản quy chế, vd QĐ 324
-                "loai": "Quy chế/Quyết định",
-                "n": 1, # Số căn cứ hỏng
-                "baiBo": True if thay_the_rel.relation_type == "bị bãi bỏ" else False,
-                "chiTietLoi": f"Căn cứ {rel.target_doc} đã {thay_the_rel.relation_type} bởi {thay_the_rel.target_doc}"
-            })
+            so_hieu = rel.source_doc
+            if so_hieu not in warnings_map:
+                warnings_map[so_hieu] = {
+                    "docId": str(rel.id), # Dùng ID tạm
+                    "soHieu": so_hieu, # Tên văn bản quy chế, vd QĐ 324
+                    "loai": "Văn bản",
+                    "n": 1, # Số căn cứ hỏng
+                    "baiBo": True if thay_the_rel.relation_type == "bị bãi bỏ" else False,
+                    "chiTietLoi": f"Căn cứ {rel.target_doc} đã {thay_the_rel.relation_type}"
+                }
+            else:
+                warnings_map[so_hieu]["n"] += 1
+                warnings_map[so_hieu]["chiTietLoi"] += f", {rel.target_doc} đã {thay_the_rel.relation_type}"
+                
+            # Nếu có ít nhất 1 căn cứ bị bãi bỏ thì đánh dấu baiBo là True
+            if thay_the_rel.relation_type == "bị bãi bỏ":
+                warnings_map[so_hieu]["baiBo"] = True
+                
+    warnings = list(warnings_map.values())
             
     return {"warnings": warnings}
+
+
+@router.post("/auditing/warnings/{so_hieu:path}/resolve")
+async def resolve_warning(so_hieu: str, db: Session = Depends(get_db)):
+    """Đánh dấu các cảnh báo của văn bản này là đã xem/giải quyết."""
+    relations = db.query(DocumentRelation).filter(
+        DocumentRelation.source_doc == so_hieu,
+        DocumentRelation.relation_type == "căn cứ",
+        DocumentRelation.status == "published"
+    ).all()
+    
+    for rel in relations:
+        rel.status = "resolved"
+        
+    db.commit()
+    return {"status": "success"}
 
 
 @router.get("/audit/logs")

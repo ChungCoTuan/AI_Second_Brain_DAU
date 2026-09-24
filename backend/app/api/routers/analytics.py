@@ -45,26 +45,73 @@ async def get_analytics(db: Session = Depends(get_db)):
     top_can_cu_sorted = sorted(top_can_cu_dict.items(), key=lambda x: x[1], reverse=True)[:5]
     top_can_cu = [{"canCu": k, "n": v} for k, v in top_can_cu_sorted]
     
-    # Mock some data for UI stability (these would normally require deeper NLP analysis)
-    tin_cay = {
-        "tb": 0,
-        "tong": 0,
-        "ocr": 0,
-        "duoi80": 0
-    }
-    theo_nam = []
+    # Dữ liệu từ bảng Document
+    all_docs = db.query(Document).filter(Document.status == "published").all()
+    
+    # 1. Tính độ tin cậy
+    tong_doc = len(all_docs)
+    tb_conf = 0
+    ocr_count = 0
+    duoi80_count = 0
+    
+    # 2. Rủi ro tập trung
+    loai_dict = {}
+    chu_de_dict = {}
+    
+    # 3. Theo năm
+    nam_dict = {}
+    
+    for doc in all_docs:
+        if doc.conf is not None:
+            tb_conf += doc.conf
+            if doc.conf < 0.80:
+                duoi80_count += 1
+        if doc.ocr:
+            ocr_count += 1
+            
+        # Theo loại (Lấy từ tên file, ví dụ QĐ, TT, NĐ)
+        loai = "Khác"
+        lower_name = doc.filename.lower()
+        if "qđ" in lower_name or "qd" in lower_name: loai = "Quyết định"
+        elif "tt" in lower_name: loai = "Thông tư"
+        elif "nđ" in lower_name or "nd" in lower_name: loai = "Nghị định"
+        elif "luật" in lower_name: loai = "Luật"
+        elif "công văn" in lower_name or "cv" in lower_name: loai = "Công văn"
+        
+        loai_dict[loai] = loai_dict.get(loai, 0) + 1
+        
+        # Chủ đề
+        if doc.chu_de:
+            chu_de_dict[doc.chu_de] = chu_de_dict.get(doc.chu_de, 0) + 1
+            
+        # Theo năm (Từ ngay_ky hoặc regex từ tên)
+        nam = "Không rõ"
+        if doc.ngay_ky and len(doc.ngay_ky) >= 4:
+            nam = doc.ngay_ky[-4:]
+        import re
+        year_match = re.search(r'(20\d{2})', doc.filename)
+        if year_match:
+            nam = year_match.group(1)
+            
+        nam_dict[nam] = nam_dict.get(nam, 0) + 1
+        
+    tb_conf = int((tb_conf / tong_doc * 100)) if tong_doc > 0 else 0
+    
+    theo_loai = [{"loai": k, "n": v} for k, v in sorted(loai_dict.items(), key=lambda x: x[1], reverse=True)[:5]]
+    theo_chu_de = [{"chuDe": k, "n": v} for k, v in sorted(chu_de_dict.items(), key=lambda x: x[1], reverse=True)[:5]]
+    theo_nam = [{"nam": k, "n": v} for k, v in sorted(nam_dict.items())[-4:]]
 
     return {
         "insights": {
             "luotVien": luot_vien,
             "thayThe": thay_the_count,
             "baiBo": bai_bo_count,
-            "vbNhieuCanCu": 0,
-            "luotLuatMoi": 0,
+            "vbNhieuCanCu": 0, # Sẽ tính toán phức tạp hơn ở Epic sau
+            "luotLuatMoi": 0, # Sẽ tính toán dựa vào Luật 2025 ở Epic sau
             "topCanCu": top_can_cu,
-            "theoNam": [],
-            "tapTrung": {"theoLoai": [], "theoChuDe": []},
-            "tinCay": {"tb": 0, "tong": 0, "ocr": 0, "duoi80": 0}
+            "theoNam": theo_nam,
+            "tapTrung": {"theoLoai": theo_loai, "theoChuDe": theo_chu_de},
+            "tinCay": {"tb": tb_conf, "tong": tong_doc, "ocr": ocr_count, "duoi80": duoi80_count}
         }
     }
 

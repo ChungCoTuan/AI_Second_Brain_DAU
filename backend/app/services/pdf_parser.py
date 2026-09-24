@@ -31,6 +31,9 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 
     # Fallback OCR
     if total_pages > 0 and (total_words / total_pages < 20):
+        if total_pages > 100:
+            raise RuntimeError(f"Văn bản scan quá lớn ({total_pages} trang). Hệ thống từ chối chạy OCR tự động để ngăn ngừa lỗi tràn bộ nhớ (RAM Overflow). Vui lòng chẻ nhỏ file PDF dưới 100 trang hoặc tải lên văn bản gốc (Word/PDF có text).")
+            
         print(f"Phát hiện file scan ({total_words} từ / {total_pages} trang), kích hoạt luồng Fallback OCR (Tesseract)...")
         ocr_result = _extract_text_via_ocr(pdf_path)
         if ocr_result:

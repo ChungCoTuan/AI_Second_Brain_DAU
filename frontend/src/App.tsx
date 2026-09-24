@@ -15,6 +15,7 @@ import ImpactGraph from './pages/ImpactGraph';
 import Topics from './pages/Topics';
 import Admin from './pages/Admin';
 import AuditLogs from './pages/AuditLogs';
+import RejectedDocs from './pages/RejectedDocs';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
             <Route path="topics" element={<Topics />} />
             <Route path="admin" element={<Admin />} />
             <Route path="audit" element={<AuditLogs />} />
+            <Route path="rejected" element={<RejectedDocs />} />
           </Route>
         </Routes>
       </Router>

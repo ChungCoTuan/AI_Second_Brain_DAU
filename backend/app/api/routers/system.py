@@ -16,10 +16,30 @@ class ExtractRequest(BaseModel):
 router = APIRouter()
 
 @router.get("/system/status")
-async def get_system_status():
-    """Returns global system status including new documents flag."""
+def get_system_status(db: Session = Depends(get_db)):
+    """Returns global system status including new documents flag and crawled docs count."""
     has_new = get_sync_status()
-    return {"has_new_docs": has_new}
+    
+    # Đếm số lượng file cào chưa xử lý
+    from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
+    import os
+    
+    crawled_pdfs = []
+    if os.path.exists(BASE_OUTPUT_DIR):
+        for root, dirs, files in os.walk(BASE_OUTPUT_DIR):
+            for file in files:
+                if file.lower().endswith(".pdf"):
+                    crawled_pdfs.append(file)
+                    
+    processed_docs = db.query(Document.filename).all()
+    processed_filenames = {doc[0] for doc in processed_docs}
+    
+    unprocessed_count = sum(1 for f in crawled_pdfs if f not in processed_filenames)
+    
+    return {
+        "has_new_docs": has_new,
+        "unprocessed_crawled_count": unprocessed_count
+    }
 
 @router.post("/system/ping")
 def trigger_ping():

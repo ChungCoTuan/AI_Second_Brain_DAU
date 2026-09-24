@@ -235,6 +235,72 @@ class LegalInformationExtractor:
             "noi_dung": action
         }
 
+    def extract_document_metadata(self, text: str) -> Dict[str, str]:
+        """
+        Bóc tách siêu dữ liệu chung của văn bản (Metadata):
+        Cơ quan, Người ký, Ngày ký, Ngày hiệu lực.
+        """
+        text_lower = text.lower()
+        metadata = {
+            "co_quan_ban_hanh": "",
+            "ngay_ky": "",
+            "nguoi_ky": "",
+            "hieu_luc_tu": "",
+            "tags": ""
+        }
+        
+        # 1. Cơ quan ban hành: Thường ở 500 ký tự đầu, in hoa (hoặc viết hoa chữ cái đầu), nằm trên cùng.
+        head_text = text[:1000]
+        co_quan_pattern = r"(BỘ\s+GIÁO\s+DỤC\s+VÀ\s+ĐÀO\s+TẠO|BỘ\s+TÀI\s+CHÍNH|THỦ\s+TƯỚNG\s+CHÍNH\s+PHỦ|CHÍNH\s+PHỦ|ĐẠI\s+HỌC\s+ĐÀ\s+NẴNG)"
+        match_co_quan = re.search(co_quan_pattern, head_text, re.IGNORECASE)
+        if match_co_quan:
+            metadata["co_quan_ban_hanh"] = match_co_quan.group(1).upper()
+            
+        # 2. Ngày ký: Thường là "Hà Nội, ngày ... tháng ... năm ..." ở góc phải trên.
+        ngay_ky_pattern = r"(?:Hà Nội|Đà Nẵng|TP\.HCM|TP\.\s*Hồ Chí Minh)?\s*,?\s*ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})"
+        match_ngay = re.search(ngay_ky_pattern, head_text, re.IGNORECASE)
+        if match_ngay:
+            metadata["ngay_ky"] = f"{match_ngay.group(1).zfill(2)}/{match_ngay.group(2).zfill(2)}/{match_ngay.group(3)}"
+            
+        # 3. Người ký: Quét ở 1500 ký tự cuối của văn bản
+        tail_text = text[-1500:] if len(text) > 1500 else text
+        nguoi_ky_pattern = r"(?:BỘ\s+TRƯỞNG|THỨ\s+TRƯỞNG|HIỆU\s+TRƯỞNG|PHÓ\s+HIỆU\s+TRƯỞNG|KT\.\s+BỘ\s+TRƯỞNG|TM\.\s+CHÍNH\s+PHỦ)(?:\n|.)*?(?P<name>[A-ZÀ-Ỹ][A-ZÀ-Ỹa-zà-ỹ\s]{5,30})"
+        # Simple heuristic: Look for title in caps, then the next fully capitalized string or title case string which looks like a name.
+        # Actually a simpler regex for Vietnamese names after a title:
+        titles = ["BỘ TRƯỞNG", "THỨ TRƯỞNG", "HIỆU TRƯỞNG", "KT. BỘ TRƯỞNG", "TM. CHÍNH PHỦ", "KT. HIỆU TRƯỞNG"]
+        for title in titles:
+            if title.lower() in tail_text.lower():
+                # Extract text after title
+                idx = tail_text.lower().rfind(title.lower())
+                after_title = tail_text[idx + len(title):idx + len(title) + 150].strip()
+                # Find lines that might be names (often capitalized, length 2-5 words)
+                lines = after_title.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    # Tên người ký thường không chứa các ký tự đặc biệt, dấu câu, hay các chữ "Nơi nhận", "Lưu"
+                    if 5 <= len(line) <= 30 and sum(1 for c in line if c.isupper()) >= 2:
+                        if not any(char in line for char in ['-', ':', '.', ',', 'Nơi', 'Lưu', 'Bộ', 'Phòng', 'Ban']):
+                            metadata["nguoi_ky"] = line
+                            break
+                if metadata["nguoi_ky"]:
+                    break
+                    
+        # 4. Ngày hiệu lực: Quét trên toàn bộ văn bản thay vì chỉ 1500 ký tự cuối
+        hieu_luc_pattern = r"có\s+hiệu\s+lực\s*(?:thi\s+hành)?\s*(?:kể\s+)?từ\s+ngày\s+(\d{1,2})\s*[/tháng-]\s*(\d{1,2})\s*[/năm-]\s*(\d{4})"
+        match_hl = re.search(hieu_luc_pattern, text_lower)
+        if match_hl:
+            metadata["hieu_luc_tu"] = f"{match_hl.group(1).zfill(2)}/{match_hl.group(2).zfill(2)}/{match_hl.group(3)}"
+            
+        # 5. Từ khóa (Tags): Rút trích tự động
+        keywords = ["tuyển sinh", "đào tạo", "giáo trình", "chuẩn đầu ra", "học phí", "tài chính", "khảo thí", "đánh giá", "kiểm định", "sinh viên", "giảng viên", "chính phủ", "quy chế", "thông tư"]
+        tags = []
+        for kw in keywords:
+            if kw in text_lower and kw not in tags:
+                tags.append(kw)
+        metadata["tags"] = ",".join(tags[:5]) # Lấy tối đa 5 từ khoá
+        
+        return metadata
+
     def extract_threshold(self, text_chunk: str) -> Dict[str, str]:
         """
         Bóc tách Con số chốt (Thresholds / Định mức).
@@ -324,33 +390,37 @@ class LegalInformationExtractor:
         Dùng Regex để tìm các quan hệ: Căn cứ, Thay thế, Bãi bỏ.
         """
         relations = []
-        text_lower = text.lower()
         
+        # Split text into sentences
+        sentences = [s.strip() for s in re.split(r'[\.\n]+', text) if s.strip()]
         pattern = r"(căn cứ|bãi bỏ toàn bộ|bãi bỏ một phần|bãi bỏ|thay thế|sửa đổi,? bổ sung)\s+(?:.*?)(thông tư|nghị định|quyết định|luật|công văn)\s+(số\s+)?(\d+/[^\s,\.\(]+)"
         
-        matches = re.finditer(pattern, text_lower)
-        for match in matches:
-            action = match.group(1).strip().replace(',', '')
-            doc_type = match.group(2).strip().capitalize()
-            doc_number = match.group(4).strip().upper()
-            
-            target_doc = f"{doc_type} {doc_number}"
-            
-            # Chuẩn hoá quan hệ
-            rel_type = "căn cứ"
-            if "bãi bỏ" in action:
-                rel_type = "bị bãi bỏ toàn bộ" if "toàn bộ" in action else "bị bãi bỏ một phần"
-                if action == "bãi bỏ": rel_type = "bị bãi bỏ một phần"
-            elif "thay thế" in action:
-                rel_type = "bị thay thế"
-            elif "sửa đổi" in action:
-                rel_type = "được sửa đổi bổ sung"
+        for sentence in sentences:
+            sentence_lower = sentence.lower()
+            matches = re.finditer(pattern, sentence_lower)
+            for match in matches:
+                action = match.group(1).strip().replace(',', '')
+                doc_type = match.group(2).strip().capitalize()
+                doc_number = match.group(4).strip().upper()
                 
-            relations.append({
-                "source_doc": source_doc,
-                "target_doc": target_doc,
-                "relation_type": rel_type
-            })
+                target_doc = f"{doc_type} {doc_number}"
+                
+                # Chuẩn hoá quan hệ
+                rel_type = "căn cứ"
+                if "bãi bỏ" in action:
+                    rel_type = "bị bãi bỏ toàn bộ" if "toàn bộ" in action else "bị bãi bỏ một phần"
+                    if action == "bãi bỏ": rel_type = "bị bãi bỏ một phần"
+                elif "thay thế" in action:
+                    rel_type = "bị thay thế"
+                elif "sửa đổi" in action:
+                    rel_type = "được sửa đổi bổ sung"
+                    
+                relations.append({
+                    "source_doc": source_doc,
+                    "target_doc": target_doc,
+                    "relation_type": rel_type,
+                    "nguyen_van": sentence
+                })
             
         return relations
 

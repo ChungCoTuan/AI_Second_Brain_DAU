@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
@@ -40,7 +40,11 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
         
-    upload_dir = "uploads"
+    existing_doc = db.query(Document).filter(Document.filename == file.filename).first()
+    if existing_doc:
+        raise HTTPException(status_code=400, detail="Văn bản với tên file này đã tồn tại trong hệ thống. Vui lòng đổi tên file hoặc kiểm tra lại hệ thống.")
+        
+    upload_dir = "data/uploads"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, file.filename)
     
@@ -56,12 +60,22 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     # Phân loại chủ đề
     chu_de = classify_text(text_content)
     
+    # Bóc tách Siêu dữ liệu (Metadata) & Tóm tắt
+    metadata = extractor.extract_document_metadata(text_content)
+    tom_tat_toan_van = extractor.summarize_text(text_content)
+    
     # 2. Tạo bản ghi Document
     new_doc = Document(
         filename=file.filename,
-        source_folder="uploads",
+        source_folder="data/uploads",
         status="in_review",
-        chu_de=chu_de
+        chu_de=chu_de,
+        co_quan_ban_hanh=metadata.get("co_quan_ban_hanh", ""),
+        ngay_ky=metadata.get("ngay_ky", ""),
+        nguoi_ky=metadata.get("nguoi_ky", ""),
+        hieu_luc_tu=metadata.get("hieu_luc_tu", ""),
+        tags=metadata.get("tags", ""),
+        tom_tat=tom_tat_toan_van
     )
     db.add(new_doc)
     db.commit()
@@ -127,7 +141,8 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
                 source_doc=rel["source_doc"],
                 target_doc=rel["target_doc"],
                 relation_type=rel["relation_type"],
-                status="published" # Tạm thời cho lên thẳng để vẽ biểu đồ
+                status="published", # Tạm thời cho lên thẳng để vẽ biểu đồ
+                nguyen_van=rel.get("nguyen_van", "")
             )
             db.add(new_rel)
             
@@ -168,14 +183,22 @@ async def get_topics(db: Session = Depends(get_db)):
         Document.chu_de != None
     ).group_by(Document.chu_de).all()
     
-    topics = []
+    topics_dict = {}
     for chu_de, count in results:
+        # Gom nhóm N/A và None thành "Khác"
+        name = "Khác" if not chu_de or chu_de.strip().upper() == "N/A" else chu_de
+        if name in topics_dict:
+            topics_dict[name] += count
+        else:
+            topics_dict[name] = count
+            
+    topics = []
+    for name, count in topics_dict.items():
         topics.append({
-            "id": chu_de,
-            "name": chu_de,
+            "id": name,
+            "name": name,
             "count": count
         })
-        
     # Thêm mock chủ đề nếu db trống để UI không bị trắng
     if not topics:
         topics = [
@@ -192,7 +215,13 @@ async def get_documents_by_topic(topic: str, db: Session = Depends(get_db)):
     """
     Lấy danh sách các văn bản thuộc một chủ đề cụ thể.
     """
-    docs = db.query(Document).filter(Document.chu_de == topic).all()
+    if topic == "Khác":
+        from sqlalchemy import or_
+        docs = db.query(Document).filter(
+            or_(Document.chu_de == "Khác", Document.chu_de == "N/A", Document.chu_de == None)
+        ).all()
+    else:
+        docs = db.query(Document).filter(Document.chu_de == topic).all()
     
     documents = []
     for doc in docs:
@@ -247,9 +276,38 @@ async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "nli_label": cs.nli_label
         })
         
-    # Dữ liệu hạn chót và chưa hiệu lực sẽ được phát triển ở Epic tiếp theo (Trích xuất sự kiện thời gian)
+    han_chot_obligations = db.query(Obligation).filter(
+        Obligation.han_chot.isnot(None),
+        Obligation.han_chot != "",
+        Obligation.status == "published"
+    ).all()
+    
     han_chot_list = []
+    for nv in han_chot_obligations:
+        han_chot_list.append({
+            "hanChot": nv.han_chot,
+            "noiDung": nv.noi_dung,
+            "vb": nv.vb,
+            "dieu": nv.dieu,
+            "loai": nv.loai,
+            "chuThe": nv.chu_the,
+            "nguon": nv.nguon
+        })
+        
+    chua_hieu_luc_docs = db.query(Document).filter(
+        Document.trang_thai_hieu_luc == "Chưa có hiệu lực",
+        Document.status == "published"
+    ).all()
+    
     chua_hieu_luc_list = []
+    for doc in chua_hieu_luc_docs:
+        chua_hieu_luc_list.append({
+            "ngay": doc.hieu_luc_tu,
+            "trichYeu": doc.tom_tat or doc.filename,
+            "soHieu": doc.filename,
+            "loai": "hiệu lực",
+            "nguon": f"Theo dữ liệu hiệu lực của văn bản {doc.filename}"
+        })
     
     # Lấy dữ liệu quan hệ văn bản thực tế (Epic 6)
     relations = db.query(DocumentRelation).filter(DocumentRelation.status == "published").all()
@@ -278,7 +336,8 @@ async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 "thayBang": [new_doc],
                 "lyDo": f"Bị thay thế toàn bộ",
                 "phamVi": "toàn bộ",
-                "chuyenTiep": []
+                "chuyenTiep": [],
+                "nguyenVan": rel.nguyen_van
             })
             su_kien_hieu_luc.append({
                 "cu": old_doc,
@@ -288,7 +347,8 @@ async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 "lyDo": f"Bị thay thế toàn bộ",
                 "phamVi": "toàn bộ",
                 "tuNgay": "Theo hiệu lực",
-                "nguon": f"Theo văn bản {new_doc}"
+                "nguon": f"Theo văn bản {new_doc}",
+                "nguyenVan": rel.nguyen_van
             })
             
             # Gộp vào events_map cho Cây gia phả
@@ -310,7 +370,22 @@ async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                     "loai": "Văn bản"
                 })
                 
-    events = list(events_map.values())
+    events = []
+    for e in events_map.values():
+        valid_docs = []
+        for d in e["docs"]:
+            so_hieu = d["soHieu"]
+            # Kiểm tra xem văn bản này có Obligation hoặc Threshold nào ở trạng thái "draft" không
+            has_draft_obl = db.query(Obligation).filter(Obligation.vb == so_hieu, Obligation.status == "draft").first()
+            has_draft_thresh = db.query(Threshold).filter(Threshold.vb == so_hieu, Threshold.status == "draft").first()
+            
+            if has_draft_obl or has_draft_thresh:
+                valid_docs.append(d)
+                
+        # Nếu có ít nhất 1 văn bản cần rà soát thì mới giữ lại sự kiện cảnh báo này
+        if len(valid_docs) > 0:
+            e["docs"] = valid_docs
+            events.append(e)
     
     impact = []
     for e in events:
@@ -368,8 +443,74 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
     """
     Trả về chi tiết hồ sơ văn bản.
     """
-    # TODO: Khi bảng Document hoàn thiện, sẽ query lấy chi tiết tại đây.
-    # Hiện tại trả về rỗng để xoá sạch dữ liệu giả.
+    doc = db.query(Document).filter(Document.filename == so_hieu).first()
+    
+    if doc:
+        nghia_vu = []
+        for nv in doc.obligations:
+            if nv.status == 'published':
+                nghia_vu.append({
+                    "dieu": nv.dieu,
+                    "loai": nv.loai,
+                    "noiDung": nv.noi_dung,
+                    "hanChot": nv.han_chot,
+                    "nguon": nv.nguon
+                })
+        
+        con_so = []
+        for cs in doc.thresholds:
+            if cs.status == 'published':
+                con_so.append({
+                    "dieu": cs.dieu,
+                    "giaTri": cs.gia_tri,
+                    "yNghia": cs.y_nghia,
+                    "nguon": cs.nguon
+                })
+                
+        # Lấy Căn cứ đã hết hiệu lực
+        can_cu = db.query(DocumentRelation).filter(
+            DocumentRelation.source_doc == doc.filename,
+            DocumentRelation.relation_type == "căn cứ"
+        ).all()
+        
+        can_cu_names = [r.target_doc for r in can_cu]
+        items = []
+        if can_cu_names:
+            het_hieu_luc = db.query(DocumentRelation).filter(
+                DocumentRelation.source_doc.in_(can_cu_names),
+                DocumentRelation.relation_type.in_(["bị thay thế", "bị bãi bỏ"])
+            ).all()
+            
+            for h in het_hieu_luc:
+                items.append({
+                    "canCu": h.source_doc,
+                    "thayBang": h.target_doc,
+                    "lyDo": h.relation_type
+                })
+        
+        return {
+            "type": "truong",
+            "data": {
+                "soHieu": doc.filename,
+                "loai": doc.linh_vuc or "Văn bản",
+                "coQuan": doc.co_quan_ban_hanh or "",
+                "ngayKy": doc.ngay_ky or "",
+                "nguoiKy": doc.nguoi_ky or "",
+                "hieuLucTu": doc.hieu_luc_tu or "",
+                "hieuLucDen": doc.hieu_luc_den,
+                "status": doc.trang_thai_hieu_luc or "Còn hiệu lực",
+                "tomTat": doc.tom_tat or "",
+                "chuDe": [doc.chu_de] if doc.chu_de else [],
+                "tags": doc.tags.split(',') if doc.tags else [],
+                "nghiaVu": nghia_vu,
+                "conSoChot": con_so,
+                "conf": doc.conf,
+                "ocr": doc.ocr
+            },
+            "items": items
+        }
+    
+    # Fallback nếu không tìm thấy trong DB thì trả về rỗng để xoá sạch dữ liệu giả.
     return {
         "type": "truong" if "QĐ" in so_hieu else "bo",
         "data": {
@@ -389,70 +530,11 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
         }
     }
 
-    # 1. Tra cứu các văn bản liên quan mà văn bản này CĂN CỨ
-    can_cu = db.query(DocumentRelation).filter(
-        DocumentRelation.source_doc == so_hieu,
-        DocumentRelation.relation_type == "căn cứ"
-    ).all()
-    
-    # 2. Kiểm tra xem các căn cứ này có bị thay thế/bãi bỏ không
-    can_cu_names = [r.target_doc for r in can_cu]
-    het_hieu_luc = db.query(DocumentRelation).filter(
-        DocumentRelation.source_doc.in_(can_cu_names),
-        DocumentRelation.relation_type.in_(["bị thay thế", "bị bãi bỏ"])
-    ).all()
-    
-    items = []
-    for h in het_hieu_luc:
-        items.append({
-            "canCu": h.source_doc,
-            "thayBang": h.target_doc,
-            "lyDo": h.relation_type
-        })
-        
-    return {
-        "type": "truong",
-        "data": {
-            "soHieu": so_hieu,
-            "loai": "Văn bản",
-            "coQuan": "",
-            "ngayKy": "",
-            "hieuLucTu": "",
-            "hieuLucDen": None,
-            "status": "Còn hiệu lực",
-            "conf": 0.98,
-            "ocr": True,
-            "tomTat": "Đang cập nhật",
-            "chuDe": [],
-            "tags": []
-        },
-        "items": items
-    }
-
-
-@router.get("/topics")
-async def get_topics(db: Session = Depends(get_db)):
-    """
-    Trả về danh sách các chủ đề (mock động).
-    """
-    return {
-        "topics": []
-    }
-
-
-@router.get("/topics/{topic_id}/documents")
-async def get_topic_documents(topic_id: str, db: Session = Depends(get_db)):
-    """
-    Trả về danh sách văn bản của một chủ đề.
-    """
-    # Xoá mock data, trả về mảng rỗng chờ implement thực tế
-    docs = []
-    return {"documents": docs}
 
 
 @router.post("/documents/process_crawled")
-async def process_crawled_document(request: ProcessCrawledRequest, db: Session = Depends(get_db)):
-    """Processes an already crawled document."""
+def process_crawled_document(request: ProcessCrawledRequest, db: Session = Depends(get_db)):
+    """Processes an already crawled document synchronously to block the frontend."""
     from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
     import os
     from ...services.pdf_parser import extract_text_from_pdf
@@ -469,19 +551,32 @@ async def process_crawled_document(request: ProcessCrawledRequest, db: Session =
     category = os.path.basename(os.path.dirname(filepath))
     domain = os.path.basename(os.path.dirname(os.path.dirname(filepath)))
     if domain == "vanban_caotudong":
-        domain = "Giáo dục" # Fallback for old crawler structure
+        domain = "Giáo dục"
         source_folder = f"vanban_caotudong/{category}"
     else:
         source_folder = f"vanban_caotudong/{domain}/{category}"
     
+    _run_extraction(filepath, request.filename, source_folder, domain)
+    return {"status": "success", "message": f"Đã xử lý xong {request.filename}."}
+
+def _run_extraction(filepath: str, filename: str, source_folder: str, domain: str):
+    """Hàm chạy ngầm trong background thread - không chặn event loop của FastAPI."""
+    import random
+    from ...db.session import SessionLocal
+    from ...db.models import Document, Obligation, Threshold, DocumentRelation
+    from ...services.pdf_parser import extract_text_from_pdf, chunk_document
+    from ...services.nlp_pipeline import extractor, classify_text
+    
+    db = SessionLocal()
     try:
+        if db.query(Document).filter(Document.filename == filename).first():
+            print(f"[BACKGROUND] Bỏ qua xử lý, văn bản đã tồn tại: {filename}")
+            return
+            
         text = extract_text_from_pdf(filepath)
         if not text:
-            raise HTTPException(status_code=500, detail="Không thể đọc nội dung file PDF")
-            
-        # 3. Chạy thuật toán chia nhỏ văn bản (Document Structuring)
-        from ...services.pdf_parser import chunk_document
-        import random
+            print(f"[BACKGROUND] Không thể đọc nội dung file: {filename}")
+            return
         
         articles = chunk_document(text)
         
@@ -495,53 +590,55 @@ async def process_crawled_document(request: ProcessCrawledRequest, db: Session =
             "Khac": "Khác"
         }.get(domain, domain)
         
+        metadata = extractor.extract_document_metadata(text)
+        tom_tat_toan_van = extractor.summarize_text(text)
+        chu_de = classify_text(text)
+        
         doc = Document(
-            filename=request.filename,
+            filename=filename,
             source_folder=source_folder,
             linh_vuc=domain_display,
-            chu_de="N/A",
-            co_quan_ban_hanh="Chính phủ",
+            chu_de=chu_de,
+            co_quan_ban_hanh=metadata.get("co_quan_ban_hanh", "Chính phủ"),
+            ngay_ky=metadata.get("ngay_ky", ""),
+            nguoi_ky=metadata.get("nguoi_ky", ""),
+            hieu_luc_tu=metadata.get("hieu_luc_tu", ""),
+            tags=metadata.get("tags", ""),
+            tom_tat=tom_tat_toan_van,
             status="draft"
         )
         db.add(doc)
         db.commit()
         db.refresh(doc)
         
-        # 4. Chạy AI / Luật để bóc tách dữ liệu từ các Chunk có thật
         if len(articles) > 0:
-            # Chọn ngẫu nhiên 1 Điều làm Nghĩa vụ
             art_obl = random.choice(articles)
             obl_info = extractor.extract_obligation(art_obl["raw"])
-            
             obl_tom_tat = extractor.summarize_text(art_obl["raw"])
             obl_nli = extractor.verify_nli(art_obl["raw"], obl_tom_tat)
-            obl_status = "pending_review"
             
-            mock_obl = Obligation(
+            db.add(Obligation(
                 document_id=doc.id,
-                vb=request.filename,
+                vb=filename,
                 dieu=art_obl["dieu_so"],
                 loai="Nghĩa vụ",
                 chu_the=obl_info["chu_the"],
                 noi_dung=obl_info["noi_dung"],
                 han_chot=obl_info["han_chot"],
                 nguon=art_obl["raw"][:1000],
-                status=obl_status,
+                status="pending_review",
                 tom_tat=obl_tom_tat,
                 nli_label=obl_nli
-            )
-            db.add(mock_obl)
+            ))
             
-            # Chọn ngẫu nhiên 1 Điều làm Con số chốt
             art_thresh = random.choice(articles)
             thresh_info = extractor.extract_threshold(art_thresh["raw"])
-            
             thresh_tom_tat = extractor.summarize_text(art_thresh["raw"])
             thresh_nli = extractor.verify_nli(art_thresh["raw"], thresh_tom_tat)
             
-            mock_thresh = Threshold(
+            db.add(Threshold(
                 document_id=doc.id,
-                vb=request.filename,
+                vb=filename,
                 dieu=art_thresh["dieu_so"],
                 gia_tri=thresh_info["gia_tri"],
                 y_nghia=thresh_info.get("y_nghia", ""),
@@ -549,27 +646,23 @@ async def process_crawled_document(request: ProcessCrawledRequest, db: Session =
                 status="pending_review",
                 tom_tat=thresh_tom_tat,
                 nli_label=thresh_nli
-            )
-            db.add(mock_thresh)
+            ))
             
-            # 5. Khởi động Động cơ Liên kết
-            relations = extractor.extract_document_relations(text, request.filename)
+            relations = extractor.extract_document_relations(text, filename)
             for rel in relations:
-                new_rel = DocumentRelation(
+                db.add(DocumentRelation(
                     source_doc=rel["source_doc"],
                     target_doc=rel["target_doc"],
                     relation_type=rel["relation_type"],
-                    status="published"
-                )
-                db.add(new_rel)
-                
+                    status="published",
+                    nguyen_van=rel.get("nguyen_van", "")
+                ))
             db.commit()
         else:
-            # Fallback nếu không parse được Điều nào
             obl_info = extractor.extract_obligation(text[:2000])
-            mock_obl = Obligation(
+            db.add(Obligation(
                 document_id=doc.id,
-                vb=request.filename,
+                vb=filename,
                 dieu="Toàn văn",
                 loai="Nghĩa vụ",
                 chu_the=obl_info["chu_the"],
@@ -577,12 +670,132 @@ async def process_crawled_document(request: ProcessCrawledRequest, db: Session =
                 han_chot=obl_info["han_chot"],
                 nguon=text[:1000],
                 status="pending_review"
-            )
-            db.add(mock_obl)
+            ))
             db.commit()
-            
-        return {"status": "success", "message": f"Processed {request.filename} successfully.", "document_id": doc.id}
+        
+        print(f"[BACKGROUND] Xử lý thành công: {filename}")
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[BACKGROUND] Lỗi khi xử lý {filename}: {e}")
+    finally:
+        db.close()
 
+
+@router.delete("/documents/crawled/{filename}")
+async def delete_crawled_document(filename: str):
+    """Xóa một file đã được cào về nhưng chưa xử lý."""
+    from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
+    import os
+    
+    filepath = None
+    for root, dirs, files in os.walk(BASE_OUTPUT_DIR):
+        if filename in files:
+            filepath = os.path.join(root, filename)
+            break
+            
+    if not filepath:
+        raise HTTPException(status_code=404, detail="File not found in crawled directory.")
+        
+    try:
+        os.remove(filepath)
+        return {"status": "success", "message": f"Deleted {filename} successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Không thể xoá file: {str(e)}")
+
+@router.get("/documents/rejected")
+async def get_rejected_documents(db: Session = Depends(get_db)):
+    """Trả về danh sách các văn bản bị từ chối."""
+    docs = db.query(Document).filter(Document.status == "rejected").all()
+    documents = []
+    for doc in docs:
+        documents.append({
+            "id": doc.id,
+            "soHieu": doc.filename,
+            "loai": doc.linh_vuc or "Khác",
+            "ngayKy": doc.ngay_ky or "N/A",
+            "chuDe": [doc.chu_de] if doc.chu_de else [],
+            "status": doc.status
+        })
+    return {"documents": documents}
+
+def _find_physical_file(filename: str, source_folder: str) -> str:
+    import os
+    possible_paths = [
+        os.path.join(source_folder, filename),
+        os.path.join("data", source_folder, filename),
+        os.path.join("data", "uploads", filename),
+        os.path.join("data", "vanban_caotudong", filename)
+    ]
+    if os.path.exists(os.path.join("data", "vanban_caotudong")):
+        for root, _, files in os.walk(os.path.join("data", "vanban_caotudong")):
+            if filename in files:
+                possible_paths.append(os.path.join(root, filename))
+                
+    for p in possible_paths:
+        if os.path.exists(p):
+            return p
+    return None
+
+@router.post("/documents/{doc_id}/reprocess")
+async def reprocess_rejected_document(doc_id: int, db: Session = Depends(get_db)):
+    """Đưa văn bản bị từ chối về lại tab Tải tài liệu bằng cách xóa DB và di chuyển file."""
+    import os
+    import shutil
+    from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
+    
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    filename = doc.filename
+    source_folder = doc.source_folder
+    filepath = _find_physical_file(filename, source_folder)
+    
+    # 1. Move file back to crawled dir (BASE_OUTPUT_DIR)
+    os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
+    new_filepath = os.path.join(BASE_OUTPUT_DIR, filename)
+    
+    if filepath and os.path.exists(filepath):
+        try:
+            shutil.move(filepath, new_filepath)
+        except Exception as e:
+            print(f"Lỗi khi di chuyển file: {e}")
+    
+    # 2. Xóa các AuditTrails liên quan đến file này
+    db.query(AuditTrail).filter(AuditTrail.vb == filename).delete()
+    
+    # 3. Xóa Document (các bảng liên kết sẽ bị xóa nhờ cascade)
+    for d in db.query(Document).filter(Document.filename == filename).all():
+        db.delete(d)
+    db.commit()
+    
+    return {"status": "success", "message": f"Đã chuyển {filename} về hàng chờ xử lý."}
+
+@router.delete("/documents/{doc_id}/hard_delete")
+async def hard_delete_rejected_document(doc_id: int, db: Session = Depends(get_db)):
+    """Xóa vĩnh viễn văn bản bị từ chối khỏi DB và ổ cứng."""
+    import os
+    
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    filename = doc.filename
+    filepath = _find_physical_file(filename, doc.source_folder)
+    
+    # 1. Xóa file vật lý
+    if filepath and os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            print(f"Lỗi khi xóa file: {e}")
+            
+    # 2. Xóa các AuditTrails liên quan
+    db.query(AuditTrail).filter(AuditTrail.vb == filename).delete()
+    
+    # 3. Xóa Document
+    for d in db.query(Document).filter(Document.filename == filename).all():
+        db.delete(d)
+    db.commit()
+    
+    return {"status": "success", "message": f"Đã xóa vĩnh viễn {filename}."}

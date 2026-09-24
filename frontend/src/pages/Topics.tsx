@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDetail } from '../context/DetailContext';
-import { Layers, CheckCircle2, Clock } from 'lucide-react';
+import { Layers, CheckCircle2, Clock, XCircle } from 'lucide-react';
 
 interface Topic {
   id: string;
@@ -25,6 +25,7 @@ const Topics: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [nguon, setNguon] = useState('all');
   const [loai, setLoai] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active'); // active (không gồm rejected), all, published, in_review, rejected
 
   // Lấy danh sách các chủ đề ban đầu
   useEffect(() => {
@@ -46,6 +47,7 @@ const Topics: React.FC = () => {
       setSearchQuery('');
       setNguon('all');
       setLoai('all');
+      setStatusFilter('active');
       return;
     }
 
@@ -82,6 +84,8 @@ const Topics: React.FC = () => {
        if (nguon === 'trường' && isBo) return false;
     }
     if (loai !== 'all' && doc.loai !== loai) return false;
+    if (statusFilter === 'active' && doc.status === 'rejected') return false;
+    if (statusFilter !== 'active' && statusFilter !== 'all' && doc.status !== statusFilter) return false;
 
     if (!searchQuery) return true;
     const lowerQ = searchQuery.toLowerCase();
@@ -188,6 +192,13 @@ const Topics: React.FC = () => {
                   <option key={i} value={l}>{l}</option>
                 ))}
               </select>
+              <select className="sel" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="active">Ẩn mục từ chối</option>
+                <option value="all">Tất cả trạng thái</option>
+                <option value="published">Đã duyệt (Xuất bản)</option>
+                <option value="in_review">Chờ duyệt</option>
+                <option value="rejected">Bị từ chối</option>
+              </select>
               <span className="cnt">
                 <b>{filteredDocuments.length}</b> / {documents.length} văn bản
               </span>
@@ -245,6 +256,10 @@ const Topics: React.FC = () => {
                         {doc.status === 'published' ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--green-50)', color: 'var(--green)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
                             <CheckCircle2 size={14} /> Xuất bản
+                          </span>
+                        ) : doc.status === 'rejected' ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--red-50)', color: 'var(--red)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                            <XCircle size={14} /> Bị từ chối
                           </span>
                         ) : (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--amber-50)', color: 'var(--amber)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>

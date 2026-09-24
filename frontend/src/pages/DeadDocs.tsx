@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { fmtDate } from '../utils';
 import { useDetail } from '../context/DetailContext';
 
 const DeadDocs: React.FC = () => {
   const { openDetail } = useDetail();
-  const { data } = useData();
+  const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({});
+  const { data, markAsRead } = useData();
   const rows = data.vbTuChet || [];
   const sap = data.vbSapChet || [];
 
@@ -25,21 +26,48 @@ const DeadDocs: React.FC = () => {
       ? Math.round((Date.parse(r.tuNgay + 'T00:00:00Z') - Date.parse('2026-08-19T00:00:00Z')) / 86400000)
       : 0;
 
+    const toggleExpand = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setExpandedDocs(prev => ({ ...prev, [r.docId]: !prev[r.docId] }));
+    };
+
     return (
       <div
         key={r.docId}
         className="r"
         data-did={r.docId}
-        onClick={() => openDetail(r.docId)}
+        onClick={() => {
+          markAsRead('dead', r.docId);
+          openDetail(r.docId);
+        }}
       >
         <div>
           <span className="rs">{r.soHieu}</span>
           <div className="rm">{r.loai || ''}</div>
         </div>
         <div>
-          <div className="rt">
-            {r.lyDo} bởi <b style={{ color: 'var(--green)' }}>{r.thayBang.join(', ')}</b>, từ {fmtDate(r.tuNgay)}
-            {sapToi && <span className="dleft gan">còn {con} ngày, HIỆN VẪN CÒN HIỆU LỰC</span>}
+          <div className="rt" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div>
+              {r.lyDo} bởi <b style={{ color: 'var(--green)' }}>{r.thayBang.join(', ')}</b>, từ {fmtDate(r.tuNgay)}
+              {sapToi && <span className="dleft gan" style={{ marginLeft: '8px' }}>còn {con} ngày, HIỆN VẪN CÒN HIỆU LỰC</span>}
+            </div>
+            
+            <span 
+              onClick={toggleExpand} 
+              style={{ color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, marginTop: '6px' }}
+            >
+              {expandedDocs[r.docId] ? 'Ẩn nguyên văn' : 'Xem nguyên văn'}
+            </span>
+            
+            {expandedDocs[r.docId] && (
+              <div style={{
+                marginTop: '12px', padding: '12px 16px', background: 'var(--soft)',
+                borderLeft: '3px solid var(--red)', borderRadius: '0 8px 8px 0', fontSize: '14px', width: '100%'
+              }}>
+                <div style={{ fontWeight: 600, fontSize: '11px', color: 'var(--red)', marginBottom: '4px' }}>NGUYÊN VĂN ĐIỀU KHOẢN</div>
+                <div style={{ color: 'var(--ink)' }}>{r.nguyenVan || `Văn bản này ${r.lyDo.toLowerCase()} ${r.thayBang.join(', ')} theo quy định hiện hành.`}</div>
+              </div>
+            )}
           </div>
           {r.phamVi && r.phamVi !== 'toàn bộ' && (
             <div className="rm" style={{ color: 'var(--amber)' }}>

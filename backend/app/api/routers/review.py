@@ -13,6 +13,23 @@ from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_statu
 class ExtractRequest(BaseModel):
     text: str
 
+def check_and_update_document_status(document_id: int, db: Session):
+    if not document_id:
+        return
+    pending_obligations = db.query(Obligation).filter(Obligation.document_id == document_id, Obligation.status == "draft").count()
+    pending_thresholds = db.query(Threshold).filter(Threshold.document_id == document_id, Threshold.status == "draft").count()
+    
+    if pending_obligations == 0 and pending_thresholds == 0:
+        published_obligations = db.query(Obligation).filter(Obligation.document_id == document_id, Obligation.status == "published").count()
+        published_thresholds = db.query(Threshold).filter(Threshold.document_id == document_id, Threshold.status == "published").count()
+        
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if doc:
+            if published_obligations == 0 and published_thresholds == 0:
+                doc.status = "rejected"
+            elif doc.status != "published":
+                doc.status = "published"
+
 router = APIRouter()
 
 class RevalidateRequest(BaseModel):
@@ -115,6 +132,7 @@ async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_d
     db.add(audit)
     
     item.status = "published"
+    check_and_update_document_status(item.document_id, db)
     db.commit()
     
     return {"status": "success", "message": f"{item_type} ID {item_id} has been published successfully."}
@@ -154,6 +172,7 @@ async def reject_item(item_type: str, item_id: int, db: Session = Depends(get_db
     )
     db.add(audit)
     item.status = "rejected"
+    check_and_update_document_status(item.document_id, db)
     db.commit()
     
     return {"status": "success", "message": f"{item_type} ID {item_id} has been rejected successfully."}

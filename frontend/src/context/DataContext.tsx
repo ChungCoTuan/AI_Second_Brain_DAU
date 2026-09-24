@@ -6,6 +6,7 @@ const emptyData = {
   pendingCount: 0,
   soCanhBao: 0,
   soSuKien: 0,
+  adminCount: 0,
   warnings: [],
   nghiaVu: [],
   conSoChot: [],
@@ -37,6 +38,11 @@ interface DataContextType {
   loading: boolean;
   error: string | null;
   refreshData: () => void;
+  readDeadDocs: string[];
+  readEvents: string[];
+  markAsRead: (type: 'dead' | 'event', id: string) => void;
+  isProcessing: boolean;
+  setIsProcessing: (v: boolean) => void;
 }
 
 const DataContext = createContext<DataContextType>({
@@ -44,15 +50,53 @@ const DataContext = createContext<DataContextType>({
   loading: false,
   error: null,
   refreshData: () => {},
+  readDeadDocs: [],
+  readEvents: [],
+  markAsRead: () => {},
+  isProcessing: false,
+  setIsProcessing: () => {},
 });
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [data, setData] = useState<any>(emptyData);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  const fetchData = () => {
-    setLoading(true);
+  const [readDeadDocs, setReadDeadDocs] = useState<string[]>([]);
+  const [readEvents, setReadEvents] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedDead = JSON.parse(localStorage.getItem('readDeadDocs') || '[]');
+      const storedEvents = JSON.parse(localStorage.getItem('readEvents') || '[]');
+      setReadDeadDocs(storedDead);
+      setReadEvents(storedEvents);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const markAsRead = (type: 'dead' | 'event', id: string) => {
+    if (type === 'dead') {
+      setReadDeadDocs(prev => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        localStorage.setItem('readDeadDocs', JSON.stringify(next));
+        return next;
+      });
+    } else {
+      setReadEvents(prev => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        localStorage.setItem('readEvents', JSON.stringify(next));
+        return next;
+      });
+    }
+  };
+
+  const fetchData = (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     Promise.all([
       fetch('http://localhost:8000/api/v1/legal-data').then(res => res.ok ? res.json() : {} as any),
       fetch('http://localhost:8000/api/v1/auditing/warnings').then(res => res.ok ? res.json() : {} as any),
@@ -69,6 +113,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setData({
           ...emptyData,
           hasNewDocs: systemData?.has_new_docs || false,
+          adminCount: systemData?.unprocessed_crawled_count || 0,
           pendingCount: combinedReviewCount,
           nghiaVu: legalData.nghiaVu || [],
           conSoChot: legalData.conSoChot || [],
@@ -99,10 +144,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => {
+      fetchData(true); // Tải ngầm không làm chớp UI
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
-    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData }}>
+    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData, readDeadDocs, readEvents, markAsRead, isProcessing, setIsProcessing }}>
       {children}
     </DataContext.Provider>
   );

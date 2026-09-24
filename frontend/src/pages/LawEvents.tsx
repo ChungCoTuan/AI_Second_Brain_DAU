@@ -6,7 +6,7 @@ import { useDetail } from '../context/DetailContext';
 
 const LawEvents: React.FC = () => {
   const { openDetail } = useDetail();
-  const { data } = useData();
+  const { data, markAsRead } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -46,9 +46,10 @@ const LawEvents: React.FC = () => {
         <div className="events">
           {events.map((e: any, i: number) => (
             <div
-              key={i}
+              key={`${e.canCu}->${e.thayBang}`}
               className="ev"
               onClick={() => {
+                markAsRead('event', `${e.canCu}->${e.thayBang}`);
                 navigate(`/review?event=${i}`);
               }}
             >

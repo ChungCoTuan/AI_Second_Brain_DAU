@@ -11,6 +11,8 @@ const Search: React.FC = () => {
   const [results, setResults] = useState<any[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+  const limit = 10;
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -18,7 +20,9 @@ const Search: React.FC = () => {
       const params = new URLSearchParams({
         q: searchTerm,
         nguon: nguon,
-        loai: loai
+        loai: loai,
+        page: page.toString(),
+        limit: limit.toString()
       });
       
       fetch(`http://localhost:8000/api/v1/search?${params.toString()}`)
@@ -35,6 +39,11 @@ const Search: React.FC = () => {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, nguon, loai, page]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
   }, [searchTerm, nguon, loai]);
 
   const nBo = results.filter((r: any) => r.nguon === 'bộ').length;
@@ -132,6 +141,34 @@ const Search: React.FC = () => {
             <div className="empty">Không tìm thấy. Thử gõ số hiệu, ví dụ 54/2026, hoặc từ khoá không dấu.</div>
           )}
         </div>
+        
+        {total > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px' }}>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              style={{
+                padding: '8px 16px', background: page === 1 ? '#e0e0e0' : 'var(--blue)', color: page === 1 ? '#888' : '#fff',
+                border: 'none', borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 600
+              }}
+            >
+              Trang trước
+            </button>
+            <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+              Trang {page} / {Math.ceil(total / limit) || 1}
+            </span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= Math.ceil(total / limit)}
+              style={{
+                padding: '8px 16px', background: page >= Math.ceil(total / limit) ? '#e0e0e0' : 'var(--blue)', color: page >= Math.ceil(total / limit) ? '#888' : '#fff',
+                border: 'none', borderRadius: '8px', cursor: page >= Math.ceil(total / limit) ? 'not-allowed' : 'pointer', fontWeight: 600
+              }}
+            >
+              Trang sau
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

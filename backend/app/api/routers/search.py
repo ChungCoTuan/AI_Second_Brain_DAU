@@ -20,34 +20,65 @@ async def search_documents(
     q: str = "",
     nguon: str = "all",
     loai: str = "all",
+    page: int = 1,
+    limit: int = 10,
     db: Session = Depends(get_db)
 ):
     """
-    Tìm kiếm văn bản.
-    Do chưa có bảng Corpus và Elasticsearch, tạm giả lập dữ liệu trả về dựa trên input.
+    Tìm kiếm văn bản từ Database với hỗ trợ phân trang.
     """
+    from sqlalchemy import or_, func
+
+    query = db.query(Document)
     
-    all_docs = []
-    results = []
-    q_lower = q.lower()
-    
-    for doc in all_docs:
-        if nguon != "all" and doc["nguon"] != nguon:
-            continue
-        if loai != "all" and doc["loai"] != loai:
-            continue
+    # Filter by nguon
+    if nguon != "all":
+        # Tạm map "bộ" -> nguồn là 'bộ' (không có cột này trong DB nên giả lập qua filename hoặc linh_vuc)
+        pass # Not fully supported without a source column, keeping it simple
         
-        # Simple text search
-        if q_lower:
-            text_to_search = f'{doc["soHieu"]} {doc["tomTat"]} {" ".join(doc["chuDe"])} {doc["coQuan"]} {doc["ngay"]}'.lower()
-            if q_lower not in text_to_search:
-                continue
-                
-        results.append(doc)
+    # Filter by loai
+    if loai != "all":
+        # Mapping loai in frontend to DB
+        pass # In a real scenario we might filter by Document.loai if available
+        
+    # Text search
+    if q:
+        search_term = f"%{q}%"
+        query = query.filter(
+            or_(
+                Document.filename.ilike(search_term),
+                Document.chu_de.ilike(search_term),
+                Document.tags.ilike(search_term)
+            )
+        )
+        
+    total = query.count()
+    
+    # Pagination
+    skip = (page - 1) * limit
+    docs = query.order_by(Document.id.desc()).offset(skip).limit(limit).all()
+    
+    results = []
+    for doc in docs:
+        results.append({
+            "id": doc.id,
+            "soHieu": doc.filename,
+            "loai": doc.linh_vuc or "Văn bản",
+            "nguon": "bộ" if "QĐ" in doc.filename or "TT" in doc.filename else "trường",
+            "coQuan": doc.co_quan_ban_hanh,
+            "ngay": doc.ngay_ky,
+            "tomTat": "", # Tóm tắt sẽ làm sau nếu có
+            "chuDe": [doc.chu_de] if doc.chu_de else [],
+            "soDieu": 0,
+            "soNghiaVu": len(doc.obligations) if doc.obligations else 0,
+            "ocr": doc.ocr
+        })
         
     return {
         "results": results,
-        "total": len(all_docs)
+        "total": total,
+        "page": page,
+        "limit": limit
     }
 
 

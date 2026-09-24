@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, FileSearch, PlayCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, FileSearch, PlayCircle, Search, Filter, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 const Admin: React.FC = () => {
-  const { data, refreshData } = useData();
+  const { data, refreshData, setIsProcessing } = useData();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error' | 'crawling'>('idle');
@@ -13,6 +13,23 @@ const Admin: React.FC = () => {
   const [crawledFiles, setCrawledFiles] = useState<{filename: string, domain: string}[]>([]);
   const [processingFiles, setProcessingFiles] = useState<Record<string, boolean>>({});
   const [isPinging, setIsPinging] = useState(false);
+  
+  // Lọc danh sách chờ xử lý
+  const [searchQuery, setSearchQuery] = useState('');
+  const [domainFilter, setDomainFilter] = useState('All');
+  
+  const filteredCrawledFiles = useMemo(() => {
+    return crawledFiles.filter(f => {
+      const matchSearch = f.filename.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchDomain = domainFilter === 'All' || f.domain === domainFilter;
+      return matchSearch && matchDomain;
+    });
+  }, [crawledFiles, searchQuery, domainFilter]);
+  
+  const uniqueDomains = useMemo(() => {
+    const domains = new Set(crawledFiles.map(f => f.domain));
+    return Array.from(domains);
+  }, [crawledFiles]);
 
   const handlePing = async () => {
     setIsPinging(true);
@@ -141,26 +158,55 @@ const Admin: React.FC = () => {
 
   const handleProcessCrawled = async (filename: string) => {
     setProcessingFiles(prev => ({ ...prev, [filename]: true }));
+    setIsProcessing(true);
+    setStatus('processing');
+    setMessage(`Đang bóc tách ${filename} bằng AI... Vui lòng đợi, không chuyển tab trong quá trình này.`);
     try {
       const response = await fetch('http://localhost:8000/api/v1/documents/process_crawled', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename })
       });
-      const data = await response.json();
-      
+      const result = await response.json();
       if (response.ok) {
-        // Bỏ file khỏi danh sách
         setCrawledFiles(prev => prev.filter(f => f.filename !== filename));
         setStatus('success');
         setMessage(`Xử lý thành công: ${filename}`);
+        refreshData();
       } else {
         setStatus('error');
-        setMessage(`Lỗi khi xử lý ${filename}: ${data.detail}`);
+        setMessage(`Lỗi khi xử lý ${filename}: ${result.detail}`);
       }
     } catch (error) {
       setStatus('error');
       setMessage(`Không thể kết nối đến máy chủ để xử lý ${filename}`);
+    } finally {
+      setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteCrawled = async (filename: string) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xoá file ${filename} không?`)) return;
+    
+    setProcessingFiles(prev => ({ ...prev, [filename]: true }));
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/documents/crawled/${encodeURIComponent(filename)}`, {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCrawledFiles(prev => prev.filter(f => f.filename !== filename));
+        setStatus('success');
+        setMessage(`Xoá thành công: ${filename}`);
+      } else {
+        setStatus('error');
+        setMessage(`Lỗi khi xoá ${filename}: ${data.detail}`);
+      }
+    } catch (error) {
+      setStatus('error');
+      setMessage(`Không thể kết nối đến máy chủ để xoá ${filename}`);
     } finally {
       setProcessingFiles(prev => ({ ...prev, [filename]: false }));
     }
@@ -168,7 +214,7 @@ const Admin: React.FC = () => {
 
   return (
     <section id="admin-upload" style={{ background: 'var(--soft)', minHeight: '100vh', paddingBottom: '40px' }}>
-      <div className="wrap" style={{ maxWidth: '800px', margin: '0 auto', paddingTop: '32px' }}>
+      <div className="wrap" style={{ margin: '0 auto', paddingTop: '32px' }}>
         
         {/* Nút Rà soát văn bản mới (Ping) */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
@@ -235,29 +281,62 @@ const Admin: React.FC = () => {
 
         {/* Khu vực file cào tự động chờ xử lý */}
         {crawledFiles.length > 0 && (
-          <div style={{ marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <FileSearch size={24} /> Văn bản chờ xử lý (Từ Bot)
+          <div style={{ marginBottom: '40px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <FileSearch size={28} /> Văn bản chờ bóc tách ({crawledFiles.length})
             </h2>
-            <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid var(--amber-200)', overflow: 'hidden' }}>
-              {crawledFiles.map((fileObj, index) => (
+            
+            <div style={{ 
+              display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap',
+              background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid var(--amber-200)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+            }}>
+              <div style={{ flex: '1 1 300px', display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: '8px', padding: '0 12px', background: 'var(--soft)' }}>
+                <Search size={18} color="var(--muted)" />
+                <input 
+                  type="text" 
+                  placeholder="Tìm theo tên văn bản..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ border: 'none', background: 'transparent', outline: 'none', padding: '10px', width: '100%', fontSize: '14px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--line)', borderRadius: '8px', padding: '0 12px', background: 'var(--soft)' }}>
+                <Filter size={18} color="var(--muted)" />
+                <select 
+                  value={domainFilter} 
+                  onChange={(e) => setDomainFilter(e.target.value)}
+                  style={{ border: 'none', background: 'transparent', outline: 'none', padding: '10px 0', fontSize: '14px', cursor: 'pointer' }}
+                >
+                  <option value="All">Tất cả nguồn</option>
+                  {uniqueDomains.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '16px' }}>
+              {filteredCrawledFiles.map((fileObj, index) => (
                 <div key={fileObj.filename} style={{
-                  padding: '16px 20px',
-                  borderBottom: index < crawledFiles.length - 1 ? '1px solid var(--line)' : 'none',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--amber-200)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  background: index % 2 === 0 ? '#fafafa' : '#fff',
+                  background: '#fff',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
+                  transition: 'transform 0.2s',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ padding: '8px', background: 'var(--amber-50)', borderRadius: '8px', color: 'var(--amber)' }}>
-                      <FileText size={20} />
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <div style={{ padding: '10px', background: 'var(--amber-50)', borderRadius: '10px', color: 'var(--amber)' }}>
+                      <FileText size={24} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>{fileObj.filename}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-light)' }}>
-                        <span style={{ padding: '2px 8px', background: '#e0e7ff', color: '#4338ca', borderRadius: '12px', fontSize: '11px', fontWeight: 600 }}>{fileObj.domain}</span>
-                        <span>Đã tải về qua Bot tự động</span>
+                      <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '6px', fontSize: '15px' }}>{fileObj.filename}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
+                        <span style={{ padding: '3px 10px', background: '#e0e7ff', color: '#4338ca', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>{fileObj.domain}</span>
                       </div>
                     </div>
                   </div>
@@ -267,16 +346,36 @@ const Admin: React.FC = () => {
                     onClick={() => handleProcessCrawled(fileObj.filename)}
                     disabled={processingFiles[fileObj.filename]}
                     style={{
-                      background: 'var(--blue)', color: 'white', border: 'none', padding: '8px 16px',
-                      borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: processingFiles[fileObj.filename] ? 'not-allowed' : 'pointer',
-                      opacity: processingFiles[fileObj.filename] ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px'
+                      background: 'var(--blue)', color: 'white', border: 'none', padding: '10px 16px',
+                      borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: processingFiles[fileObj.filename] ? 'not-allowed' : 'pointer',
+                      opacity: processingFiles[fileObj.filename] ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px',
+                      whiteSpace: 'nowrap'
                     }}
                   >
-                    {processingFiles[fileObj.filename] ? <RefreshCw size={14} className="spin" /> : <PlayCircle size={14} />}
+                    {processingFiles[fileObj.filename] ? <RefreshCw size={16} className="spin" /> : <PlayCircle size={16} />}
                     {processingFiles[fileObj.filename] ? 'Đang bóc tách...' : 'Bắt đầu xử lý'}
+                  </button>
+                  
+                  <button
+                    className="btn"
+                    onClick={() => handleDeleteCrawled(fileObj.filename)}
+                    disabled={processingFiles[fileObj.filename]}
+                    title="Xoá file"
+                    style={{
+                      background: '#fee2e2', color: '#ef4444', border: '1px solid #f87171', padding: '10px',
+                      borderRadius: '8px', cursor: processingFiles[fileObj.filename] ? 'not-allowed' : 'pointer',
+                      opacity: processingFiles[fileObj.filename] ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                  >
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ))}
+              {filteredCrawledFiles.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--muted)', background: '#fff', borderRadius: '12px', border: '1px dashed var(--amber-200)' }}>
+                  Không tìm thấy văn bản phù hợp với bộ lọc.
+                </div>
+              )}
             </div>
           </div>
         )}

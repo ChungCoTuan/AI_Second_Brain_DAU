@@ -23,6 +23,10 @@ const AuditLogs: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('All'); // All, Duyệt giữ nguyên, Sửa & duyệt, Từ chối duyệt
   const [dateFilter, setDateFilter] = useState(''); // YYYY-MM-DD format
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -71,6 +75,18 @@ const AuditLogs: React.FC = () => {
       return searchMatch && typeMatch && dateMatch;
     });
   }, [logs, searchQuery, typeFilter, dateFilter]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, typeFilter, dateFilter]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE);
+  const paginatedLogs = filteredLogs.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   if (loading) {
     return (
@@ -147,7 +163,7 @@ const AuditLogs: React.FC = () => {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {filteredLogs.map((log) => {
+            {paginatedLogs.map((log) => {
               const isEdited = log.action === 'Sửa & duyệt';
               const isRejected = log.action === 'Từ chối duyệt';
               
@@ -250,6 +266,47 @@ const AuditLogs: React.FC = () => {
                 </div>
               );
             })}
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '20px' }}>
+                <button 
+                  className="btn"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    background: currentPage === 1 ? 'var(--soft)' : '#fff',
+                    color: currentPage === 1 ? 'var(--muted)' : 'var(--ink)',
+                    border: '1px solid var(--line)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Trang trước
+                </button>
+                <span style={{ fontSize: '14px', color: 'var(--muted)', fontWeight: 600 }}>
+                  Trang {currentPage} / {totalPages}
+                </span>
+                <button 
+                  className="btn"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    background: currentPage === totalPages ? 'var(--soft)' : '#fff',
+                    color: currentPage === totalPages ? 'var(--muted)' : 'var(--ink)',
+                    border: '1px solid var(--line)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Trang sau
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

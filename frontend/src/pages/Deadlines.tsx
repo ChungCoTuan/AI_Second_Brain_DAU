@@ -8,6 +8,7 @@ const Deadlines: React.FC = () => {
   const { data } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({});
 
   const moc = useMemo(() => {
     const arr: any[] = [];
@@ -140,7 +141,6 @@ const Deadlines: React.FC = () => {
                 <div
                   key={idx}
                   className={`tlr ${ngoai ? '' : c}`}
-                  onClick={() => openDetail('bo:' + (m.docId || m.vb))}
                   style={{ opacity: ngoai ? 0.72 : 1 }}
                 >
                   <div className="d">
@@ -154,7 +154,7 @@ const Deadlines: React.FC = () => {
                     )}
                   </div>
                   <div className="w">{hl(m.viec, fold(searchTerm))}</div>
-                  <div className="m">
+                  <div className="m" onClick={() => openDetail('bo:' + (m.docId || m.vb))} style={{ cursor: 'pointer' }}>
                     {m.vb}
                     {m.dieu ? ` · ${m.dieu}` : ''} · {m.loai}
                     {ngoai && (
@@ -170,10 +170,24 @@ const Deadlines: React.FC = () => {
                     </div>
                   )}
                   {m.nguon && (
-                    <div className="ev-q" style={{ marginTop: '8px' }}>
-                      <span className="lbl">Nguyên văn</span>
-                      {m.nguon}
-                    </div>
+                    <>
+                      <span 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedDocs(prev => ({ ...prev, [idx]: !prev[idx] }));
+                        }} 
+                        style={{ color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'inline-block', marginTop: '6px' }}
+                      >
+                        {expandedDocs[idx] ? 'Ẩn nguyên văn' : 'Xem nguyên văn'}
+                      </span>
+                      
+                      {expandedDocs[idx] && (
+                        <div className="ev-q" style={{ marginTop: '8px' }}>
+                          <span className="lbl" style={{ textTransform: 'uppercase', color: 'var(--red)' }}>Nguyên văn điều khoản</span>
+                          {m.nguon}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );
