@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
@@ -61,6 +62,8 @@ def trigger_ping():
 def trigger_manual_crawl():
     """Manually triggers the document crawler synchronously."""
     crawl_chinhphu(5) # max 5 files per crawl for demo
+    from ...services.notifier import notifier
+    notifier.push_sync("update")
     return {"status": "success", "message": "Crawler has finished."}
 
 
@@ -89,4 +92,10 @@ def get_crawled_files(db: Session = Depends(get_db)):
 class ProcessCrawledRequest(BaseModel):
     filename: str
 
+from ...services.notifier import notifier
+
+@router.get("/system/stream")
+async def system_stream():
+    """Endpoint Server-Sent Events (SSE) để bắn tín hiệu cập nhật cho Frontend."""
+    return StreamingResponse(notifier.get_generator(), media_type="text/event-stream")
 

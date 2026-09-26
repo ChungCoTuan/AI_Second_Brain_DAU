@@ -4,10 +4,17 @@ import { useDetail } from '../context/DetailContext';
 
 const PriorityList: React.FC = () => {
   const { openDetail } = useDetail();
-  const { data, refreshData } = useData();
-  const rows = data.insights?.uuTien || [];
+  const { data, refreshData, markAsRead, readWarnings } = useData();
+  const rows = [...(data.insights?.uuTien || [])].sort((a: any, b: any) => {
+    const aUnread = !readWarnings.includes(a.soHieu);
+    const bUnread = !readWarnings.includes(b.soHieu);
+    if (aUnread && !bUnread) return -1;
+    if (!aUnread && bUnread) return 1;
+    return 0;
+  });
 
   const handleViewWarning = async (soHieu: string) => {
+    markAsRead('warning', soHieu);
     openDetail(soHieu);
     try {
       await fetch(`http://localhost:8000/api/v1/auditing/warnings/${encodeURIComponent(soHieu)}/resolve`, {
@@ -27,7 +34,7 @@ const PriorityList: React.FC = () => {
           Xếp theo mức độ: văn bản có căn cứ <b>bị bãi bỏ</b> và dính <b>nhiều căn cứ hỏng</b> lên đầu. Bấm để xem chi tiết.
         </p>
         <div id="priority">
-          <div className="prow phead">
+          <div className="prow phead" style={{ display: 'grid', gridTemplateColumns: '40px 3fr 2fr 1fr 1fr', textTransform: 'uppercase', fontSize: '11px', color: 'var(--muted)', fontWeight: 700, paddingBottom: '12px', borderBottom: '1px solid var(--line)', marginBottom: '8px' }}>
             <span>#</span>
             <span>Văn bản</span>
             <span>Loại</span>
@@ -42,28 +49,25 @@ const PriorityList: React.FC = () => {
           ) : (
             rows.map((r: any, i: number) => {
               const lvl = r.baiBo ? (
-                <span className="lv lv-hi">Ưu tiên cao</span>
+                <span className="lv lv-hi" style={{ padding: '4px 10px', border: '1px solid #ffd0d0', color: 'var(--red)', background: '#fff0f0', borderRadius: '20px', fontSize: '11px', fontWeight: 600 }}>Ưu tiên cao</span>
               ) : (
-                <span className="lv lv-md">Cần rà</span>
+                <span className="lv lv-md" style={{ padding: '4px 10px', border: '1px solid #ffe4b5', color: 'var(--amber)', background: '#fffdf5', borderRadius: '20px', fontSize: '11px', fontWeight: 600 }}>Cần rà</span>
               );
+              const isUnread = !readWarnings.includes(r.soHieu);
               return (
                 <div
                   key={r.docId}
-                  className="prow"
+                  className={`prow ${isUnread ? 'unread-item' : ''}`}
+                  style={{ display: 'grid', gridTemplateColumns: '40px 3fr 2fr 1fr 1fr', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid var(--soft)', cursor: 'pointer', transition: 'background 0.2s' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--soft)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   data-did={r.docId}
                   onClick={() => handleViewWarning(r.soHieu)}
                 >
-                  <span className="pk">{i + 1}</span>
-                  <span className="pd" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span>{r.soHieu}</span>
-                    {r.chiTietLoi && (
-                      <span style={{ fontSize: '12px', color: 'var(--red)', marginTop: '4px' }}>
-                        Cảnh báo: {r.chiTietLoi}
-                      </span>
-                    )}
-                  </span>
-                  <span className="pl">{r.loai || ''}</span>
-                  <span className="pn">{r.n}</span>
+                  <span className="pk" style={{ color: 'var(--red)', fontWeight: 700 }}>{i + 1}</span>
+                  <span className="pd" style={{ fontWeight: 600, color: 'var(--ink)' }}>{r.soHieu}</span>
+                  <span className="pl" style={{ color: 'var(--muted)' }}>{r.loai || ''}</span>
+                  <span className="pn" style={{ color: 'var(--red)', fontWeight: 700 }}>{r.n}</span>
                   <span>{lvl}</span>
                 </div>
               );

@@ -27,6 +27,9 @@ class Document(Base):
     conf = Column(Float, default=0.98)
     tags = Column(String, nullable=True)
     tom_tat = Column(Text, nullable=True)
+    ghi_chu = Column(Text, nullable=True) # Lưu "Ghi chú khi bóc tách"
+    dieu_khoan_hieu_luc_nguyen_van = Column(Text, nullable=True) # Lưu "Nguyên văn điều khoản hiệu lực"
+    muc_luc_dieu_khoan = Column(JSONB, nullable=True) # Mảng object lưu cấu trúc chương/điều
     created_at = Column(DateTime, default=datetime.datetime.now)
     
     # Relationships``

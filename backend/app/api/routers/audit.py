@@ -78,6 +78,8 @@ async def resolve_warning(so_hieu: str, db: Session = Depends(get_db)):
         rel.status = "resolved"
         
     db.commit()
+    from ...services.notifier import notifier
+    notifier.push_sync("update")
     return {"status": "success"}
 
 

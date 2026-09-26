@@ -40,7 +40,11 @@ interface DataContextType {
   refreshData: () => void;
   readDeadDocs: string[];
   readEvents: string[];
-  markAsRead: (type: 'dead' | 'event', id: string) => void;
+  readObligations: string[];
+  readThresholds: string[];
+  readDeadlines: string[];
+  readWarnings: string[];
+  markAsRead: (type: 'dead' | 'event' | 'obligation' | 'threshold' | 'deadline' | 'warning', id: string) => void;
   isProcessing: boolean;
   setIsProcessing: (v: boolean) => void;
 }
@@ -52,6 +56,10 @@ const DataContext = createContext<DataContextType>({
   refreshData: () => {},
   readDeadDocs: [],
   readEvents: [],
+  readObligations: [],
+  readThresholds: [],
+  readDeadlines: [],
+  readWarnings: [],
   markAsRead: () => {},
   isProcessing: false,
   setIsProcessing: () => {},
@@ -65,19 +73,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const [readDeadDocs, setReadDeadDocs] = useState<string[]>([]);
   const [readEvents, setReadEvents] = useState<string[]>([]);
+  const [readObligations, setReadObligations] = useState<string[]>([]);
+  const [readThresholds, setReadThresholds] = useState<string[]>([]);
+  const [readDeadlines, setReadDeadlines] = useState<string[]>([]);
+  const [readWarnings, setReadWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     try {
       const storedDead = JSON.parse(localStorage.getItem('readDeadDocs') || '[]');
       const storedEvents = JSON.parse(localStorage.getItem('readEvents') || '[]');
+      const storedObligations = JSON.parse(localStorage.getItem('readObligations') || '[]');
+      const storedThresholds = JSON.parse(localStorage.getItem('readThresholds') || '[]');
+      const storedDeadlines = JSON.parse(localStorage.getItem('readDeadlines') || '[]');
+      const storedWarnings = JSON.parse(localStorage.getItem('readWarnings') || '[]');
       setReadDeadDocs(storedDead);
       setReadEvents(storedEvents);
+      setReadObligations(storedObligations);
+      setReadThresholds(storedThresholds);
+      setReadDeadlines(storedDeadlines);
+      setReadWarnings(storedWarnings);
     } catch (e) {
       console.error(e);
     }
   }, []);
 
-  const markAsRead = (type: 'dead' | 'event', id: string) => {
+  const markAsRead = (type: 'dead' | 'event' | 'obligation', id: string) => {
     if (type === 'dead') {
       setReadDeadDocs(prev => {
         if (prev.includes(id)) return prev;
@@ -85,11 +105,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem('readDeadDocs', JSON.stringify(next));
         return next;
       });
-    } else {
+    } else if (type === 'event') {
       setReadEvents(prev => {
         if (prev.includes(id)) return prev;
         const next = [...prev, id];
         localStorage.setItem('readEvents', JSON.stringify(next));
+        return next;
+      });
+    } else if (type === 'obligation') {
+      setReadObligations(prev => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        localStorage.setItem('readObligations', JSON.stringify(next));
+        return next;
+      });
+    } else if (type === 'threshold') {
+      setReadThresholds(prev => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        localStorage.setItem('readThresholds', JSON.stringify(next));
+        return next;
+      });
+    } else if (type === 'deadline') {
+      setReadDeadlines(prev => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        localStorage.setItem('readDeadlines', JSON.stringify(next));
+        return next;
+      });
+    } else if (type === 'warning') {
+      setReadWarnings(prev => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        localStorage.setItem('readWarnings', JSON.stringify(next));
         return next;
       });
     }
@@ -143,15 +191,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => {
-      fetchData(true); // Tải ngầm không làm chớp UI
-    }, 5000);
-    return () => clearInterval(interval);
+    fetchData(); // Tải lần đầu
+    
+    // Mở kết nối SSE tới Backend
+    const evtSource = new EventSource('http://localhost:8000/api/v1/system/stream');
+    
+    evtSource.onmessage = (event) => {
+      if (event.data === 'update') {
+        fetchData(true); // Chỉ tải lại khi có tín hiệu update
+      }
+    };
+    
+    evtSource.onerror = (err) => {
+      console.error('SSE connection error:', err);
+    };
+
+    return () => {
+      evtSource.close();
+    };
   }, []);
 
   return (
-    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData, readDeadDocs, readEvents, markAsRead, isProcessing, setIsProcessing }}>
+    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings, markAsRead, isProcessing, setIsProcessing }}>
       {children}
     </DataContext.Provider>
   );

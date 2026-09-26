@@ -5,8 +5,14 @@ import { useDetail } from '../context/DetailContext';
 
 const Thresholds: React.FC = () => {
   const { openDetail } = useDetail();
-  const { data, loading } = useData();
-  const CS = data.conSoChot || [];
+  const { data, loading, markAsRead, readThresholds } = useData();
+  const CS = [...(data.conSoChot || [])].sort((a: any, b: any) => {
+    const aUnread = !readThresholds.includes(a.vb);
+    const bUnread = !readThresholds.includes(b.vb);
+    if (aUnread && !bUnread) return -1;
+    if (!aUnread && bUnread) return 1;
+    return 0;
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [vb, setVb] = useState('all');
 
@@ -66,11 +72,16 @@ const Thresholds: React.FC = () => {
 
         <div className="rlist" id="csList">
           {show.length > 0 ? (
-            show.map((c: any, idx: number) => (
+            show.map((c: any, idx: number) => {
+              const isUnread = !readThresholds.includes(c.vb);
+              return (
               <div
                 key={idx}
-                className="r r-cs"
-                onClick={() => openDetail('bo:' + (c.docId || c.vb))}
+                className={`r r-cs ${isUnread ? 'unread-item' : ''}`}
+                onClick={() => {
+                  openDetail('bo:' + (c.docId || c.vb));
+                  markAsRead('threshold', c.vb);
+                }}
               >
                 <div>
                   <span className="rs">{hl(c.giaTri, q)}</span>
@@ -95,7 +106,7 @@ const Thresholds: React.FC = () => {
                   {c.dieu || ''}
                 </div>
               </div>
-            ))
+            )})
           ) : (
             <div className="empty">Không có con số nào khớp.</div>
           )}

@@ -6,9 +6,21 @@ import { useDetail } from '../context/DetailContext';
 const DeadDocs: React.FC = () => {
   const { openDetail } = useDetail();
   const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({});
-  const { data, markAsRead } = useData();
-  const rows = data.vbTuChet || [];
-  const sap = data.vbSapChet || [];
+  const { data, markAsRead, readDeadDocs } = useData();
+  const rows = [...(data.vbTuChet || [])].sort((a: any, b: any) => {
+    const aUnread = !readDeadDocs.includes(a.soHieu);
+    const bUnread = !readDeadDocs.includes(b.soHieu);
+    if (aUnread && !bUnread) return -1;
+    if (!aUnread && bUnread) return 1;
+    return 0;
+  });
+  const sap = [...(data.vbSapChet || [])].sort((a: any, b: any) => {
+    const aUnread = !readDeadDocs.includes(a.soHieu);
+    const bUnread = !readDeadDocs.includes(b.soHieu);
+    if (aUnread && !bUnread) return -1;
+    if (!aUnread && bUnread) return 1;
+    return 0;
+  });
 
   if (!rows.length && !sap.length) {
     return (
@@ -31,10 +43,12 @@ const DeadDocs: React.FC = () => {
       setExpandedDocs(prev => ({ ...prev, [r.docId]: !prev[r.docId] }));
     };
 
+    const isUnread = !readDeadDocs.includes(r.docId);
+
     return (
       <div
         key={r.docId}
-        className="r"
+        className={`r ${isUnread ? 'unread-item' : ''}`}
         data-did={r.docId}
         onClick={() => {
           markAsRead('dead', r.docId);
@@ -114,7 +128,7 @@ const DeadDocs: React.FC = () => {
 
           {sap.length > 0 && (
             <>
-              <div className="sec-t" style={{ marginTop: '20px' }}>
+              <div className="sec-t" style={{ marginTop: '20px', textTransform: 'uppercase' }}>
                 Sắp hết hiệu lực, hiện vẫn còn giá trị
               </div>
               <div className="rlist">{sap.map((r: any) => renderDoc(r, true))}</div>

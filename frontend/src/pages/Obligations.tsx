@@ -5,8 +5,14 @@ import { useDetail } from '../context/DetailContext';
 
 const Obligations: React.FC = () => {
   const { openDetail } = useDetail();
-  const { data, loading } = useData();
-  const NV = data.nghiaVu || [];
+  const { data, loading, markAsRead, readObligations } = useData();
+  const NV = [...(data.nghiaVu || [])].sort((a: any, b: any) => {
+    const aUnread = !readObligations.includes(a.vb);
+    const bUnread = !readObligations.includes(b.vb);
+    if (aUnread && !bUnread) return -1;
+    if (!aUnread && bUnread) return 1;
+    return 0;
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [vb, setVb] = useState('all');
   const [loai, setLoai] = useState('all');
@@ -90,11 +96,16 @@ const Obligations: React.FC = () => {
 
         <div className="rlist" id="nvList">
           {show.length > 0 ? (
-            show.map((n: any, idx: number) => (
+            show.map((n: any, idx: number) => {
+              const isUnread = !readObligations.includes(n.vb);
+              return (
               <div
                 key={idx}
-                className="r r-nv"
-                onClick={() => openDetail('bo:' + (n.docId || n.vb))}
+                className={`r r-nv ${isUnread ? 'unread-item' : ''}`}
+                onClick={() => {
+                  openDetail('bo:' + (n.docId || n.vb));
+                  markAsRead('obligation', n.vb);
+                }}
               >
                 <div>
                   <span className="rs">{n.vb}</span>
@@ -133,7 +144,7 @@ const Obligations: React.FC = () => {
                   {bangChung(n.nguon)}
                 </div>
               </div>
-            ))
+            )})
           ) : (
             <div className="empty">Không có nghĩa vụ nào khớp.</div>
           )}

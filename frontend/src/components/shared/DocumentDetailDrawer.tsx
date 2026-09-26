@@ -116,8 +116,9 @@ const DocumentDetailDrawer: React.FC = () => {
       );
     }
 
-    if (data.type === 'bo') {
+    if (data.type === 'bo' || data.type === 'truong') {
       const o = data.data;
+      const items = data.items;
       const hl0 = o.hieuLucTu || {};
       const ad = o.apDungTu || {};
       const tt = o.thayThe || [];
@@ -127,12 +128,13 @@ const DocumentDetailDrawer: React.FC = () => {
       const nv = o.nghiaVu || [];
       const cs = o.conSoChot || [];
       const qc = o.quyCheKemTheo;
+      const conf = o.conf != null ? Math.round(o.conf * 100) : null;
 
       return (
         <>
           <div className="dr-h">
             <div>
-              <div className="t">{o.soHieu}</div>
+              <div className="t">{o.soHieu || 'Văn bản'}</div>
               <div className="s">{[o.loai, o.coQuan].filter(Boolean).join(' · ')}</div>
             </div>
             <div className="x" onClick={closeDetail}>&times;</div>
@@ -147,16 +149,70 @@ const DocumentDetailDrawer: React.FC = () => {
             <div className="kv">
               {row('Loại', o.loai)}
               {row('Cơ quan', o.coQuan)}
-              {row('Ban hành', fmtDate(o.ngayBanHanh))}
               {row('Người ký', [o.chucVu, o.nguoiKy].filter(Boolean).join(' · '))}
-              {row('Hiệu lực', fmtDate(hl0.ngay))}
+              {row('Ngày ký', fmtDate(o.ngayKy || o.ngayBanHanh))}
+              {row('Hiệu lực', o.hieuLucDen ? `${fmtDate(hl0.ngay)} — ${fmtDate(o.hieuLucDen)}` : (hl0.ngay ? `${fmtDate(hl0.ngay)} — nay` : ''))}
+              {o.status && row('Trạng thái', o.status)}
               {ad.ngay && row('Áp dụng từ', fmtDate(ad.ngay))}
             </div>
 
-            {o.trichYeu && (
+            <div style={{ display: 'flex', gap: '18px', alignItems: 'center', marginBottom: '16px' }}>
+              {conf != null && (
+                <span className="conf" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                  Độ tin cậy trích xuất
+                  <span className="bar2">
+                    <i style={{ width: `${conf}%` }}></i>
+                  </span>
+                  <b>{conf}%</b>
+                  {o.ocr !== undefined && (
+                    <span style={{ color: 'var(--muted)' }}>
+                      {' · '}{o.ocr ? 'có dùng OCR' : 'lớp chữ số'}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            {(o.tomTat || o.trichYeu) && (
               <>
-                <div className="sec-t">Trích yếu</div>
-                <div className="sum">{o.trichYeu}</div>
+                <div className="sec-t" style={{ textTransform: 'uppercase' }}>Tóm tắt (AI trích)</div>
+                <div className="sum" style={{ background: 'var(--soft)', padding: '12px', borderRadius: '8px', border: '1px dashed var(--line)', marginBottom: '16px' }}>{o.tomTat || o.trichYeu}</div>
+              </>
+            )}
+
+            {items && items.length > 0 && (
+              <>
+                <div className="sec-t" style={{ textTransform: 'uppercase', color: 'var(--red)' }}>Căn cứ đã hết hiệu lực</div>
+                {items.map((item: any, i: number) => (
+                  <div className="cc-item" key={`cc-dead-${i}`} style={{ padding: '8px 0', borderBottom: '1px dashed var(--line)', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--red)', fontWeight: 600 }}>{item.canCu}</span>
+                    <span style={{ margin: '0 8px', color: 'var(--muted)' }}>→</span>
+                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>{item.thayBang}</span>
+                    <span className="badge replace" style={{ marginLeft: '12px' }}>{item.lyDo}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {o.chuDe && o.chuDe.length > 0 && o.chuDe[0] && (
+              <>
+                <div className="sec-t" style={{ textTransform: 'uppercase', marginTop: '16px' }}>Chủ đề</div>
+                <div className="chips" style={{ marginBottom: '16px' }}>
+                  {o.chuDe.map((c: string, i: number) => (
+                    <span className="chip2" key={i} style={{ borderRadius: '20px', padding: '4px 12px', color: 'var(--red)', background: '#fff0f0', border: '1px solid #ffd0d0' }}>{c}</span>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {o.tags && o.tags.length > 0 && o.tags[0] && (
+              <>
+                <div className="sec-t" style={{ textTransform: 'uppercase', marginTop: '16px' }}>Từ khoá</div>
+                <div className="chips" style={{ marginBottom: '16px' }}>
+                  {o.tags.map((t: string, i: number) => (
+                    <span className="chip2" key={i} style={{ borderRadius: '20px', padding: '4px 12px', background: '#fff0f0', color: 'var(--red)', border: '1px solid #ffd0d0' }}>{t.trim()}</span>
+                  ))}
+                </div>
               </>
             )}
 
@@ -291,92 +347,7 @@ const DocumentDetailDrawer: React.FC = () => {
               </>
             )}
 
-            {o.ghiChu && (
-              <>
-                <div className="sec-t">Ghi chú khi bóc tách</div>
-                <div className="sum">{o.ghiChu}</div>
-              </>
-            )}
-          </div>
-        </>
-      );
-    }
-
-    if (data.type === 'truong') {
-      const m = data.data;
-      const items = data.items;
-      const conf = m.conf != null ? Math.round(m.conf * 100) : null;
-
-      return (
-        <>
-          <div className="dr-h">
-            <div>
-              <div className="t">{m.soHieu || 'Văn bản'}</div>
-              <div className="s">{[m.loai, m.coQuan].filter(Boolean).join(' · ')}</div>
-            </div>
-            <div className="x" onClick={closeDetail}>&times;</div>
-          </div>
-          <div className="dr-b">
-            <div className="kv">
-              {row('Loại', m.loai)}
-              {row('Cơ quan', m.coQuan)}
-              {row('Người ký', m.nguoiKy)}
-              {row('Ngày ký', fmtDate(m.ngayKy))}
-              {row('Hiệu lực', `${fmtDate(m.hieuLucTu)} → ${m.hieuLucDen ? fmtDate(m.hieuLucDen) : 'nay'}`)}
-              {row('Trạng thái', m.status)}
-            </div>
-
-            <div style={{ display: 'flex', gap: '18px', alignItems: 'center', marginBottom: '6px' }}>
-              {conf != null && (
-                <span className="conf">
-                  Độ tin cậy trích xuất
-                  <span className="bar2">
-                    <i style={{ width: `${conf}%` }}></i>
-                  </span>
-                  <b>{conf}%</b>
-                </span>
-              )}
-              <span className="conf">{m.ocr ? '📄 có dùng OCR' : '📄 lớp chữ số'}</span>
-            </div>
-
-            {m.tomTat && (
-              <>
-                <div className="sec-t">Tóm tắt (AI trích)</div>
-                <div className="sum">{m.tomTat}</div>
-              </>
-            )}
-
-            {m.nghiaVu && m.nghiaVu.length > 0 && (
-              <>
-                <div className="sec-t" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Nghĩa vụ ({m.nghiaVu.length})</span>
-                  <button 
-                    onClick={() => setShowPreview(true)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '4px',
-                      background: 'var(--red)', color: '#fff', border: 'none',
-                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
-                      fontSize: '12px', fontWeight: '500'
-                    }}
-                  >
-                    <Eye size={14} /> Xem trước Khung Báo Cáo
-                  </button>
-                </div>
-                {m.nghiaVu.map((n: any, i: number) => (
-                  <div className="nvrow" key={i}>
-                    <div className="h">
-                      <span className="tag2">{n.dieu || ''}</span>
-                      <span className="tag2">{n.loai || 'khác'}</span>
-                      {n.hanChot && <span className="tag2 han">hạn {nhanNgay(n.hanChot)}</span>}
-                    </div>
-                    <div>{n.noiDung || ''}</div>
-                    {bangChung(n.nguon)}
-                  </div>
-                ))}
-              </>
-            )}
-
-            {items && (
+            {items && items.length > 0 && (
               <>
                 <div className="sec-t">Căn cứ đã hết hiệu lực</div>
                 {items.map((it: any, i: number) => (
@@ -390,25 +361,32 @@ const DocumentDetailDrawer: React.FC = () => {
               </>
             )}
 
-            {m.chuDe && m.chuDe.length > 0 && (
+            {o.chuDe && o.chuDe.length > 0 && (
               <>
                 <div className="sec-t">Chủ đề</div>
                 <div className="chips">
-                  {m.chuDe.map((c: string, i: number) => (
+                  {o.chuDe.map((c: string, i: number) => (
                     <span className="chip2" key={i}>{c}</span>
                   ))}
                 </div>
               </>
             )}
 
-            {m.tags && m.tags.length > 0 && (
+            {o.tags && o.tags.length > 0 && (
               <>
                 <div className="sec-t">Từ khoá</div>
                 <div className="chips">
-                  {m.tags.map((t: string, i: number) => (
+                  {o.tags.map((t: string, i: number) => (
                     <span className="chip2" key={i}>{t}</span>
                   ))}
                 </div>
+              </>
+            )}
+
+            {o.ghiChu && (
+              <>
+                <div className="sec-t">Ghi chú khi bóc tách</div>
+                <div className="sum">{o.ghiChu}</div>
               </>
             )}
           </div>

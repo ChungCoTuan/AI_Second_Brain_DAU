@@ -5,7 +5,7 @@ import { useDetail } from '../context/DetailContext';
 
 const Deadlines: React.FC = () => {
   const { openDetail } = useDetail();
-  const { data } = useData();
+  const { data, markAsRead, readDeadlines } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
   const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({});
@@ -134,16 +134,17 @@ const Deadlines: React.FC = () => {
 
         <div className="tl" id="hanList">
           {filteredMoc.length > 0 ? (
-            filteredMoc.map((m, idx) => {
-              const ngoai = (m.chuThe || 'trường') !== 'trường';
-              const c = mucDo(m.ngay);
-              return (
-                <div
-                  key={idx}
-                  className={`tlr ${ngoai ? '' : c}`}
-                  style={{ opacity: ngoai ? 0.72 : 1 }}
-                >
-                  <div className="d">
+              filteredMoc.map((m, idx) => {
+                const ngoai = (m.chuThe || 'trường') !== 'trường';
+                const c = mucDo(m.ngay);
+                const isUnread = !readDeadlines.includes(m.vb);
+                return (
+                  <div
+                    key={idx}
+                    className={`tlr ${ngoai ? '' : c} ${isUnread ? 'unread-item' : ''}`}
+                    style={{ opacity: ngoai ? 0.72 : 1 }}
+                  >
+                    <div className="d">
                     {nhanNgay(m.ngay)}
                     {!ngoai && conLaiNode(m.ngay)}
                     {ngoai && <span className="dleft">không phải việc của trường</span>}
@@ -153,10 +154,13 @@ const Deadlines: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <div className="w">{hl(m.viec, fold(searchTerm))}</div>
-                  <div className="m" onClick={() => openDetail('bo:' + (m.docId || m.vb))} style={{ cursor: 'pointer' }}>
-                    {m.vb}
-                    {m.dieu ? ` · ${m.dieu}` : ''} · {m.loai}
+                    <div className="w">{hl(m.viec, fold(searchTerm))}</div>
+                    <div className="m" onClick={() => {
+                      openDetail('bo:' + (m.docId || m.vb));
+                      markAsRead('deadline', m.vb);
+                    }} style={{ cursor: 'pointer' }}>
+                      {m.vb}
+                      {m.dieu ? ` · ${m.dieu}` : ''} · {m.loai}
                     {ngoai && (
                       <>
                         {' · '}

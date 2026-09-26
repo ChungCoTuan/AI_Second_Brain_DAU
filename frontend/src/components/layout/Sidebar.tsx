@@ -38,10 +38,22 @@ const Badge = ({ count }: { count: number }) => {
 const navStyle = {};
 
 const Sidebar: React.FC = () => {
-  const { data, readDeadDocs, readEvents, isProcessing } = useData();
+  const { data, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings, isProcessing } = useData();
   
-  const unreadDeadDocsCount = ((data?.vbTuChet?.length || 0) + (data?.vbSapChet?.length || 0)) - readDeadDocs.length;
-  const unreadEventsCount = data?.soSuKien || 0;
+  const allWarnings = (data?.insights?.uuTien || []).map((w: any) => w.soHieu);
+  const unreadWarningsCount = allWarnings.filter((id: string) => !readWarnings.includes(id)).length;
+  const allDeadDocs = [...(data?.vbTuChet || []), ...(data?.vbSapChet || [])].map((d: any) => d.docId);
+  const unreadDeadDocsCount = allDeadDocs.filter(id => !readDeadDocs.includes(id)).length;
+  const unreadEventsCount = Math.max(0, (data?.events?.length || 0) - readEvents.length);
+  
+  const uniqueObligationDocs = Array.from(new Set((data?.nghiaVu || []).map((n: any) => n.vb)));
+  const unreadObligationsCount = Math.max(0, uniqueObligationDocs.length - (readObligations?.length || 0));
+
+  const uniqueThresholdDocs = Array.from(new Set((data?.conSoChot || []).map((n: any) => n.vb)));
+  const unreadThresholdsCount = Math.max(0, uniqueThresholdDocs.length - (readThresholds?.length || 0));
+
+  const uniqueDeadlineDocs = Array.from(new Set((data?.hanChot || []).map((n: any) => n.vb)));
+  const unreadDeadlinesCount = Math.max(0, uniqueDeadlineDocs.length - (readDeadlines?.length || 0));
 
   const blockIfProcessing = (e: React.MouseEvent) => {
     if (isProcessing) {
@@ -92,7 +104,7 @@ const Sidebar: React.FC = () => {
               <AlertTriangle size={18} />
               <span>Ưu tiên xử lý</span>
             </div>
-            <Badge count={data?.soCanhBao || 0} />
+            <Badge count={unreadWarningsCount} />
           </NavLink>
           <NavLink to="/dead-docs" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}} onClick={blockIfProcessing}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
@@ -106,7 +118,7 @@ const Sidebar: React.FC = () => {
               <CalendarClock size={18} />
               <span>Hạn chót & mốc</span>
             </div>
-            <Badge count={data?.hanChot?.length || 0} />
+            <Badge count={unreadDeadlinesCount} />
           </NavLink>
           <NavLink to="/analytics" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle} onClick={blockIfProcessing}>
             <PieChart size={18} />
@@ -142,13 +154,19 @@ const Sidebar: React.FC = () => {
             <Bot size={18} />
             <span>Tra cứu AI (Chatbot)</span>
           </NavLink>
-          <NavLink to="/obligations" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle} onClick={blockIfProcessing}>
-            <CheckSquare size={18} />
-            <span>Việc phải làm</span>
+          <NavLink to="/obligations" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}} onClick={blockIfProcessing}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <CheckSquare size={18} />
+              <span>Việc phải làm</span>
+            </div>
+            <Badge count={unreadObligationsCount} />
           </NavLink>
-          <NavLink to="/thresholds" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle} onClick={blockIfProcessing}>
-            <Book size={18} />
-            <span>Sổ ngưỡng & định mức</span>
+          <NavLink to="/thresholds" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}} onClick={blockIfProcessing}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <Book size={18} />
+              <span>Sổ ngưỡng & định mức</span>
+            </div>
+            <Badge count={unreadThresholdsCount} />
           </NavLink>
           <NavLink to="/graph" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle} onClick={blockIfProcessing}>
             <Network size={18} />

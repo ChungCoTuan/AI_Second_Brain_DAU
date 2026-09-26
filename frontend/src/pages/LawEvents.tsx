@@ -6,11 +6,17 @@ import { useDetail } from '../context/DetailContext';
 
 const LawEvents: React.FC = () => {
   const { openDetail } = useDetail();
-  const { data, markAsRead } = useData();
+  const { data, markAsRead, readEvents } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const events = data.events || [];
+  const events = [...(data.events || [])].sort((a: any, b: any) => {
+    const aUnread = !readEvents.includes(`${a.canCu}->${a.thayBang}`);
+    const bUnread = !readEvents.includes(`${b.canCu}->${b.thayBang}`);
+    if (aUnread && !bUnread) return -1;
+    if (!aUnread && bUnread) return 1;
+    return 0;
+  });
   const SK = data.suKienHieuLuc || [];
 
   const q = fold(searchTerm);
@@ -44,12 +50,15 @@ const LawEvents: React.FC = () => {
         </p>
 
         <div className="events">
-          {events.map((e: any, i: number) => (
+          {events.map((e: any, i: number) => {
+            const eid = `${e.canCu}->${e.thayBang}`;
+            const isUnread = !readEvents.includes(eid);
+            return (
             <div
-              key={`${e.canCu}->${e.thayBang}`}
-              className="ev"
+              key={eid}
+              className={`ev ${isUnread ? 'unread-item' : ''}`}
               onClick={() => {
-                markAsRead('event', `${e.canCu}->${e.thayBang}`);
+                markAsRead('event', eid);
                 navigate(`/review?event=${i}`);
               }}
             >
@@ -62,7 +71,7 @@ const LawEvents: React.FC = () => {
               </div>
               <span className={`pill ${badge(e.lyDo)}`}>{e.lyDo}</span>
             </div>
-          ))}
+          )})}
         </div>
 
         <h2 id="doi-hieu-luc" style={{ marginTop: '34px', scrollMarginTop: '112px' }}>

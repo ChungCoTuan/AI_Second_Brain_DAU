@@ -371,7 +371,19 @@ async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 })
                 
     events = []
+    impact = []
+    
     for e in events_map.values():
+        # -- Đồ thị ảnh hưởng (impact): Lấy TOÀN BỘ dây chuyền phụ thuộc --
+        if len(e["docs"]) > 0:
+            impact.append({
+                "canCu": e["canCu"],
+                "thayBang": e["thayBang"],
+                "lyDo": e.get("lyDo", ""),
+                "dependents": list(e["docs"]) # clone mảng docs
+            })
+            
+        # -- Sự kiện cảnh báo (events): Chỉ lấy các dây chuyền có văn bản chưa rà soát (draft) --
         valid_docs = []
         for d in e["docs"]:
             so_hieu = d["soHieu"]
@@ -384,17 +396,9 @@ async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 
         # Nếu có ít nhất 1 văn bản cần rà soát thì mới giữ lại sự kiện cảnh báo này
         if len(valid_docs) > 0:
-            e["docs"] = valid_docs
-            events.append(e)
-    
-    impact = []
-    for e in events:
-        impact.append({
-            "canCu": e["canCu"],
-            "thayBang": e["thayBang"],
-            "lyDo": e.get("lyDo", ""),
-            "dependents": e["docs"]
-        })
+            event_obj = dict(e)
+            event_obj["docs"] = valid_docs
+            events.append(event_obj)
             
     # Không còn dữ liệu giả. Nếu DB trống, UI sẽ hiển thị mảng rỗng và hiển thị trạng thái Empty state.
     vb_sap_chet = []
@@ -443,6 +447,13 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
     """
     Trả về chi tiết hồ sơ văn bản.
     """
+    # Frontend đôi khi gửi kèm prefix "bo:" hoặc "truong:" để điều hướng giao diện cũ.
+    # Ta cần cắt nó đi để khớp với filename trong DB.
+    if so_hieu.startswith("bo:"):
+        so_hieu = so_hieu[3:]
+    elif so_hieu.startswith("truong:"):
+        so_hieu = so_hieu[7:]
+        
     doc = db.query(Document).filter(Document.filename == so_hieu).first()
     
     if doc:
@@ -488,6 +499,26 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
                     "lyDo": h.relation_type
                 })
         
+        # Văn bản này làm văn bản khác hết hiệu lực (thay thế, bãi bỏ)
+        # old_doc là source, new_doc (văn bản hiện tại) là target
+        lam_het_hieu_luc = db.query(DocumentRelation).filter(
+            DocumentRelation.target_doc == doc.filename,
+            DocumentRelation.relation_type.in_(["bị thay thế", "bị bãi bỏ", "thay thế", "bãi bỏ"])
+        ).all()
+        
+        thay_the = []
+        bai_bo = []
+        for r in lam_het_hieu_luc:
+            rt = r.relation_type.lower()
+            obj = {
+                "soHieu": r.source_doc,
+                "nguon": r.nguyen_van
+            }
+            if "thay thế" in rt:
+                thay_the.append(obj)
+            elif "bãi bỏ" in rt:
+                bai_bo.append(obj)
+
         return {
             "type": "truong",
             "data": {
@@ -495,15 +526,26 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
                 "loai": doc.linh_vuc or "Văn bản",
                 "coQuan": doc.co_quan_ban_hanh or "",
                 "ngayKy": doc.ngay_ky or "",
+                "ngayBanHanh": doc.ngay_ky or "",
                 "nguoiKy": doc.nguoi_ky or "",
-                "hieuLucTu": doc.hieu_luc_tu or "",
+                "chucVu": "",
+                "hieuLucTu": {
+                    "ngay": doc.hieu_luc_tu or "",
+                    "nguon": doc.dieu_khoan_hieu_luc_nguyen_van or ""
+                },
                 "hieuLucDen": doc.hieu_luc_den,
                 "status": doc.trang_thai_hieu_luc or "Còn hiệu lực",
                 "tomTat": doc.tom_tat or "",
+                "trichYeu": doc.tom_tat or "",
+                "ghiChu": doc.ghi_chu or "",
                 "chuDe": [doc.chu_de] if doc.chu_de else [],
                 "tags": doc.tags.split(',') if doc.tags else [],
                 "nghiaVu": nghia_vu,
                 "conSoChot": con_so,
+                "dieuKhoan": doc.muc_luc_dieu_khoan or [],
+                "thayThe": thay_the,
+                "baiBo": bai_bo,
+                "canCu": [{"soHieu": name} for name in can_cu_names],
                 "conf": doc.conf,
                 "ocr": doc.ocr
             },
@@ -556,7 +598,11 @@ def process_crawled_document(request: ProcessCrawledRequest, db: Session = Depen
     else:
         source_folder = f"vanban_caotudong/{domain}/{category}"
     
-    _run_extraction(filepath, request.filename, source_folder, domain)
+    try:
+        _run_extraction(filepath, request.filename, source_folder, domain)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
     return {"status": "success", "message": f"Đã xử lý xong {request.filename}."}
 
 def _run_extraction(filepath: str, filename: str, source_folder: str, domain: str):
@@ -674,9 +720,12 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
             db.commit()
         
         print(f"[BACKGROUND] Xử lý thành công: {filename}")
+        from ...services.notifier import notifier
+        notifier.push_sync("update")
     except Exception as e:
         db.rollback()
         print(f"[BACKGROUND] Lỗi khi xử lý {filename}: {e}")
+        raise e
     finally:
         db.close()
 
@@ -698,6 +747,8 @@ async def delete_crawled_document(filename: str):
         
     try:
         os.remove(filepath)
+        from ...services.notifier import notifier
+        notifier.push_sync("update")
         return {"status": "success", "message": f"Deleted {filename} successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Không thể xoá file: {str(e)}")

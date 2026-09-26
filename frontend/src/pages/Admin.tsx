@@ -107,6 +107,7 @@ const Admin: React.FC = () => {
   const handleUpload = async () => {
     if (!file) return;
     
+    setIsProcessing(true);
     setStatus('uploading');
     setMessage('Đang tải lên và phân tích văn bản...');
     
@@ -133,10 +134,13 @@ const Admin: React.FC = () => {
       setStatus('error');
       setMessage('Không thể kết nối đến máy chủ.');
       console.error(error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleCrawl = async () => {
+    setIsProcessing(true);
     setStatus('crawling');
     setMessage('Đang kết nối Chinhphu.vn và tải văn bản về...');
     try {
@@ -153,6 +157,8 @@ const Admin: React.FC = () => {
     } catch (error) {
       setStatus('error');
       setMessage('Lỗi khi gọi API đồng bộ.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
