@@ -3,7 +3,7 @@ import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, FileSearch
 import { useData } from '../context/DataContext';
 
 const Admin: React.FC = () => {
-  const { data, refreshData, setIsProcessing } = useData();
+  const { data, refreshData, setIsProcessing, processingFiles, setProcessingFiles } = useData();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error' | 'crawling'>('idle');
@@ -11,12 +11,12 @@ const Admin: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   
   const [crawledFiles, setCrawledFiles] = useState<{filename: string, domain: string}[]>([]);
-  const [processingFiles, setProcessingFiles] = useState<Record<string, boolean>>({});
+  // Đã đưa processingFiles vào DataContext
   const [isPinging, setIsPinging] = useState(false);
   
-  // Lọc danh sách chờ xử lý
   const [searchQuery, setSearchQuery] = useState('');
   const [domainFilter, setDomainFilter] = useState('All');
+  const isAnyFileProcessing = Object.values(processingFiles).some(isProcessing => isProcessing) || status === 'uploading';
   
   const filteredCrawledFiles = useMemo(() => {
     return crawledFiles.filter(f => {
@@ -66,6 +66,35 @@ const Admin: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const onSuccess = (e: any) => {
+      const filename = e.detail;
+      // Đã set processingFiles ở DataContext
+      setCrawledFiles(prev => prev.filter(f => f.filename !== filename));
+      setStatus('success');
+      setMessage(`Xử lý thành công: ${filename}`);
+      refreshData();
+    };
+    const onError = (e: any) => {
+      const msg = e.detail;
+      const firstColon = msg.indexOf(':');
+      const filename = firstColon > -1 ? msg.substring(0, firstColon) : msg;
+      const errText = firstColon > -1 ? msg.substring(firstColon + 1) : "Lỗi không xác định";
+      
+      // Đã set processingFiles ở DataContext
+      setStatus('error');
+      setMessage(`Lỗi xử lý ${filename}: ${errText}`);
+    };
+    
+    window.addEventListener('processing_success', onSuccess);
+    window.addEventListener('processing_error', onError);
+    
+    return () => {
+      window.removeEventListener('processing_success', onSuccess);
+      window.removeEventListener('processing_error', onError);
+    };
+  }, []);
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -107,9 +136,8 @@ const Admin: React.FC = () => {
   const handleUpload = async () => {
     if (!file) return;
     
-    setIsProcessing(true);
     setStatus('uploading');
-    setMessage('Đang tải lên và phân tích văn bản...');
+    setMessage('Đang đưa văn bản vào hàng đợi xử lý bằng AI... Bạn có thể tiếp tục công việc.');
     
     const formData = new FormData();
     formData.append('file', file);
@@ -134,8 +162,6 @@ const Admin: React.FC = () => {
       setStatus('error');
       setMessage('Không thể kết nối đến máy chủ.');
       console.error(error);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -164,9 +190,8 @@ const Admin: React.FC = () => {
 
   const handleProcessCrawled = async (filename: string) => {
     setProcessingFiles(prev => ({ ...prev, [filename]: true }));
-    setIsProcessing(true);
     setStatus('processing');
-    setMessage(`Đang bóc tách ${filename} bằng AI... Vui lòng đợi, không chuyển tab trong quá trình này.`);
+    setMessage(`Đang đưa ${filename} vào hàng đợi xử lý bằng AI... Bạn có thể tiếp tục công việc.`);
     try {
       const response = await fetch('http://localhost:8000/api/v1/documents/process_crawled', {
         method: 'POST',
@@ -175,20 +200,17 @@ const Admin: React.FC = () => {
       });
       const result = await response.json();
       if (response.ok) {
-        setCrawledFiles(prev => prev.filter(f => f.filename !== filename));
         setStatus('success');
-        setMessage(`Xử lý thành công: ${filename}`);
-        refreshData();
+        setMessage(result.message || `Đã đưa ${filename} vào hàng đợi xử lý ngầm. Vui lòng đợi trong giây lát...`);
       } else {
         setStatus('error');
-        setMessage(`Lỗi khi xử lý ${filename}: ${result.detail}`);
+        setMessage(`Lỗi khi đưa ${filename} vào hàng đợi: ${result.detail}`);
+        setProcessingFiles(prev => ({ ...prev, [filename]: false }));
       }
     } catch (error) {
       setStatus('error');
       setMessage(`Không thể kết nối đến máy chủ để xử lý ${filename}`);
-    } finally {
       setProcessingFiles(prev => ({ ...prev, [filename]: false }));
-      setIsProcessing(false);
     }
   };
 
@@ -273,9 +295,9 @@ const Admin: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            background: status === 'error' ? 'var(--red-50)' : status === 'success' ? 'var(--green-50)' : 'var(--blue-50)',
-            color: status === 'error' ? 'var(--red)' : status === 'success' ? 'var(--green)' : 'var(--blue)',
-            border: `1px solid ${status === 'error' ? 'var(--red-200)' : status === 'success' ? 'var(--green-200)' : 'var(--blue-200)'}`
+            background: status === 'error' ? 'var(--red-50)' : status === 'success' ? 'var(--green-50)' : 'var(--amber-50)',
+            color: status === 'error' ? 'var(--red)' : status === 'success' ? 'var(--green)' : 'var(--amber)',
+            border: `1px solid ${status === 'error' ? 'var(--red-200)' : status === 'success' ? 'var(--green-200)' : 'var(--amber-200)'}`
           }}>
             {status === 'error' && <AlertCircle size={20} />}
             {status === 'success' && <CheckCircle2 size={20} />}
@@ -323,7 +345,7 @@ const Admin: React.FC = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '16px' }}>
-              {filteredCrawledFiles.map((fileObj, index) => (
+              {filteredCrawledFiles.map((fileObj) => (
                 <div key={fileObj.filename} style={{
                   padding: '20px',
                   borderRadius: '12px',
@@ -346,35 +368,36 @@ const Admin: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => handleProcessCrawled(fileObj.filename)}
-                    disabled={processingFiles[fileObj.filename]}
-                    style={{
-                      background: 'var(--blue)', color: 'white', border: 'none', padding: '10px 16px',
-                      borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: processingFiles[fileObj.filename] ? 'not-allowed' : 'pointer',
-                      opacity: processingFiles[fileObj.filename] ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {processingFiles[fileObj.filename] ? <RefreshCw size={16} className="spin" /> : <PlayCircle size={16} />}
-                    {processingFiles[fileObj.filename] ? 'Đang bóc tách...' : 'Bắt đầu xử lý'}
-                  </button>
-                  
-                  <button
-                    className="btn"
-                    onClick={() => handleDeleteCrawled(fileObj.filename)}
-                    disabled={processingFiles[fileObj.filename]}
-                    title="Xoá file"
-                    style={{
-                      background: '#fee2e2', color: '#ef4444', border: '1px solid #f87171', padding: '10px',
-                      borderRadius: '8px', cursor: processingFiles[fileObj.filename] ? 'not-allowed' : 'pointer',
-                      opacity: processingFiles[fileObj.filename] ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleProcessCrawled(fileObj.filename)}
+                      disabled={isAnyFileProcessing || processingFiles[fileObj.filename]}
+                      style={{
+                        background: 'var(--blue)', color: 'white', border: 'none', padding: '10px 16px',
+                        borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 'not-allowed' : 'pointer',
+                        opacity: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {processingFiles[fileObj.filename] ? <RefreshCw size={16} className="spin" /> : <PlayCircle size={16} />}
+                      {processingFiles[fileObj.filename] ? 'Đang bóc tách...' : 'Bắt đầu xử lý'}
+                    </button>
+                    
+                    <button
+                      className="btn"
+                      onClick={() => handleDeleteCrawled(fileObj.filename)}
+                      disabled={isAnyFileProcessing || processingFiles[fileObj.filename]}
+                      title="Xoá file"
+                      style={{
+                        background: '#fee2e2', color: '#ef4444', border: '1px solid #f87171', padding: '10px',
+                        borderRadius: '8px', cursor: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 'not-allowed' : 'pointer',
+                        opacity: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               ))}
               {filteredCrawledFiles.length === 0 && (
@@ -402,14 +425,16 @@ const Admin: React.FC = () => {
             padding: '40px',
             textAlign: 'center',
             transition: 'all 0.2s',
-            cursor: 'pointer',
-            boxShadow: dragActive ? '0 0 0 4px var(--blue-50)' : 'none'
+            cursor: isAnyFileProcessing ? 'not-allowed' : 'pointer',
+            boxShadow: dragActive ? '0 0 0 4px var(--blue-50)' : 'none',
+            opacity: isAnyFileProcessing ? 0.5 : 1,
+            pointerEvents: isAnyFileProcessing ? 'none' : 'auto'
           }}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
+          onDragEnter={!isAnyFileProcessing ? handleDrag : undefined}
+          onDragLeave={!isAnyFileProcessing ? handleDrag : undefined}
+          onDragOver={!isAnyFileProcessing ? handleDrag : undefined}
+          onDrop={!isAnyFileProcessing ? handleDrop : undefined}
+          onClick={() => { if (!isAnyFileProcessing) inputRef.current?.click(); }}
         >
           <input
             ref={inputRef}
@@ -438,6 +463,11 @@ const Admin: React.FC = () => {
               <p style={{ fontSize: '14px', color: 'var(--muted)', marginTop: '8px' }}>
                 hoặc click để chọn file từ máy tính của bạn (tối đa 50MB)
               </p>
+              {isAnyFileProcessing && (
+                <p style={{ fontSize: '14px', color: 'var(--amber)', fontWeight: 600, marginTop: '12px' }}>
+                  (Hệ thống đang bận xử lý một văn bản, vui lòng đợi...)
+                </p>
+              )}
             </div>
           </div>
         </div>

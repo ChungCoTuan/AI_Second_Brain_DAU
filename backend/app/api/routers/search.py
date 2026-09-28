@@ -33,13 +33,24 @@ async def search_documents(
     
     # Filter by nguon
     if nguon != "all":
-        # Tạm map "bộ" -> nguồn là 'bộ' (không có cột này trong DB nên giả lập qua filename hoặc linh_vuc)
-        pass # Not fully supported without a source column, keeping it simple
+        if nguon == "bộ":
+            query = query.filter(Document.source_folder.ilike("%vanban_caotudong%"))
+        elif nguon == "trường":
+            query = query.filter(Document.source_folder.notilike("%vanban_caotudong%"))
         
     # Filter by loai
     if loai != "all":
-        # Mapping loai in frontend to DB
-        pass # In a real scenario we might filter by Document.loai if available
+        loai_lower = loai.lower()
+        if loai_lower == "quyết định":
+            query = query.filter(or_(Document.filename.ilike("%qd%"), Document.filename.ilike("%quyết định%")))
+        elif loai_lower == "nghị định":
+            query = query.filter(or_(Document.filename.ilike("%nd%"), Document.filename.ilike("%nghị định%")))
+        elif loai_lower == "thông tư":
+            query = query.filter(or_(Document.filename.ilike("%tt%"), Document.filename.ilike("%thông tư%")))
+        elif loai_lower == "công văn":
+            query = query.filter(or_(Document.filename.ilike("%cv%"), Document.filename.ilike("%công văn%")))
+        elif loai_lower == "quy chế":
+            query = query.filter(or_(Document.filename.ilike("%qc%"), Document.filename.ilike("%quy chế%")))
         
     # Text search
     if q:

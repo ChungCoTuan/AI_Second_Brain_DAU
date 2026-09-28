@@ -127,113 +127,40 @@ class LegalInformationExtractor:
             "score": score.item()
         }
         
-    def extract_temporal(self, text: str) -> str:
-        """
-        Thuật toán nhận diện Mốc thời gian (Temporal) chuyên sâu cho Tiếng Việt pháp lý.
-        Nhận diện Ngày tuyệt đối, Thời hạn tương đối, và Mốc học thuật.
-        """
-        text_lower = text.lower()
-        
-        # 1. Tương đối (Khoảng thời gian: trong vòng 30 ngày, sau 15 ngày làm việc...)
-        rel_pattern = r"(trong thời hạn|trong vòng|sau|trước|chậm nhất|ít nhất)\s+(\d+)\s+(ngày|tháng|năm|giờ|tuần)(?:\s+(?:làm việc|kể từ ngày))?"
-        match_rel = re.search(rel_pattern, text_lower)
-        if match_rel:
-            return f"{match_rel.group(1).capitalize()} {match_rel.group(2)} {match_rel.group(3)}"
-            
-        # 2. Tuyệt đối (Ngày tháng năm chuẩn)
-        abs_pattern = r"(?:ngày\s+)?(\d{1,2})\s*(?:/|-|tháng)\s*(\d{1,2})(?:\s*(?:/|-|năm)\s*(\d{4}))?\b"
-        match_abs = re.search(abs_pattern, text_lower)
-        if match_abs and int(match_abs.group(2)) <= 12: # Tháng phải hợp lệ <= 12
-            day = match_abs.group(1)
-            month = match_abs.group(2)
-            year = match_abs.group(3) if match_abs.group(3) else "hàng năm"
-            return f"Ngày {day}/{month}/{year}"
-            
-        # 3. Mốc học thuật (Đầu năm học, kết thúc học kỳ...)
-        acad_pattern = r"(đầu|kết thúc|cuối|trước|sau|trong)\s+(năm học|học kỳ|khoá học|kỳ thi|đợt tuyển sinh)(?:\s+(20\d{2}-20\d{2}))?"
-        match_acad = re.search(acad_pattern, text_lower)
-        if match_acad:
-            period = f"{match_acad.group(1)} {match_acad.group(2)}"
-            if match_acad.group(3):
-                period += f" {match_acad.group(3)}"
-            return period.capitalize()
-            
-        # 4. Định kỳ (Hàng năm, định kỳ)
-        freq_pattern = r"(định kỳ|hàng năm|hàng tháng|hàng tuần|mỗi năm|mỗi tháng)"
-        match_freq = re.search(freq_pattern, text_lower)
-        if match_freq:
-            return match_freq.group(1).capitalize()
-            
-        return "Không quy định cụ thể"
+
 
     def extract_obligation(self, text_chunk: str) -> Dict[str, str]:
         """
         Bóc tách Nghĩa vụ (Chủ thể, Hành động, Hạn chót) từ một đoạn văn bản.
         """
-        # --- LUỒNG AI ĐỌC HIỂU (QA) ---
-        if self.use_ai and hasattr(self, 'qa_model'):
-            try:
-                # Ngưỡng tự tin (Score threshold) để ngăn chặn "vơ đại"
-                confidence_threshold = 0.05
-                safe_context = text_chunk[:1000]
-                
-                # 1. Hỏi Chủ thể
-                ans_sub = self._ask_qa("Ai là người thực hiện hoặc chịu trách nhiệm?", safe_context)
-                subject = ans_sub['answer'] if ans_sub['score'] > confidence_threshold else "Không có"
-                
-                # 2. Hỏi Hành động
-                ans_act = self._ask_qa("Phải làm nhiệm vụ gì?", safe_context)
-                action = ans_act['answer'] if ans_act['score'] > confidence_threshold else "Không có"
-                
-                # 3. Hỏi Hạn chót
-                ans_dead = self._ask_qa("Hạn chót hoặc thời gian thực hiện là khi nào?", safe_context)
-                deadline = ans_dead['answer'] if ans_dead['score'] > confidence_threshold else "Không có"
-                
-                return {
-                    "chu_the": subject.capitalize(),
-                    "han_chot": deadline,
-                    "noi_dung": action.capitalize()
-                }
-            except Exception as e:
-                print(f"Lỗi suy luận AI: {e}. Fallback về Heuristic.")
-                
-        # --- LUỒNG HEURISTIC (DỰ PHÒNG) ---
-        # 1. Trích xuất Hạn chót (Deadline)
-        deadline = self.extract_temporal(text_chunk)
-
-        # 2. Trích xuất Chủ thể (Subject)
-        subject = "Các đơn vị, cá nhân liên quan"
-        # Danh sách từ khoá các phòng ban thường gặp trong trường Đại học
-        subjects_list = [
-            "Hiệu trưởng", "Phòng Quản lý Đào tạo", "Phòng Đào tạo", "Phòng Tài chính",
-            "Phòng Khảo thí", "Khoa", "Thí sinh", "Sinh viên", "Tiểu ban",
-            "Ban Thư ký", "Hội đồng tuyển sinh", "Giảng viên", "Bộ Giáo dục"
-        ]
-        for s in subjects_list:
-            if s.lower() in text_chunk.lower():
-                subject = s
-                break
-                
-        # 3. Trích xuất Hành động (Action)
-        # Lấy câu chứa chủ thể hoặc một câu ý nghĩa
-        action = "Thực hiện theo quy định của văn bản"
-        lines = text_chunk.split('\n')
-        for line in lines:
-            if len(line) > 30 and ("phải" in line.lower() or "có trách nhiệm" in line.lower() or "thực hiện" in line.lower()):
-                action = line.strip()
-                break
-        if action == "Thực hiện theo quy định của văn bản" and len(lines) > 1 and len(lines[1]) > 20:
-             action = lines[1].strip()
-             
-        # Giới hạn độ dài hành động
-        if len(action) > 150:
-            action = action[:147] + "..."
+        try:
+            # Ngưỡng tự tin (Score threshold) để ngăn chặn "vơ đại"
+            confidence_threshold = 0.05
+            safe_context = text_chunk[:1000]
             
-        return {
-            "chu_the": subject,
-            "han_chot": deadline,
-            "noi_dung": action
-        }
+            # 1. Hỏi Chủ thể
+            ans_sub = self._ask_qa("Ai là người thực hiện hoặc chịu trách nhiệm?", safe_context)
+            subject = ans_sub['answer'] if ans_sub['score'] > confidence_threshold else "Không có"
+            
+            # 2. Hỏi Hành động
+            ans_act = self._ask_qa("Phải làm nhiệm vụ gì?", safe_context)
+            action = ans_act['answer'] if ans_act['score'] > confidence_threshold else "Không có"
+            
+            # 3. Hỏi Hạn chót
+            ans_dead = self._ask_qa("Hạn chót hoặc thời gian thực hiện là khi nào?", safe_context)
+            deadline = ans_dead['answer'] if ans_dead['score'] > confidence_threshold else "Không có"
+            
+            return {
+                "chu_the": subject.capitalize(),
+                "han_chot": deadline,
+                "noi_dung": action.capitalize()
+            }
+        except Exception as e:
+            err_msg = str(e)
+            if "1455" in err_msg or "memory" in err_msg.lower() or "paging file" in err_msg.lower() or "allocate" in err_msg.lower():
+                raise RuntimeError("Lỗi xử lý do tràn bộ nhớ, bạn có thể bắt đầu lại.")
+            else:
+                raise RuntimeError(f"Lỗi AI khi bóc tách Nghĩa vụ: {err_msg}. Bạn có thể xử lý lại.")
 
     def extract_document_metadata(self, text: str) -> Dict[str, str]:
         """
@@ -305,85 +232,65 @@ class LegalInformationExtractor:
         """
         Bóc tách Con số chốt (Thresholds / Định mức).
         """
-        # --- LUỒNG AI ĐỌC HIỂU (QA) ---
-        if self.use_ai and hasattr(self, 'qa_model'):
-            try:
-                safe_context = text_chunk[:1000]
-                ans_thresh = self._ask_qa("Con số, số lượng hoặc tỷ lệ là bao nhiêu?", safe_context)
-                if ans_thresh['score'] > 0.05 and ans_thresh['answer']:
-                    return {
-                        "gia_tri": f"Ngưỡng: {ans_thresh['answer']}",
-                        "y_nghia": "Được trích xuất bởi AI"
-                    }
-            except Exception as e:
-                print(f"Lỗi suy luận AI: {e}. Fallback về Heuristic.")
-                
-        # --- LUỒNG HEURISTIC (DỰ PHÒNG) ---
-        threshold = "Không có con số chốt"
-        meaning = "Định mức chung"
-        
-        # Tìm các con số kèm đơn vị hoặc phần trăm
-        num_pattern = r"(\d+(?:\.\d+)?)\s*(lần|ngày|tháng|năm|sinh viên|giảng viên|%|phần trăm|chỉ tiêu|triệu|tỷ)"
-        match = re.search(num_pattern, text_chunk.lower())
-        if match:
-            threshold = f"Ngưỡng: {match.group(1)} {match.group(2)}"
-            
-            # Cố gắng tìm ý nghĩa của con số
-            if "%" in match.group(2) or "phần trăm" in match.group(2):
-                meaning = "Tỷ lệ phần trăm"
-            elif match.group(2) in ["ngày", "tháng", "năm"]:
-                meaning = "Thời hạn / Chu kỳ"
-            elif match.group(2) in ["sinh viên", "chỉ tiêu"]:
-                meaning = "Định mức quy mô"
-            elif match.group(2) in ["triệu", "tỷ"]:
-                meaning = "Định mức tài chính"
-            
-        return {
-            "gia_tri": threshold,
-            "y_nghia": meaning
-        }
+        try:
+            safe_context = text_chunk[:1000]
+            ans_thresh = self._ask_qa("Con số, số lượng hoặc tỷ lệ là bao nhiêu?", safe_context)
+            if ans_thresh['score'] > 0.05 and ans_thresh['answer']:
+                return {
+                    "gia_tri": f"Ngưỡng: {ans_thresh['answer']}",
+                    "y_nghia": "Được trích xuất bởi AI"
+                }
+            return {
+                "gia_tri": "Không có con số chốt",
+                "y_nghia": "Định mức chung"
+            }
+        except Exception as e:
+            err_msg = str(e)
+            if "1455" in err_msg or "memory" in err_msg.lower() or "paging file" in err_msg.lower() or "allocate" in err_msg.lower():
+                raise RuntimeError("Lỗi xử lý do tràn bộ nhớ, bạn có thể bắt đầu lại.")
+            else:
+                raise RuntimeError(f"Lỗi AI khi bóc tách Định mức: {err_msg}. Bạn có thể xử lý lại.")
 
     def summarize_text(self, text: str) -> str:
         """
         Tóm tắt văn bản dùng mô hình BARTpho / ViT5
         """
-        if self.use_ai:
-            try:
-                sum_tokenizer, sum_model = self._get_sum_model()
-                # Cắt bớt input nếu quá dài để tránh lỗi OOM
-                input_text = text[:1024]
-                inputs = sum_tokenizer(input_text, return_tensors="pt", max_length=1024, truncation=True)
-                outputs = sum_model.generate(**inputs, max_length=100, min_length=15, do_sample=False)
-                summary = sum_tokenizer.decode(outputs[0], skip_special_tokens=True)
-                return summary
-            except Exception as e:
-                print(f"Lỗi tóm tắt AI: {e}")
-                
-        # Fallback Heuristic: Lấy câu đầu tiên
-        sentences = [s.strip() for s in text.replace(';', '.').split('.') if len(s.strip()) > 10]
-        if sentences:
-            return sentences[0] + "."
-        return text[:100] + "..."
+        try:
+            sum_tokenizer, sum_model = self._get_sum_model()
+            # Cắt bớt input nếu quá dài để tránh lỗi OOM
+            input_text = text[:1024]
+            inputs = sum_tokenizer(input_text, return_tensors="pt", max_length=1024, truncation=True)
+            outputs = sum_model.generate(**inputs, max_length=100, min_length=15, do_sample=False)
+            summary = sum_tokenizer.decode(outputs[0], skip_special_tokens=True)
+            return summary
+        except Exception as e:
+            err_msg = str(e)
+            if "1455" in err_msg or "memory" in err_msg.lower() or "paging file" in err_msg.lower() or "allocate" in err_msg.lower():
+                raise RuntimeError("Lỗi xử lý do tràn bộ nhớ, bạn có thể bắt đầu lại.")
+            else:
+                raise RuntimeError(f"Lỗi AI khi tóm tắt văn bản: {err_msg}. Bạn có thể xử lý lại.")
 
     def verify_nli(self, premise: str, hypothesis: str) -> str:
         """
         Kiểm tra độ trung thực NLI (Entailment, Contradiction, Neutral).
         """
-        if self.use_ai:
-            try:
-                nli_tokenizer, nli_model = self._get_nli_model()
-                inputs = nli_tokenizer(premise, hypothesis, truncation=True, max_length=512, return_tensors="pt")
-                with self.torch.no_grad():
-                    output = nli_model(**inputs)
-                
-                prediction = self.torch.softmax(output["logits"][0], -1).tolist()
-                label_names = ["entailment", "neutral", "contradiction"]
-                prediction_dict = {name: float(pred) for pred, name in zip(prediction, label_names)}
-                best_label = max(prediction_dict, key=prediction_dict.get)
-                return best_label
-            except Exception as e:
-                print(f"Lỗi suy luận NLI: {e}")
-        return "neutral"
+        try:
+            nli_tokenizer, nli_model = self._get_nli_model()
+            inputs = nli_tokenizer(premise, hypothesis, truncation=True, max_length=512, return_tensors="pt")
+            with self.torch.no_grad():
+                output = nli_model(**inputs)
+            
+            prediction = self.torch.softmax(output["logits"][0], -1).tolist()
+            label_names = ["entailment", "neutral", "contradiction"]
+            prediction_dict = {name: float(pred) for pred, name in zip(prediction, label_names)}
+            best_label = max(prediction_dict, key=prediction_dict.get)
+            return best_label
+        except Exception as e:
+            err_msg = str(e)
+            if "1455" in err_msg or "memory" in err_msg.lower() or "paging file" in err_msg.lower() or "allocate" in err_msg.lower():
+                raise RuntimeError("Lỗi xử lý do tràn bộ nhớ, bạn có thể bắt đầu lại.")
+            else:
+                raise RuntimeError(f"Lỗi AI NLI: {err_msg}. Bạn có thể xử lý lại.")
 
     def extract_document_relations(self, text: str, source_doc: str) -> list[Dict[str, str]]:
         """

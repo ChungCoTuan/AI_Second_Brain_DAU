@@ -32,10 +32,9 @@ async def extract_information(request: ExtractRequest) -> Dict[str, Any]:
 
 
 @router.post("/documents/upload")
-async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
-    Nhận file PDF tải lên, đọc text thô, và tạo bản ghi Document.
-    Đồng thời sinh dữ liệu mock vào bảng Obligation/Threshold.
+    Nhận file PDF tải lên, lưu xuống ổ cứng và đưa vào Background Task để xử lý.
     """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
@@ -51,123 +50,12 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    try:
-        # 1. Gọi OCR/Parser đọc text
-        text_content = extract_text_from_pdf(file_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi parse PDF: {str(e)}")
-        
-    # Phân loại chủ đề
-    chu_de = classify_text(text_content)
-    
-    # Bóc tách Siêu dữ liệu (Metadata) & Tóm tắt
-    metadata = extractor.extract_document_metadata(text_content)
-    tom_tat_toan_van = extractor.summarize_text(text_content)
-    
-    # 2. Tạo bản ghi Document
-    new_doc = Document(
-        filename=file.filename,
-        source_folder="data/uploads",
-        status="in_review",
-        chu_de=chu_de,
-        co_quan_ban_hanh=metadata.get("co_quan_ban_hanh", ""),
-        ngay_ky=metadata.get("ngay_ky", ""),
-        nguoi_ky=metadata.get("nguoi_ky", ""),
-        hieu_luc_tu=metadata.get("hieu_luc_tu", ""),
-        tags=metadata.get("tags", ""),
-        tom_tat=tom_tat_toan_van
-    )
-    db.add(new_doc)
-    db.commit()
-    db.refresh(new_doc)
-    
-    # 3. Chạy thuật toán chia nhỏ văn bản (Document Structuring)
-    articles = chunk_document(text_content)
-    
-    # 4. Chạy AI / Luật để bóc tách dữ liệu từ các Chunk có thật
-    if len(articles) > 0:
-        # Chọn ngẫu nhiên 1 Điều làm Nghĩa vụ
-        art_obl = random.choice(articles)
-        # Sử dụng Extractor để bóc tách thay vì Mock cứng
-        obl_info = extractor.extract_obligation(art_obl["raw"])
-        
-        # Tóm tắt và đánh giá NLI
-        obl_tom_tat = extractor.summarize_text(art_obl["raw"])
-        obl_nli = extractor.verify_nli(art_obl["raw"], obl_tom_tat)
-        # Nếu NLI báo mâu thuẫn (contradiction), đánh dấu pending_review đỏ
-        obl_status = "pending_review"
-        if obl_nli == "contradiction":
-            pass # Vẫn pending_review nhưng UI sẽ hiện đỏ
-        
-        mock_obl = Obligation(
-            document_id=new_doc.id,
-            vb=file.filename,
-            dieu=art_obl["dieu_so"],
-            loai="Nghĩa vụ",
-            chu_the=obl_info["chu_the"],
-            noi_dung=obl_info["noi_dung"],
-            han_chot=obl_info["han_chot"],
-            nguon=art_obl["raw"][:1000], # Lấy trọn vẹn text của Điều (giới hạn 1000 ký tự)
-            status=obl_status,
-            tom_tat=obl_tom_tat,
-            nli_label=obl_nli
-        )
-        db.add(mock_obl)
-        
-        # Chọn ngẫu nhiên 1 Điều làm Con số chốt
-        art_thresh = random.choice(articles)
-        thresh_info = extractor.extract_threshold(art_thresh["raw"])
-        
-        thresh_tom_tat = extractor.summarize_text(art_thresh["raw"])
-        thresh_nli = extractor.verify_nli(art_thresh["raw"], thresh_tom_tat)
-        
-        mock_thresh = Threshold(
-            document_id=new_doc.id,
-            vb=file.filename,
-            dieu=art_thresh["dieu_so"],
-            gia_tri=thresh_info["gia_tri"],
-            y_nghia=thresh_info["y_nghia"],
-            nguon=art_thresh["raw"][:1000],
-            status="pending_review",
-            tom_tat=thresh_tom_tat,
-            nli_label=thresh_nli
-        )
-        db.add(mock_thresh)
-        
-        # 5. Khởi động Động cơ Liên kết (Linkage Engine) để tìm các mối quan hệ (Thay thế, Bãi bỏ, Căn cứ)
-        relations = extractor.extract_document_relations(text_content, file.filename)
-        for rel in relations:
-            new_rel = DocumentRelation(
-                source_doc=rel["source_doc"],
-                target_doc=rel["target_doc"],
-                relation_type=rel["relation_type"],
-                status="published", # Tạm thời cho lên thẳng để vẽ biểu đồ
-                nguyen_van=rel.get("nguyen_van", "")
-            )
-            db.add(new_rel)
-            
-        db.commit()
-    else:
-        # Fallback nếu không parse được Điều nào
-        obl_info = extractor.extract_obligation(text_content[:2000])
-        mock_obl = Obligation(
-            document_id=new_doc.id,
-            vb=file.filename,
-            dieu="Toàn văn",
-            loai="Nghĩa vụ",
-            chu_the=obl_info["chu_the"],
-            noi_dung=obl_info["noi_dung"],
-            han_chot=obl_info["han_chot"],
-            nguon=text_content[:500] + "...",
-            status="pending_review"
-        )
-        db.add(mock_obl)
-        db.commit()
+    # Thêm tác vụ bóc tách vào hàng đợi ngầm
+    background_tasks.add_task(_run_extraction, file_path, file.filename, "data/uploads", "Khac")
     
     return {
         "status": "success",
-        "message": f"Tải lên và xử lý thành công file {file.filename}",
-        "document_id": new_doc.id
+        "message": f"Đã lưu {file.filename} và đưa vào hàng đợi xử lý AI ngầm."
     }
 
 
@@ -575,11 +463,10 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
 
 
 @router.post("/documents/process_crawled")
-def process_crawled_document(request: ProcessCrawledRequest, db: Session = Depends(get_db)):
-    """Processes an already crawled document synchronously to block the frontend."""
+def process_crawled_document(request: ProcessCrawledRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Processes an already crawled document in the background."""
     from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
     import os
-    from ...services.pdf_parser import extract_text_from_pdf
     
     filepath = None
     for root, dirs, files in os.walk(BASE_OUTPUT_DIR):
@@ -598,12 +485,9 @@ def process_crawled_document(request: ProcessCrawledRequest, db: Session = Depen
     else:
         source_folder = f"vanban_caotudong/{domain}/{category}"
     
-    try:
-        _run_extraction(filepath, request.filename, source_folder, domain)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    background_tasks.add_task(_run_extraction, filepath, request.filename, source_folder, domain)
         
-    return {"status": "success", "message": f"Đã xử lý xong {request.filename}."}
+    return {"status": "success", "message": f"Đã đưa {request.filename} vào hàng đợi xử lý ngầm."}
 
 def _run_extraction(filepath: str, filename: str, source_folder: str, domain: str):
     """Hàm chạy ngầm trong background thread - không chặn event loop của FastAPI."""
@@ -718,13 +602,57 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
                 status="pending_review"
             ))
             db.commit()
+        # Đưa dữ liệu vào Vector DB cho Chatbot RAG
+        from ...services.vector_db import vector_db
+        from ...services.nlp_pipeline import create_embedding
         
+        embeddings = []
+        metadatas = []
+        if len(articles) > 0:
+            for art in articles:
+                emb = create_embedding(art["raw"])
+                embeddings.append(emb)
+                metadatas.append({
+                    "id": str(doc.id),
+                    "vb": filename,
+                    "dieu": art["dieu_so"],
+                    "nguon": art["raw"]
+                })
+        elif text:
+            emb = create_embedding(text[:2000])
+            embeddings.append(emb)
+            metadatas.append({
+                "id": str(doc.id),
+                "vb": filename,
+                "dieu": "Toàn văn",
+                "nguon": text[:2000]
+            })
+            
+        if embeddings:
+            vector_db.add_texts(embeddings, metadatas)
+            
         print(f"[BACKGROUND] Xử lý thành công: {filename}")
         from ...services.notifier import notifier
         notifier.push_sync("update")
+        notifier.push_sync(f"success:{filename}")
     except Exception as e:
         db.rollback()
-        print(f"[BACKGROUND] Lỗi khi xử lý {filename}: {e}")
+        err_msg = str(e)
+        print(f"[BACKGROUND] Lỗi khi xử lý {filename}: {err_msg}")
+        
+        # Đơn giản hóa thông báo lỗi cho người dùng
+        user_msg = "Có lỗi xảy ra trong quá trình phân tích văn bản. Vui lòng thử lại."
+        if "tràn bộ nhớ" in err_msg or "Hệ thống đang quá tải" in err_msg:
+            user_msg = "Hệ thống đang quá tải bộ nhớ, vui lòng thử lại sau."
+        elif "Lỗi AI" in err_msg:
+            user_msg = "Có lỗi trong quá trình phân tích thông minh, vui lòng xử lý lại."
+        elif "quá lớn" in err_msg or "scan quá lớn" in err_msg:
+            user_msg = "Văn bản quá lớn, hệ thống không thể xử lý. Vui lòng chia nhỏ file."
+        elif "No such file" in err_msg:
+            user_msg = "Không tìm thấy file văn bản trên hệ thống."
+            
+        from ...services.notifier import notifier
+        notifier.push_sync(f"error:{filename}:{user_msg}")
         raise e
     finally:
         db.close()

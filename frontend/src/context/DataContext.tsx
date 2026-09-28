@@ -47,6 +47,8 @@ interface DataContextType {
   markAsRead: (type: 'dead' | 'event' | 'obligation' | 'threshold' | 'deadline' | 'warning', id: string) => void;
   isProcessing: boolean;
   setIsProcessing: (v: boolean) => void;
+  processingFiles: Record<string, boolean>;
+  setProcessingFiles: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }
 
 const DataContext = createContext<DataContextType>({
@@ -63,6 +65,8 @@ const DataContext = createContext<DataContextType>({
   markAsRead: () => {},
   isProcessing: false,
   setIsProcessing: () => {},
+  processingFiles: {},
+  setProcessingFiles: () => {},
 });
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -70,6 +74,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [processingFiles, setProcessingFiles] = useState<Record<string, boolean>>({});
 
   const [readDeadDocs, setReadDeadDocs] = useState<string[]>([]);
   const [readEvents, setReadEvents] = useState<string[]>([]);
@@ -97,7 +102,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const markAsRead = (type: 'dead' | 'event' | 'obligation', id: string) => {
+  const markAsRead = (type: 'dead' | 'event' | 'obligation' | 'threshold' | 'deadline' | 'warning', id: string) => {
     if (type === 'dead') {
       setReadDeadDocs(prev => {
         if (prev.includes(id)) return prev;
@@ -198,7 +203,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     evtSource.onmessage = (event) => {
       if (event.data === 'update') {
-        fetchData(true); // Chỉ tải lại khi có tín hiệu update
+        fetchData(true);
+      } else if (event.data.startsWith('success:')) {
+        const filename = event.data.substring(8);
+        setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+        window.dispatchEvent(new CustomEvent('processing_success', { detail: filename }));
+        fetchData(true);
+      } else if (event.data.startsWith('error:')) {
+        const msg = event.data.substring(6);
+        const firstColon = msg.indexOf(':');
+        const filename = firstColon > -1 ? msg.substring(0, firstColon) : msg;
+        setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+        window.dispatchEvent(new CustomEvent('processing_error', { detail: msg }));
       }
     };
     
@@ -212,7 +228,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   return (
-    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings, markAsRead, isProcessing, setIsProcessing }}>
+    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings, markAsRead, isProcessing, setIsProcessing, processingFiles, setProcessingFiles }}>
       {children}
     </DataContext.Provider>
   );

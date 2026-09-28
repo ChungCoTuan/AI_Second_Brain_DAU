@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, RefreshCw, XCircle } from 'lucide-react';
+import { Trash2, RefreshCw, XCircle, Search, Filter } from 'lucide-react';
 
 interface RejectedDocument {
   id: number;
@@ -15,6 +15,12 @@ const RejectedDocs: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [domainFilter, setDomainFilter] = useState<string>('All');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   const fetchRejectedDocs = async () => {
     try {
@@ -87,6 +93,28 @@ const RejectedDocs: React.FC = () => {
     );
   }
 
+  const filteredDocs = documents.filter(doc => {
+    const matchSearch = doc.soHieu.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchDomain = domainFilter === 'All' || doc.loai === domainFilter;
+    
+    let matchDate = true;
+    if (startDate || endDate) {
+      const parts = doc.ngayKy.split('/');
+      if (parts.length === 3) {
+        const docDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        if (startDate) {
+          matchDate = matchDate && docDate >= new Date(startDate);
+        }
+        if (endDate) {
+          matchDate = matchDate && docDate <= new Date(endDate);
+        }
+      }
+    }
+    return matchSearch && matchDomain && matchDate;
+  }).sort((a, b) => {
+    return sortOrder === 'newest' ? b.id - a.id : a.id - b.id;
+  });
+
   return (
     <section style={{ background: 'var(--soft)', minHeight: '100vh', paddingBottom: '40px' }}>
       <div className="wrap" style={{ maxWidth: '1200px', margin: '0 auto', paddingTop: '32px' }}>
@@ -113,6 +141,70 @@ const RejectedDocs: React.FC = () => {
           </div>
         )}
 
+        {/* Bộ lọc */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px',
+          padding: '16px', background: 'var(--card-bg)', borderRadius: '8px', border: '1px solid var(--border)',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <Search size={18} color="var(--muted)" />
+            <input 
+              type="text" 
+              placeholder="Tìm theo số hiệu..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+            />
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <Filter size={18} color="var(--muted)" />
+            <select 
+              value={domainFilter} 
+              onChange={(e) => setDomainFilter(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
+            >
+              <option value="All">Tất cả lĩnh vực</option>
+              <option value="Giáo dục">Giáo dục</option>
+              <option value="Tài chính">Tài chính</option>
+              <option value="Pháp luật khung">Pháp luật khung</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '14px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Từ:</span>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '14px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Đến:</span>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <select 
+              value={sortOrder} 
+              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
+            >
+              <option value="newest">Sắp xếp: Mới nhất</option>
+              <option value="oldest">Sắp xếp: Cũ nhất</option>
+            </select>
+          </div>
+        </div>
+
         {documents.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0', background: 'var(--card-bg)', borderRadius: '12px' }}>
             <XCircle size={48} color="var(--muted)" style={{ opacity: 0.5, marginBottom: '16px' }} />
@@ -120,7 +212,29 @@ const RejectedDocs: React.FC = () => {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {documents.map((doc, idx) => (
+            {/* Headers */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '40px 2fr 1fr 1fr auto',
+              gap: '16px',
+              padding: '0 16px 8px 16px',
+              fontWeight: 600,
+              color: 'var(--muted)',
+              borderBottom: '2px solid var(--border)',
+              alignItems: 'center'
+            }}>
+              <span>STT</span>
+              <span>Số hiệu / Tên văn bản</span>
+              <span>Lĩnh vực</span>
+              <span>Ngày ký</span>
+              <span>Hành động</span>
+            </div>
+
+            {filteredDocs.length === 0 ? (
+               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontWeight: 500 }}>
+                 Không tìm thấy văn bản nào khớp với bộ lọc.
+               </div>
+            ) : filteredDocs.map((doc, idx) => (
               <div key={doc.id} style={{
                 display: 'grid',
                 gridTemplateColumns: '40px 2fr 1fr 1fr auto',

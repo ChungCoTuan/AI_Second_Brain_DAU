@@ -46,8 +46,8 @@ const Search: React.FC = () => {
     setPage(1);
   }, [searchTerm, nguon, loai]);
 
-  const nBo = results.filter((r: any) => r.nguon === 'bộ').length;
-  const nTr = results.length - nBo;
+
+
 
   // Giả lập danh sách loại văn bản để hiển thị trong select box
   const loais = ['Công văn', 'Quyết định', 'Quy chế', 'Thông tư'];
