@@ -9,6 +9,8 @@ from ...db.models import Document, Obligation, Threshold, DocumentRelation, Audi
 from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
 from ...services.pdf_parser import extract_text_from_pdf, chunk_document
 from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR
+from ...core.security import get_current_admin
+from ...db.models import User
 
 class ExtractRequest(BaseModel):
     text: str
@@ -37,7 +39,7 @@ class RevalidateRequest(BaseModel):
     edited_summary: str
 
 @router.post("/review/revalidate")
-async def revalidate_nli(request: RevalidateRequest):
+async def revalidate_nli(request: RevalidateRequest, current_user: User = Depends(get_current_admin)):
     """
     Xác minh lại nhãn NLI sau khi người dùng sửa đổi tóm tắt.
     """
@@ -45,7 +47,7 @@ async def revalidate_nli(request: RevalidateRequest):
     return {"nli_label": label}
 
 @router.get("/review/pending")
-async def get_pending_review_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def get_pending_review_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)) -> Dict[str, Any]:
     """
     Returns all items that are pending review.
     """
@@ -91,7 +93,7 @@ async def get_pending_review_data(db: Session = Depends(get_db)) -> Dict[str, An
 
 
 @router.put("/review/{item_type}/{item_id}/publish")
-async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_db)):
+async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """
     Changes the status of a specific item to 'published'
     """
@@ -139,7 +141,7 @@ async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_d
 
 
 @router.put("/review/{item_type}/{item_id}/reject")
-async def reject_item(item_type: str, item_id: int, db: Session = Depends(get_db)):
+async def reject_item(item_type: str, item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """
     Changes the status of a specific item to 'rejected'
     """

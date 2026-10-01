@@ -9,6 +9,8 @@ from ...db.models import Document, Obligation, Threshold, DocumentRelation, Audi
 from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
 from ...services.pdf_parser import extract_text_from_pdf, chunk_document
 from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR
+from ...core.security import get_current_user
+from ...db.models import User
 
 class ExtractRequest(BaseModel):
     text: str
@@ -22,7 +24,8 @@ async def search_documents(
     loai: str = "all",
     page: int = 1,
     limit: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Tìm kiếm văn bản từ Database với hỗ trợ phân trang.

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import axiosClient from '../api/axiosClient';
 
 const emptyData = {
   hasNewDocs: false,
@@ -151,11 +152,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchData = (isBackground = false) => {
     if (!isBackground) setLoading(true);
     Promise.all([
-      fetch('http://localhost:8000/api/v1/legal-data').then(res => res.ok ? res.json() : {} as any),
-      fetch('http://localhost:8000/api/v1/auditing/warnings').then(res => res.ok ? res.json() : {} as any),
-      fetch('http://localhost:8000/api/v1/analytics').then(res => res.ok ? res.json() : {} as any),
-      fetch('http://localhost:8000/api/v1/review/pending').then(res => res.ok ? res.json() : {} as any),
-      fetch('http://localhost:8000/api/v1/system/status').then(res => res.ok ? res.json() : {} as any)
+      axiosClient.get('/legal-data').then(res => res.data).catch(() => ({}) as any),
+      axiosClient.get('/auditing/warnings').then(res => res.data).catch(() => ({}) as any),
+      axiosClient.get('/analytics').then(res => res.data).catch(() => ({}) as any),
+      axiosClient.get('/review/pending').then(res => res.data).catch(() => ({}) as any),
+      axiosClient.get('/system/status').then(res => res.data).catch(() => ({}) as any)
     ])
       .then(([legalData, warningsData, analyticsData, reviewData, systemData]) => {
         

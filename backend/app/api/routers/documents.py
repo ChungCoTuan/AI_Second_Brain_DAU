@@ -10,6 +10,8 @@ from ...db.models import Document, Obligation, Threshold, DocumentRelation, Audi
 from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
 from ...services.pdf_parser import extract_text_from_pdf, chunk_document
 from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR
+from ...core.security import get_current_user, get_current_admin
+from ...db.models import User
 
 class ExtractRequest(BaseModel):
     text: str
@@ -32,7 +34,7 @@ async def extract_information(request: ExtractRequest) -> Dict[str, Any]:
 
 
 @router.post("/documents/upload")
-async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """
     Nhận file PDF tải lên, lưu xuống ổ cứng và đưa vào Background Task để xử lý.
     """
@@ -60,7 +62,7 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
 
 
 @router.get("/topics")
-async def get_topics(db: Session = Depends(get_db)):
+async def get_topics(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Trả về danh sách các chủ đề và số lượng văn bản của mỗi chủ đề.
     """
@@ -87,19 +89,11 @@ async def get_topics(db: Session = Depends(get_db)):
             "name": name,
             "count": count
         })
-    # Thêm mock chủ đề nếu db trống để UI không bị trắng
-    if not topics:
-        topics = [
-            {"id": "Tuyển sinh", "name": "Tuyển sinh", "count": 0},
-            {"id": "Đào tạo", "name": "Đào tạo", "count": 0},
-            {"id": "Tài chính", "name": "Tài chính", "count": 0}
-        ]
-        
     return {"topics": topics}
 
 
 @router.get("/topics/{topic}/documents")
-async def get_documents_by_topic(topic: str, db: Session = Depends(get_db)):
+async def get_documents_by_topic(topic: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Lấy danh sách các văn bản thuộc một chủ đề cụ thể.
     """
@@ -116,7 +110,7 @@ async def get_documents_by_topic(topic: str, db: Session = Depends(get_db)):
         documents.append({
             "soHieu": doc.filename,
             "loai": "Văn bản",
-            "ngayKy": "2026", # Mock date
+            "ngayKy": doc.ngay_ky or "Không rõ",
             "status": doc.status,
             "chuDe": [doc.chu_de]
         })
@@ -125,7 +119,7 @@ async def get_documents_by_topic(topic: str, db: Session = Depends(get_db)):
 
 
 @router.get("/legal-data")
-async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def get_legal_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
     """
     Returns the extracted legal data from PostgreSQL Database that are PUBLISHED.
     """
@@ -305,7 +299,7 @@ async def get_legal_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
 
 @router.get("/impact")
-async def get_document_impact(db: Session = Depends(get_db)):
+async def get_document_impact(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Trả về dữ liệu cây văn bản (impact) dựa trên các sự kiện trong CSDL.
     """
@@ -331,7 +325,7 @@ async def get_document_impact(db: Session = Depends(get_db)):
 
 
 @router.get("/documents/detail/{so_hieu:path}")
-async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
+async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Trả về chi tiết hồ sơ văn bản.
     """
@@ -463,7 +457,7 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db)):
 
 
 @router.post("/documents/process_crawled")
-def process_crawled_document(request: ProcessCrawledRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def process_crawled_document(request: ProcessCrawledRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """Processes an already crawled document in the background."""
     from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
     import os
@@ -659,7 +653,7 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
 
 
 @router.delete("/documents/crawled/{filename}")
-async def delete_crawled_document(filename: str):
+async def delete_crawled_document(filename: str, current_user: User = Depends(get_current_admin)):
     """Xóa một file đã được cào về nhưng chưa xử lý."""
     from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
     import os
@@ -682,7 +676,7 @@ async def delete_crawled_document(filename: str):
         raise HTTPException(status_code=500, detail=f"Không thể xoá file: {str(e)}")
 
 @router.get("/documents/rejected")
-async def get_rejected_documents(db: Session = Depends(get_db)):
+async def get_rejected_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """Trả về danh sách các văn bản bị từ chối."""
     docs = db.query(Document).filter(Document.status == "rejected").all()
     documents = []
@@ -716,7 +710,7 @@ def _find_physical_file(filename: str, source_folder: str) -> str:
     return None
 
 @router.post("/documents/{doc_id}/reprocess")
-async def reprocess_rejected_document(doc_id: int, db: Session = Depends(get_db)):
+async def reprocess_rejected_document(doc_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """Đưa văn bản bị từ chối về lại tab Tải tài liệu bằng cách xóa DB và di chuyển file."""
     import os
     import shutil
@@ -751,7 +745,7 @@ async def reprocess_rejected_document(doc_id: int, db: Session = Depends(get_db)
     return {"status": "success", "message": f"Đã chuyển {filename} về hàng chờ xử lý."}
 
 @router.delete("/documents/{doc_id}/hard_delete")
-async def hard_delete_rejected_document(doc_id: int, db: Session = Depends(get_db)):
+async def hard_delete_rejected_document(doc_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """Xóa vĩnh viễn văn bản bị từ chối khỏi DB và ổ cứng."""
     import os
     

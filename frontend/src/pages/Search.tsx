@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fold, hl } from '../utils';
 import { useDetail } from '../context/DetailContext';
+import axiosClient from '../api/axiosClient';
 
 const Search: React.FC = () => {
   const { openDetail } = useDetail();
@@ -25,11 +26,10 @@ const Search: React.FC = () => {
         limit: limit.toString()
       });
       
-      fetch(`http://localhost:8000/api/v1/search?${params.toString()}`)
-        .then(res => res.json())
-        .then(data => {
-          setResults(data.results || []);
-          setTotal(data.total || 0);
+      axiosClient.get(`/search?${params.toString()}`)
+        .then(res => {
+          setResults(res.data.results || []);
+          setTotal(res.data.total || 0);
           setLoading(false);
         })
         .catch(err => {

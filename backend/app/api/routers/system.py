@@ -10,6 +10,8 @@ from ...db.models import Document, Obligation, Threshold, DocumentRelation, Audi
 from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
 from ...services.pdf_parser import extract_text_from_pdf, chunk_document
 from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR, check_new_chinhphu
+from ...core.security import get_current_admin, get_current_user
+from ...db.models import User
 
 class ExtractRequest(BaseModel):
     text: str
@@ -17,7 +19,7 @@ class ExtractRequest(BaseModel):
 router = APIRouter()
 
 @router.get("/system/status")
-def get_system_status(db: Session = Depends(get_db)):
+def get_system_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Returns global system status including new documents flag and crawled docs count."""
     has_new = get_sync_status()
     
@@ -43,7 +45,7 @@ def get_system_status(db: Session = Depends(get_db)):
     }
 
 @router.post("/system/ping")
-def trigger_ping():
+def trigger_ping(current_user: User = Depends(get_current_admin)):
     """Manually triggers the bot ping to check for new documents."""
     result = check_new_chinhphu()
     if not result:
@@ -59,7 +61,7 @@ def trigger_ping():
 
 
 @router.post("/system/crawl")
-def trigger_manual_crawl():
+def trigger_manual_crawl(current_user: User = Depends(get_current_admin)):
     """Manually triggers the document crawler synchronously."""
     crawl_chinhphu(5) # max 5 files per crawl for demo
     from ...services.notifier import notifier
@@ -68,7 +70,7 @@ def trigger_manual_crawl():
 
 
 @router.get("/system/crawled_files")
-def get_crawled_files(db: Session = Depends(get_db)):
+def get_crawled_files(db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """Returns a list of crawled files that have not been processed yet."""
     from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
     import os

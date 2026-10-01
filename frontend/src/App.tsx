@@ -16,33 +16,51 @@ import Topics from './pages/Topics';
 import Admin from './pages/Admin';
 import AuditLogs from './pages/AuditLogs';
 import RejectedDocs from './pages/RejectedDocs';
+import Login from './pages/Login';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
+  const { token, role, isLoading } = useAuth();
+  
+  if (isLoading) return <div>Đang tải...</div>;
+  if (!token) return <Navigate to="/login" replace />;
+  if (requireAdmin && role !== 'admin') return <Navigate to="/search" replace />;
+  
+  return <>{children}</>;
+};
 
 function App() {
   return (
-    <DataProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/priority" replace />} />
-            <Route path="priority" element={<PriorityList />} />
-            <Route path="dead-docs" element={<DeadDocs />} />
-            <Route path="deadlines" element={<Deadlines />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="events" element={<LawEvents />} />
-            <Route path="review" element={<ReviewQueue />} />
-            <Route path="search" element={<Search />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="obligations" element={<Obligations />} />
-            <Route path="thresholds" element={<Thresholds />} />
-            <Route path="graph" element={<ImpactGraph />} />
-            <Route path="topics" element={<Topics />} />
-            <Route path="admin" element={<Admin />} />
-            <Route path="audit" element={<AuditLogs />} />
-            <Route path="rejected" element={<RejectedDocs />} />
-          </Route>
-        </Routes>
-      </Router>
-    </DataProvider>
+    <Router>
+      <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route path="/" element={<ProtectedRoute><DataProvider><Layout /></DataProvider></ProtectedRoute>}>
+              <Route index element={<Navigate to="/priority" replace />} />
+              
+              {/* Admin only routes */}
+              <Route path="priority" element={<ProtectedRoute requireAdmin><PriorityList /></ProtectedRoute>} />
+              <Route path="dead-docs" element={<ProtectedRoute requireAdmin><DeadDocs /></ProtectedRoute>} />
+              <Route path="deadlines" element={<ProtectedRoute requireAdmin><Deadlines /></ProtectedRoute>} />
+              <Route path="events" element={<ProtectedRoute requireAdmin><LawEvents /></ProtectedRoute>} />
+              <Route path="review" element={<ProtectedRoute requireAdmin><ReviewQueue /></ProtectedRoute>} />
+              <Route path="topics" element={<ProtectedRoute requireAdmin><Topics /></ProtectedRoute>} />
+              <Route path="admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
+              <Route path="audit" element={<ProtectedRoute requireAdmin><AuditLogs /></ProtectedRoute>} />
+              <Route path="rejected" element={<ProtectedRoute requireAdmin><RejectedDocs /></ProtectedRoute>} />
+              
+              {/* Both roles routes */}
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="search" element={<Search />} />
+              <Route path="chat" element={<Chat />} />
+              <Route path="obligations" element={<Obligations />} />
+              <Route path="thresholds" element={<Thresholds />} />
+              <Route path="graph" element={<ImpactGraph />} />
+            </Route>
+          </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 

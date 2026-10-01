@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
+import { LogOut } from 'lucide-react';
 
 const Badge = ({ count }: { count: number }) => {
   if (!count) return null;
@@ -39,6 +41,7 @@ const navStyle = {};
 
 const Sidebar: React.FC = () => {
   const { data, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings} = useData();
+  const { role, logout, user } = useAuth();
   
   const allWarnings = (data?.insights?.uuTien || []).map((w: any) => w.soHieu);
   const unreadWarningsCount = allWarnings.filter((id: string) => !readWarnings.includes(id)).length;
@@ -58,7 +61,7 @@ const Sidebar: React.FC = () => {
 
 
   return (
-    <aside className="sidebar" style={{ width: '260px', background: '#fff', borderRight: '1px solid var(--line)', padding: '20px 0', position: 'relative' }}>
+    <aside className="sidebar" style={{ width: '260px', background: '#fff', borderRight: '1px solid var(--line)', paddingTop: '20px', display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 }}>
       <div className="sidebar-header" style={{ padding: '0 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div className="logo" style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <img src="/dau-logo.png" alt="DAU" style={{ maxWidth: '100%', maxHeight: '100%' }} />
@@ -67,12 +70,15 @@ const Sidebar: React.FC = () => {
       </div>
       
       {/* Sidebar nav wrap */}
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', flex: 1, overflowY: 'auto' }}>
 
         <nav className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 12px' }}>
-          <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Cảnh báo & Rà soát
-          </div>
+          
+          {role === 'admin' && (
+            <>
+              <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Cảnh báo & Rà soát
+              </div>
           <NavLink to="/priority" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <AlertTriangle size={18} />
@@ -116,6 +122,8 @@ const Sidebar: React.FC = () => {
             <Layers size={18} />
             <span>Chủ đề văn bản</span>
           </NavLink>
+          </>
+          )}
           
           <div style={{ padding: '16px 12px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Tra cứu & Dữ liệu
@@ -147,6 +155,8 @@ const Sidebar: React.FC = () => {
             <span>Đồ thị ảnh hưởng</span>
           </NavLink>
 
+          {role === 'admin' && (
+          <>
           <div style={{ padding: '16px 12px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Hệ thống
           </div>
@@ -173,7 +183,31 @@ const Sidebar: React.FC = () => {
             <Trash2 size={18} />
             <span>Văn bản loại bỏ</span>
           </NavLink>
+          </>
+          )}
         </nav>
+      </div>
+      
+      <div style={{ padding: '20px', borderTop: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--blue)', fontWeight: 'bold' }}>
+            {user?.email?.[0].toUpperCase()}
+          </div>
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{user?.email}</div>
+            <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{role === 'admin' ? 'Quản trị viên' : 'Giảng viên'}</div>
+          </div>
+        </div>
+        <button 
+          onClick={() => {
+            if (window.confirm('Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?')) {
+              logout();
+            }
+          }}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '6px', color: 'var(--red)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, justifyContent: 'center' }}
+        >
+          <LogOut size={16} /> Đăng xuất
+        </button>
       </div>
 
       <style>{`

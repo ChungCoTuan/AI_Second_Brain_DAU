@@ -10,6 +10,8 @@ from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_te
 from ...services.pdf_parser import extract_text_from_pdf, chunk_document
 from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR
 from ...services.vector_db import vector_db
+from ...core.security import get_current_user
+from ...db.models import User
 
 class ExtractRequest(BaseModel):
     text: str
@@ -20,7 +22,7 @@ class ChatRequest(BaseModel):
     query: str
 
 @router.post("/chat")
-async def chat_rag(request: ChatRequest, db: Session = Depends(get_db)):
+async def chat_rag(request: ChatRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     RAG Chatbot endpoint.
     """

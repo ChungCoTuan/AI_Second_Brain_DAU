@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .routers import documents, review, system, analytics, chat, audit, search
+from .routers import documents, review, system, analytics, chat, audit, search, auth
 
 router = APIRouter()
 
@@ -10,3 +10,4 @@ router.include_router(analytics.router, tags=["Analytics"])
 router.include_router(chat.router, tags=["Chat"])
 router.include_router(audit.router, tags=["Audit"])
 router.include_router(search.router, tags=["Search"])
+router.include_router(auth.router, tags=["Auth"])

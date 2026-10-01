@@ -413,7 +413,7 @@ const Admin: React.FC = () => {
         <div style={{ marginBottom: '24px' }}>
           <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--ink)' }}>Tải tài liệu thủ công</h2>
           <p className="sub" style={{ color: 'var(--muted)', marginTop: '4px' }}>
-            Tải file PDF từ máy tính của bạn &rarr; Chạy OCR &rarr; Gọi AI bóc tách (Mock) &rarr; Đẩy vào hàng đợi duyệt.
+            Tải file PDF từ máy tính của bạn &rarr; Chạy OCR &rarr; Gọi AI bóc tách &rarr; Đẩy vào hàng đợi duyệt.
           </p>
         </div>
 

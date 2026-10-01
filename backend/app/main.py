@@ -6,9 +6,35 @@ from .api import endpoints
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.ingestion.crawl_documents import crawl_chinhphu, check_new_chinhphu
+from app.db.session import engine, SessionLocal
+from app.db.models import Base, User
+from app.core.security import get_password_hash
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Khởi tạo DB
+    Base.metadata.create_all(bind=engine)
+    
+    # Tạo users mặc định
+    db = SessionLocal()
+    try:
+        admin_user = db.query(User).filter(User.email == "admin@dau.edu.vn").first()
+        if not admin_user:
+            admin = User(email="admin@dau.edu.vn", hashed_password=get_password_hash("admin123"), role="admin")
+            db.add(admin)
+            
+        lecturer_user = db.query(User).filter(User.email == "giangvien@dau.edu.vn").first()
+        if not lecturer_user:
+            lecturer = User(email="giangvien@dau.edu.vn", hashed_password=get_password_hash("giangvien123"), role="lecturer")
+            db.add(lecturer)
+            
+        db.commit()
+    except Exception as e:
+        print("Lỗi tạo user mặc định:", e)
+        db.rollback()
+    finally:
+        db.close()
+
     # Khởi động Cron Job khi app start
     scheduler = BackgroundScheduler()
     # Hàng đêm lúc 2:00 sáng, chạy crawler tải tối đa 10 văn bản

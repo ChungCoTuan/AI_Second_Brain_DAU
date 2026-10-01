@@ -9,6 +9,8 @@ from ...db.models import Document, Obligation, Threshold, DocumentRelation, Audi
 from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
 from ...services.pdf_parser import extract_text_from_pdf, chunk_document
 from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR
+from ...core.security import get_current_admin
+from ...db.models import User
 
 class ExtractRequest(BaseModel):
     text: str
@@ -16,7 +18,7 @@ class ExtractRequest(BaseModel):
 router = APIRouter()
 
 @router.get("/auditing/warnings")
-async def get_auditing_warnings(db: Session = Depends(get_db)):
+async def get_auditing_warnings(db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """
     Quét chéo: Tìm các văn bản (quy chế) căn cứ vào văn bản đã hết hiệu lực.
     """
@@ -66,7 +68,7 @@ async def get_auditing_warnings(db: Session = Depends(get_db)):
 
 
 @router.post("/auditing/warnings/{so_hieu:path}/resolve")
-async def resolve_warning(so_hieu: str, db: Session = Depends(get_db)):
+async def resolve_warning(so_hieu: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """Đánh dấu các cảnh báo của văn bản này là đã xem/giải quyết."""
     relations = db.query(DocumentRelation).filter(
         DocumentRelation.source_doc == so_hieu,
@@ -84,7 +86,7 @@ async def resolve_warning(so_hieu: str, db: Session = Depends(get_db)):
 
 
 @router.get("/audit/logs")
-async def get_audit_logs(db: Session = Depends(get_db)):
+async def get_audit_logs(db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """Returns all audit logs, ordered by timestamp descending."""
     logs = db.query(AuditTrail).order_by(AuditTrail.timestamp.desc()).all()
     log_list = []
