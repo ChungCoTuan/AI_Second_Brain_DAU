@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import toast from 'react-hot-toast';
 
 interface DocumentCardProps {
   id: string;
@@ -29,7 +30,11 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
           className="btn btn-outline" 
           style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: 'var(--dau-border)', color: 'var(--dau-gray)' }}
           title="Xem file gốc"
-          onClick={(e) => { e.stopPropagation(); alert('Mở nguyên văn file gốc PDF'); }}
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            const token = localStorage.getItem('token') || '';
+            window.open(`http://localhost:8000/api/v1/documents/${id}/pdf?token=${token}`, '_blank');
+          }}
         >
           <ExternalLink size={14} /> Xem gốc
         </button>

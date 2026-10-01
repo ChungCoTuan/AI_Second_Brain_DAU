@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -20,6 +20,7 @@ import {
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { LogOut } from 'lucide-react';
+import ConfirmModal from '../shared/ConfirmModal';
 
 const Badge = ({ count }: { count: number }) => {
   if (!count) return null;
@@ -42,6 +43,8 @@ const navStyle = {};
 const Sidebar: React.FC = () => {
   const { data, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings} = useData();
   const { role, logout, user } = useAuth();
+  
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   
   const allWarnings = (data?.insights?.uuTien || []).map((w: any) => w.soHieu);
   const unreadWarningsCount = allWarnings.filter((id: string) => !readWarnings.includes(id)).length;
@@ -199,16 +202,25 @@ const Sidebar: React.FC = () => {
           </div>
         </div>
         <button 
-          onClick={() => {
-            if (window.confirm('Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?')) {
-              logout();
-            }
-          }}
+          onClick={() => setIsLogoutModalOpen(true)}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '6px', color: 'var(--red)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, justifyContent: 'center' }}
         >
           <LogOut size={16} /> Đăng xuất
         </button>
       </div>
+
+      <ConfirmModal
+        isOpen={isLogoutModalOpen}
+        title="Xác nhận đăng xuất"
+        message="Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?"
+        confirmText="Đăng xuất"
+        isDestructive={true}
+        onConfirm={() => {
+          setIsLogoutModalOpen(false);
+          logout();
+        }}
+        onCancel={() => setIsLogoutModalOpen(false)}
+      />
 
       <style>{`
         .navtabs-a {

@@ -27,12 +27,17 @@ const ReviewQueue: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'nghiaVu' | 'conSoChot'>('all');
+  const [page, setPage] = useState(1);
+  const limit = 15;
 
   // Edit states
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedText, setEditedText] = useState<string>('');
   const [revalidating, setRevalidating] = useState<boolean>(false);
   const [tempLabel, setTempLabel] = useState<string | null>(null);
+
+  // Reset page khi filter thay đổi - phải đặt ở đây, trước mọi early return
+  useEffect(() => { setPage(1); }, [filterType]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -43,13 +48,13 @@ const ReviewQueue: React.FC = () => {
     try {
       const response = await fetch('http://localhost:8000/api/v1/review/pending');
       const data = await response.json();
-      
+
       const nghiaVu: ReviewItem[] = (data.nghiaVu || []).map((i: any) => ({ ...i, _itemType: 'nghiaVu' }));
       const conSoChot: ReviewItem[] = (data.conSoChot || []).map((i: any) => ({ ...i, _itemType: 'conSoChot' }));
-      
+
       const combined = [...nghiaVu, ...conSoChot];
       combined.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-      
+
       setPendingItems(combined);
     } catch (error) {
       console.error("Lỗi khi tải dữ liệu chờ duyệt:", error);
@@ -126,9 +131,9 @@ const ReviewQueue: React.FC = () => {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Chưa rõ thời gian';
     const date = new Date(dateStr);
-    return new Intl.DateTimeFormat('vi-VN', { 
-      day: '2-digit', month: '2-digit', year: 'numeric', 
-      hour: '2-digit', minute: '2-digit' 
+    return new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     }).format(date);
   };
 
@@ -144,11 +149,14 @@ const ReviewQueue: React.FC = () => {
   }
 
   const displayedItems = pendingItems.filter(item => filterType === 'all' || item._itemType === filterType);
+  const totalPages = Math.ceil(displayedItems.length / limit) || 1;
+  const pagedItems = displayedItems.slice((page - 1) * limit, page * limit);
+
 
   const renderItemRightColumn = (item: ReviewItem) => {
     const isEditing = editingId === `${item._itemType}-${item.id}`;
     const displayLabel = isEditing && tempLabel ? tempLabel : item.nli_label;
-    
+
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
@@ -165,13 +173,13 @@ const ReviewQueue: React.FC = () => {
             </>
           )}
         </div>
-        
+
         {item.tom_tat && !isEditing && (
           <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: 'var(--surface-color, #f8f9fa)', borderLeft: '3px solid var(--primary)', borderRadius: '4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--primary)' }}>AI Tóm tắt:</div>
               <button className="btn" style={{ padding: '4px 10px', fontSize: '12px', background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: '6px', cursor: 'pointer' }} onClick={() => startEditing(item._itemType, item.id, item.tom_tat || '', item.nli_label)}>
-                <Edit2 size={12} style={{ display: 'inline', marginRight: '4px' }}/> Sửa
+                <Edit2 size={12} style={{ display: 'inline', marginRight: '4px' }} /> Sửa
               </button>
             </div>
             <div style={{ fontSize: '14px', lineHeight: 1.6 }}>{item.tom_tat}</div>
@@ -183,10 +191,10 @@ const ReviewQueue: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--amber)' }}>Chế độ Sửa (Human-in-the-loop):</div>
               <button className="btn" disabled={revalidating} style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--amber)', color: 'white', borderRadius: '6px', cursor: 'pointer', border: 'none' }} onClick={() => handleRevalidate(item.nguon)}>
-                <RefreshCw size={12} style={{ display: 'inline', marginRight: '4px' }} className={revalidating ? 'spin' : ''}/> Kiểm tra lại NLI
+                <RefreshCw size={12} style={{ display: 'inline', marginRight: '4px' }} className={revalidating ? 'spin' : ''} /> Kiểm tra lại NLI
               </button>
             </div>
-            <textarea 
+            <textarea
               value={editedText}
               onChange={(e) => setEditedText(e.target.value)}
               disabled={revalidating}
@@ -194,14 +202,14 @@ const ReviewQueue: React.FC = () => {
             />
           </div>
         )}
-        
+
         <div style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--muted)', fontStyle: 'italic', flex: 1, backgroundColor: 'var(--bg)', padding: '16px', borderRadius: '8px', border: '1px dashed var(--line)', maxHeight: '180px', overflowY: 'auto' }}>
           "{item.nguon}"
         </div>
-        
+
         <div style={{ display: 'flex', gap: '12px', marginTop: '20px', justifyContent: 'flex-end' }}>
-          <button 
-            className="btn" 
+          <button
+            className="btn"
             style={{ background: '#fff', border: '1px solid var(--line)', color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, transition: '0.2s' }}
             onClick={() => handleReject(item._itemType, item.id)}
             onMouseOver={(e) => (e.currentTarget.style.background = 'var(--red-bg)')}
@@ -209,18 +217,18 @@ const ReviewQueue: React.FC = () => {
           >
             <X size={16} /> Từ chối
           </button>
-          
+
           {isEditing ? (
-            <button 
-              className="btn" 
+            <button
+              className="btn"
               style={{ background: 'var(--amber)', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', border: 'none' }}
               onClick={() => handlePublish(item._itemType, item.id, editedText)}
             >
               <Check size={16} /> Sửa & Duyệt
             </button>
           ) : (
-            <button 
-              className="btn" 
+            <button
+              className="btn"
               style={{ background: 'var(--green)', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', border: 'none', fontWeight: 600 }}
               onClick={() => handlePublish(item._itemType, item.id)}
             >
@@ -236,9 +244,9 @@ const ReviewQueue: React.FC = () => {
     <section id="ra-soat" style={{ paddingBottom: '60px' }}>
       {toastMessage && (
         <div style={{
-          position: 'fixed', bottom: '30px', right: '30px', 
-          background: 'var(--green)', color: 'white', 
-          padding: '14px 28px', borderRadius: '12px', 
+          position: 'fixed', bottom: '30px', right: '30px',
+          background: 'var(--green)', color: 'white',
+          padding: '14px 28px', borderRadius: '12px',
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           display: 'flex', alignItems: 'center', gap: '10px', zIndex: 9999,
           fontWeight: 600, fontSize: '15px'
@@ -251,15 +259,15 @@ const ReviewQueue: React.FC = () => {
           <div>
             <h2 style={{ fontSize: '28px', color: 'var(--blue)', marginBottom: '8px' }}>Cổng Duyệt Văn Bản</h2>
             <p className="sub" style={{ margin: 0, fontSize: '15px' }}>
-              <AlertTriangle size={18} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px', color: 'var(--amber)' }}/>
+              <AlertTriangle size={18} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px', color: 'var(--amber)' }} />
               Rà soát kết quả bóc tách của AI để đảm bảo độ chính xác tuyệt đối.
             </p>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid var(--line)', padding: '6px', borderRadius: '12px' }}>
-            <Filter size={16} style={{ color: 'var(--muted)', marginLeft: '8px' }}/>
-            <select 
-              value={filterType} 
+            <Filter size={16} style={{ color: 'var(--muted)', marginLeft: '8px' }} />
+            <select
+              value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
               style={{ border: 'none', background: 'transparent', outline: 'none', padding: '4px 8px', fontSize: '14px', fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}
             >
@@ -277,17 +285,17 @@ const ReviewQueue: React.FC = () => {
           </div>
         ) : (
           <div className="cards" style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '20px' }}>
-            {displayedItems.map((item) => (
-              <div key={`${item._itemType}-${item.id}`} className="card" style={{ 
-                display: 'flex', gap: '24px', alignItems: 'stretch', padding: '24px', 
+            {pagedItems.map((item) => (
+              <div key={`${item._itemType}-${item.id}`} className="card" style={{
+                display: 'flex', gap: '24px', alignItems: 'stretch', padding: '24px',
                 borderRadius: '16px', boxShadow: '0 8px 30px rgba(0,0,0,0.04)', border: '1px solid var(--line)',
                 background: '#fff', transition: '0.3s'
               }}>
                 <div style={{ flex: 1, paddingRight: '24px', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <span className="badge" style={{ 
-                        background: item._itemType === 'nghiaVu' ? 'var(--blue-50)' : 'var(--amber-bg)', 
+                      <span className="badge" style={{
+                        background: item._itemType === 'nghiaVu' ? 'var(--blue-50)' : 'var(--amber-bg)',
                         color: item._itemType === 'nghiaVu' ? 'var(--blue)' : 'var(--amber)',
                         padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, width: 'fit-content'
                       }}>
@@ -299,22 +307,22 @@ const ReviewQueue: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="doc" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--ink)', marginBottom: '16px', lineHeight: 1.4 }}>
                     {item.vb} - {item.dieu}
                   </div>
-                  
+
                   <div style={{ fontSize: '15px', lineHeight: '1.7', background: 'var(--soft)', padding: '16px', borderRadius: '12px', flex: 1 }}>
                     {item._itemType === 'nghiaVu' ? (
                       <>
-                        <div style={{ marginBottom: '12px' }}><b style={{color: 'var(--muted)'}}>Chủ thể:</b> <span style={{ color: 'var(--blue)', fontWeight: 600 }}>{item.chuThe}</span></div>
-                        <div style={{ marginBottom: '12px' }}><b style={{color: 'var(--muted)'}}>Hành động:</b> <span>{item.noiDung}</span></div>
-                        <div><b style={{color: 'var(--muted)'}}>Hạn chót:</b> <span style={{ color: 'var(--red)', fontWeight: 500 }}>{item.hanChot || 'Không quy định'}</span></div>
+                        <div style={{ marginBottom: '12px' }}><b style={{ color: 'var(--muted)' }}>Chủ thể:</b> <span style={{ color: 'var(--blue)', fontWeight: 600 }}>{item.chuThe}</span></div>
+                        <div style={{ marginBottom: '12px' }}><b style={{ color: 'var(--muted)' }}>Hành động:</b> <span>{item.noiDung}</span></div>
+                        <div><b style={{ color: 'var(--muted)' }}>Hạn chót:</b> <span style={{ color: 'var(--red)', fontWeight: 500 }}>{item.hanChot || 'Không quy định'}</span></div>
                       </>
                     ) : (
                       <>
-                        <div style={{ marginBottom: '12px' }}><b style={{color: 'var(--muted)'}}>Giá trị:</b> <span style={{ color: 'var(--amber)', fontWeight: 'bold', fontSize: '18px' }}>{item.giaTri}</span></div>
-                        <div><b style={{color: 'var(--muted)'}}>Ý nghĩa:</b> <span>{item.yNghia}</span></div>
+                        <div style={{ marginBottom: '12px' }}><b style={{ color: 'var(--muted)' }}>Giá trị:</b> <span style={{ color: 'var(--amber)', fontWeight: 'bold', fontSize: '18px' }}>{item.giaTri}</span></div>
+                        <div><b style={{ color: 'var(--muted)' }}>Ý nghĩa:</b> <span>{item.yNghia}</span></div>
                       </>
                     )}
                   </div>
@@ -322,6 +330,26 @@ const ReviewQueue: React.FC = () => {
                 {renderItemRightColumn(item)}
               </div>
             ))}
+
+            {displayedItems.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px' }}>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ padding: '8px 16px', background: page === 1 ? '#e0e0e0' : 'var(--blue)', color: page === 1 ? '#888' : '#fff', border: 'none', borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+                >
+                  Trang trước
+                </button>
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>Trang {page} / {totalPages}</span>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page >= totalPages}
+                  style={{ padding: '8px 16px', background: page >= totalPages ? '#e0e0e0' : 'var(--blue)', color: page >= totalPages ? '#888' : '#fff', border: 'none', borderRadius: '8px', cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+                >
+                  Trang sau
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, FileSearch, PlayCircle, Search, Filter, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import ConfirmModal from '../components/shared/ConfirmModal';
 
 const Admin: React.FC = () => {
   const { data, refreshData, setIsProcessing, processingFiles, setProcessingFiles } = useData();
@@ -214,8 +215,18 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleDeleteCrawled = async (filename: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xoá file ${filename} không?`)) return;
+  const [confirmDeleteState, setConfirmDeleteState] = useState({
+    isOpen: false,
+    filename: '',
+  });
+
+  const handleDeleteCrawled = (filename: string) => {
+    setConfirmDeleteState({ isOpen: true, filename });
+  };
+
+  const confirmDelete = async () => {
+    const { filename } = confirmDeleteState;
+    setConfirmDeleteState({ isOpen: false, filename: '' });
     
     setProcessingFiles(prev => ({ ...prev, [filename]: true }));
     try {
@@ -515,6 +526,15 @@ const Admin: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmModal
+        isOpen={confirmDeleteState.isOpen}
+        title="Xác nhận xoá file"
+        message={`Bạn có chắc chắn muốn xoá file "${confirmDeleteState.filename}" không? Hành động này không thể hoàn tác.`}
+        confirmText="Xoá"
+        isDestructive={true}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteState({ isOpen: false, filename: '' })}
+      />
     </section>
   );
 };

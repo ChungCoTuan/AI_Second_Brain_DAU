@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDetail } from '../../context/DetailContext';
 import { fmtDate, badge } from '../../utils';
 import { Download, Eye, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const DocumentDetailDrawer: React.FC = () => {
   const { docId, closeDetail } = useDetail();
@@ -58,7 +59,7 @@ const DocumentDetailDrawer: React.FC = () => {
       document.body.removeChild(a);
     } catch (err) {
       console.error(err);
-      alert('Có lỗi khi tải khung báo cáo!');
+      toast.error('Có lỗi khi tải khung báo cáo!');
     }
   };
 
@@ -140,6 +141,31 @@ const DocumentDetailDrawer: React.FC = () => {
             <div className="x" onClick={closeDetail}>&times;</div>
           </div>
           <div className="dr-b">
+            <button 
+              style={{ 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
+                width: '100%', padding: '12px 16px', fontSize: '14px', fontWeight: 600,
+                borderRadius: '8px', cursor: 'pointer', marginBottom: '16px',
+                border: 'none', background: 'var(--blue)', color: '#fff',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.05)', transition: 'all 0.2s'
+              }}
+              title="Xem bản gốc PDF"
+              onClick={(e) => {
+                e.stopPropagation();
+                const token = localStorage.getItem('token') || '';
+                window.open(`http://localhost:8000/api/v1/documents/${encodeURIComponent(docId)}/pdf?token=${token}`, '_blank');
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+              }}
+            >
+              <Eye size={18} /> Mở bản gốc PDF toàn màn hình
+            </button>
             {o.ngayNghiNgo && (
               <div className="alert" style={{ marginBottom: '14px' }}>
                 Văn bản này đọc từ <b>bản scan qua OCR</b>. Các con số đã được đối chiếu bằng mắt trên ảnh trang gốc,
@@ -427,39 +453,261 @@ const DocumentDetailDrawer: React.FC = () => {
             </div>
             
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1, fontSize: '14px', lineHeight: '1.6' }}>
-              <div style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: '24px' }}>
-                CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br/>
-                Độc lập - Tự do - Hạnh phúc
+              <div style={{ textAlign: 'center', marginBottom: '24px', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ width: '45%' }}>
+                  <b>TÊN CƠ QUAN CHỦ QUẢN<br/>ĐƠN VỊ THỰC HIỆN</b><br/>
+                  -------<br/>
+                  Số: ..... /BC-..................
+                </div>
+                <div style={{ width: '50%' }}>
+                  <b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br/>Độc lập - Tự do - Hạnh phúc</b><br/>
+                  -----------------------<br/>
+                  <i>Đà Nẵng, ngày .... tháng .... năm 20...</i>
+                </div>
               </div>
               <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px', marginBottom: '24px' }}>
-                BÁO CÁO THỰC HIỆN<br/>
-                ({data.data.soHieu})
+                BÁO CÁO<br/>
+                Kết quả thực hiện nhiệm vụ/nghĩa vụ
               </div>
               
-              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
-              <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu}.</div>
-              
-              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. KẾT QUẢ THỰC HIỆN NGHĨA VỤ</div>
-              <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>
-                {data.data.nghiaVu?.map((nv: any, i: number) => (
-                  <div key={i} style={{ marginBottom: '16px' }}>
-                    <b>{i + 1}. {nv.noiDung}</b>
-                    {nv.hanChot && nv.hanChot !== 'Không quy định cụ thể' && (
-                      <i style={{ color: '#666' }}> (Hạn chót: {nv.hanChot})</i>
-                    )}
-                    <div style={{ color: '#888', marginTop: '4px' }}>
-                      - Đơn vị phụ trách: (Tự điền)<br/>
-                      - Số liệu / Kết quả đạt được: ......................................................<br/>
-                      - Khó khăn vướng mắc: ..............................................................
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. ĐỀ XUẤT, KIẾN NGHỊ</div>
-              <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
-                1. ....................................................................................<br/>
-                2. ....................................................................................
+              {(() => {
+                const soHieuUpper = (data.data.soHieu || "").toUpperCase();
+                let docType = "DEFAULT";
+                if (soHieuUpper.includes("_QD") || soHieuUpper.includes("_QĐ") || soHieuUpper.includes("QĐ") || soHieuUpper.includes("QUYET DINH") || soHieuUpper.includes("QUYẾT ĐỊNH")) {
+                  docType = "QD";
+                } else if (soHieuUpper.includes("_TB") || soHieuUpper.includes("THONG BAO") || soHieuUpper.includes("THÔNG BÁO")) {
+                  docType = "TB";
+                } else if (soHieuUpper.includes("_TT") || soHieuUpper.includes("THONG TU") || soHieuUpper.includes("THÔNG TƯ") || soHieuUpper.includes("_ND") || soHieuUpper.includes("_NĐ") || soHieuUpper.includes("NGHI DINH") || soHieuUpper.includes("NGHỊ ĐỊNH")) {
+                  docType = "TT_ND";
+                } else if (soHieuUpper.includes("_KH") || soHieuUpper.includes("KE HOACH") || soHieuUpper.includes("KẾ HOẠCH") || soHieuUpper.includes("_HD") || soHieuUpper.includes("HUONG DAN") || soHieuUpper.includes("HƯỚNG DẪN")) {
+                  docType = "KH_HD";
+                } else if (soHieuUpper.includes("_CT") || soHieuUpper.includes("CHI THI") || soHieuUpper.includes("CHỈ THỊ")) {
+                  docType = "CT";
+                } else if (soHieuUpper.includes("_CV") || soHieuUpper.includes("CONG VAN") || soHieuUpper.includes("CÔNG VĂN")) {
+                  docType = "CV";
+                } else if (soHieuUpper.includes("_NQ") || soHieuUpper.includes("NGHI QUYET") || soHieuUpper.includes("NGHỊ QUYẾT")) {
+                  docType = "NQ";
+                }
+
+                if (docType === "QD") {
+                  return (
+                    <>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu || data.data.id}.</div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. ĐÁNH GIÁ MỨC ĐỘ ẢNH HƯỞNG VÀ NHỮNG THAY ĐỔI QUAN TRỌNG</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. TÌNH HÌNH TRIỂN KHAI VÀ THỰC HIỆN NGHĨA VỤ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>
+                        {data.data.nghiaVu?.length > 0 ? data.data.nghiaVu.map((nv: any, i: number) => (
+                          <div key={i} style={{ marginBottom: '16px' }}>
+                            <b>{i + 1}. {nv.noiDung}</b>
+                            {nv.hanChot && nv.hanChot !== 'Không quy định cụ thể' && (
+                              <i style={{ color: '#666' }}> (Hạn chót: {nv.hanChot})</i>
+                            )}
+                            <div style={{ color: '#888', marginTop: '4px', lineHeight: '1.8' }}>
+                              - Kết quả đạt được: ......................................................<br/>
+                            </div>
+                          </div>
+                        )) : (
+                          <div style={{ color: '#888', marginTop: '4px', lineHeight: '1.8' }}>
+                            1. Tên nhiệm vụ/nghĩa vụ: ......................................................<br/>
+                            - Kết quả đạt được: ......................................................<br/>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>IV. KHÓ KHĂN, VƯỚNG MẮC</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>V. ĐỀ XUẤT VÀ KẾ HOẠCH TIẾP THEO</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                    </>
+                  );
+                } else if (docType === "TB") {
+                  return (
+                    <>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu || data.data.id}.</div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. CÁC NỘI DUNG TRỌNG TÂM CẦN QUÁN TRIỆT</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. KẾT QUẢ TIẾP THU VÀ THỰC HIỆN</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888', lineHeight: '1.8' }}>
+                        1. Tên nhiệm vụ/yêu cầu: ......................................................<br/>
+                        - Kết quả đạt được: ......................................................<br/>
+                        - Khó khăn vướng mắc: ..............................................................
+                      </div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>IV. KẾ HOẠCH TIẾP THEO</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                    </>
+                  );
+                } else if (docType === "TT_ND") {
+                  return (
+                    <>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu || data.data.id}.</div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. ĐÁNH GIÁ SỰ TUÂN THỦ PHÁP LUẬT VÀ MỨC ĐỘ ẢNH HƯỞNG</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. NỘI DUNG VÀ KẾT QUẢ THỰC HIỆN</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>
+                        {data.data.nghiaVu?.length > 0 ? data.data.nghiaVu.map((nv: any, i: number) => (
+                          <div key={i} style={{ marginBottom: '16px' }}>
+                            <b>{i + 1}. {nv.noiDung}</b>
+                            {nv.hanChot && nv.hanChot !== 'Không quy định cụ thể' && (
+                              <i style={{ color: '#666' }}> (Hạn chót: {nv.hanChot})</i>
+                            )}
+                            <div style={{ color: '#888', marginTop: '4px', lineHeight: '1.8' }}>
+                              - Kết quả đạt được: ......................................................<br/>
+                            </div>
+                          </div>
+                        )) : (
+                          <div style={{ color: '#888', marginTop: '4px', lineHeight: '1.8' }}>
+                            1. Tên nhiệm vụ/nghĩa vụ: ......................................................<br/>
+                            - Kết quả đạt được: ......................................................<br/>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>IV. VƯỚNG MẮC KHI ÁP DỤNG</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>V. ĐỀ XUẤT, KIẾN NGHỊ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                    </>
+                  );
+                } else if (docType === "KH_HD") {
+                  return (
+                    <>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu || data.data.id}.</div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. TÌNH HÌNH TRIỂN KHAI VÀ TIẾN ĐỘ THỰC HIỆN</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888', lineHeight: '1.8' }}>
+                        1. Tên công việc/nhiệm vụ: ......................................................<br/>
+                        - Kết quả đạt được: ......................................................<br/>
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. MỨC ĐỘ HOÀN THÀNH CÁC GIAI ĐOẠN</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>IV. KHÓ KHĂN, VƯỚNG MẮC</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>V. KẾ HOẠCH TIẾP THEO</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                    </>
+                  );
+                } else if (["CT", "CV", "NQ"].includes(docType)) {
+                  return (
+                    <>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu || data.data.id}.</div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. KẾT QUẢ QUÁN TRIỆT VÀ TỔ CHỨC TRIỂN KHAI</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. KẾT QUẢ THỰC HIỆN CỤ THỂ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888', lineHeight: '1.8' }}>
+                        1. Tên nhiệm vụ/yêu cầu: ......................................................<br/>
+                        - Kết quả đạt được: ......................................................<br/>
+                      </div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>IV. KHÓ KHĂN, VƯỚNG MẮC</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>V. ĐỀ XUẤT, KIẾN NGHỊ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                    </>
+                  );
+                } else {
+                  return (
+                    <>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>I. CĂN CỨ PHÁP LÝ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>- Căn cứ theo văn bản: {data.data.soHieu || data.data.id}.</div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>II. NỘI DUNG VÀ KẾT QUẢ THỰC HIỆN</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px' }}>
+                        {data.data.nghiaVu?.length > 0 ? data.data.nghiaVu.map((nv: any, i: number) => (
+                          <div key={i} style={{ marginBottom: '16px' }}>
+                            <b>{i + 1}. {nv.noiDung}</b>
+                            {nv.hanChot && nv.hanChot !== 'Không quy định cụ thể' && (
+                              <i style={{ color: '#666' }}> (Hạn chót: {nv.hanChot})</i>
+                            )}
+                            <div style={{ color: '#888', marginTop: '4px', lineHeight: '1.8' }}>
+                              - Kết quả đạt được: ......................................................<br/>
+                            </div>
+                          </div>
+                        )) : (
+                          <div style={{ color: '#888', marginTop: '4px', lineHeight: '1.8' }}>
+                            1. Tên nhiệm vụ/nghĩa vụ: ......................................................<br/>
+                            - Kết quả đạt được: ......................................................<br/>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>III. ĐÁNH GIÁ SỰ TUÂN THỦ VÀ MỨC ĐỘ ẢNH HƯỞNG</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                      
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>IV. KHÓ KHĂN, VƯỚNG MẮC</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>V. ĐỀ XUẤT, KIẾN NGHỊ</div>
+                      <div style={{ marginBottom: '16px', paddingLeft: '16px', color: '#888' }}>
+                        ....................................................................................
+                      </div>
+                    </>
+                  );
+                }
+              })()}
+
+              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ width: '45%' }}>
+                  <b>Nơi nhận:</b><br/>
+                  <i>- Như trên;</i><br/>
+                  <i>- Lưu: VT.</i>
+                </div>
+                <div style={{ width: '50%', textAlign: 'center' }}>
+                  <b>THỦ TRƯỞNG ĐƠN VỊ</b><br/>
+                  <i>(Ký, ghi rõ họ tên và đóng dấu)</i>
+                </div>
               </div>
             </div>
             

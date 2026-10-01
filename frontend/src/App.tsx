@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Layout from './components/layout/Layout';
 import { DataProvider } from './context/DataContext';
 import PriorityList from './pages/PriorityList';
@@ -60,6 +61,18 @@ function App() {
             </Route>
           </Routes>
       </AuthProvider>
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            borderRadius: '10px',
+            background: '#333',
+            color: '#fff',
+            fontSize: '14px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          },
+        }} 
+      />
     </Router>
   );
 }

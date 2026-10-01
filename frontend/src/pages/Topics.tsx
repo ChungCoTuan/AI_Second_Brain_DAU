@@ -26,6 +26,11 @@ const Topics: React.FC = () => {
   const [nguon, setNguon] = useState('all');
   const [loai, setLoai] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active'); // active (không gồm rejected), all, published, in_review, rejected
+  const [page, setPage] = useState(1);
+  const limit = 15;
+
+  // Reset page khi filter thay đổi - phải đặt trước mọi early return
+  useEffect(() => { setPage(1); }, [searchQuery, loai, statusFilter, selectedTopic, nguon]);
 
   // Lấy danh sách các chủ đề ban đầu
   useEffect(() => {
@@ -77,11 +82,11 @@ const Topics: React.FC = () => {
 
   const filteredDocuments = documents.filter(doc => {
     if (nguon !== 'all' && (doc.soHieu || '').toLowerCase().includes('bộ') === (nguon === 'trường')) {
-       // logic giả lập: nếu nguồn bộ mà văn bản là của trường thì return false. Thực tế nên trả về theo thuộc tính `nguon`
-       // Do data documentItem không có `nguon`, tạm coi số hiệu có BGDĐT là bộ
-       const isBo = doc.soHieu.includes('BGDĐT') || doc.soHieu.includes('CP') || doc.soHieu.includes('QH');
-       if (nguon === 'bộ' && !isBo) return false;
-       if (nguon === 'trường' && isBo) return false;
+      // logic giả lập: nếu nguồn bộ mà văn bản là của trường thì return false. Thực tế nên trả về theo thuộc tính `nguon`
+      // Do data documentItem không có `nguon`, tạm coi số hiệu có BGDĐT là bộ
+      const isBo = doc.soHieu.includes('BGDĐT') || doc.soHieu.includes('CP') || doc.soHieu.includes('QH');
+      if (nguon === 'bộ' && !isBo) return false;
+      if (nguon === 'trường' && isBo) return false;
     }
     if (loai !== 'all' && doc.loai !== loai) return false;
     if (statusFilter === 'active' && doc.status === 'rejected') return false;
@@ -95,6 +100,9 @@ const Topics: React.FC = () => {
   });
 
   const uniqueLoais = Array.from(new Set(documents.map(d => d.loai).filter(Boolean))).sort();
+
+  const pagedDocuments = filteredDocuments.slice((page - 1) * limit, page * limit);
+  const totalPages = Math.ceil(filteredDocuments.length / limit) || 1;
 
   return (
     <section id="topics" style={{ background: 'var(--soft)', minHeight: '100vh', paddingBottom: '40px' }}>
@@ -229,7 +237,8 @@ const Topics: React.FC = () => {
                 {filteredDocuments.length === 0 ? (
                   <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '20px 0' }}>Không tìm thấy văn bản phù hợp với bộ lọc.</p>
                 ) : (
-                  filteredDocuments.map((doc, idx) => (
+                  <>
+                    {pagedDocuments.map((doc, idx) => (
                     <div
                       key={idx}
                       onClick={() => openDetail(doc.soHieu)}
@@ -268,7 +277,16 @@ const Topics: React.FC = () => {
                         )}
                       </span>
                     </div>
-                  ))
+                    ))}
+
+                    {filteredDocuments.length > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px' }}>
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '8px 16px', background: page === 1 ? '#e0e0e0' : 'var(--blue)', color: page === 1 ? '#888' : '#fff', border: 'none', borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 600 }}>Trang trước</button>
+                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>Trang {page} / {totalPages}</span>
+                        <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} style={{ padding: '8px 16px', background: page >= totalPages ? '#e0e0e0' : 'var(--blue)', color: page >= totalPages ? '#888' : '#fff', border: 'none', borderRadius: '8px', cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontWeight: 600 }}>Trang sau</button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

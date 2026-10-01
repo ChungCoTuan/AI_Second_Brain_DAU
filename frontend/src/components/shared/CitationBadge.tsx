@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FileText } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface CitationBadgeProps {
   documentId: string;
@@ -11,9 +12,10 @@ interface CitationBadgeProps {
 const CitationBadge: React.FC<CitationBadgeProps> = ({ documentId, sourceText, pageNumber }) => {
   const handlePdfClick = (e: React.MouseEvent) => {
     if (pageNumber) {
-      // Giả lập nhảy trang trong file PDF
       e.preventDefault();
-      alert(`Mở file gốc và nhảy tới trang ${pageNumber}`);
+      const token = localStorage.getItem('token') || '';
+      const pageHash = pageNumber ? `#page=${pageNumber}` : '';
+      window.open(`http://localhost:8000/api/v1/documents/${documentId}/pdf?token=${token}${pageHash}`, '_blank');
     }
   };
 

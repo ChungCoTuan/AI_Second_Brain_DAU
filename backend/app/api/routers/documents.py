@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
@@ -20,6 +21,53 @@ router = APIRouter()
 
 class ProcessCrawledRequest(BaseModel):
     filename: str
+
+@router.get("/documents/{document_id:path}/pdf")
+async def get_document_pdf(document_id: str, token: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Trả về trực tiếp file PDF của văn bản để trình duyệt hiển thị.
+    Có thể truyền token qua query param (?token=...) để xác thực vì khi mở tab mới, 
+    trình duyệt sẽ không tự động gửi Header Authorization.
+    """
+    # 1. Truy vấn văn bản
+    # Có thể document_id là int (id) hoặc string (số hiệu / filename)
+    document = None
+    if document_id.isdigit():
+        document = db.query(Document).filter(Document.id == int(document_id)).first()
+    
+    if not document:
+        # Thử tìm theo soHieu (filename)
+        document = db.query(Document).filter(
+            (Document.filename == document_id) | (Document.filename == f"{document_id}.pdf")
+        ).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Không tìm thấy văn bản")
+        
+    # 2. Tìm đường dẫn vật lý của file
+    source_folder = document.source_folder
+    
+    # Chuẩn hóa đường dẫn: Đảm bảo có prefix "data" nếu bị thiếu
+    # Dùng .replace('\\', '/') để xử lý đường dẫn trên Windows
+    if not source_folder.replace("\\", "/").startswith("data/"):
+        source_folder = os.path.join("data", source_folder)
+        
+    filepath = os.path.join(source_folder, document.filename)
+    
+    if not os.path.exists(filepath):
+        # Fallback thử tìm ở thư mục uploads
+        fallback_path = os.path.join("data", "uploads", document.filename)
+        if os.path.exists(fallback_path):
+            filepath = fallback_path
+        else:
+            raise HTTPException(status_code=404, detail=f"File PDF không tồn tại trên hệ thống: {filepath}")
+            
+    # 3. Trả về file PDF cho trình duyệt
+    return FileResponse(
+        filepath, 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": f"inline; filename={document.filename}"}
+    )
 
 @router.post("/extract")
 async def extract_information(request: ExtractRequest) -> Dict[str, Any]:
@@ -194,8 +242,8 @@ async def get_legal_data(db: Session = Depends(get_db), current_user: User = Dep
     # Lấy dữ liệu quan hệ văn bản thực tế (Epic 6)
     relations = db.query(DocumentRelation).filter(DocumentRelation.status == "published").all()
     
-    vb_tu_chet = []
-    su_kien_hieu_luc = []
+    vb_tu_chet_map = {}
+    su_kien_hieu_luc_map = {}
     events_map = {}
     
     for rel in relations:
@@ -210,28 +258,32 @@ async def get_legal_data(db: Session = Depends(get_db), current_user: User = Dep
                 old_doc = rel.target_doc
                 new_doc = rel.source_doc
                 
-            vb_tu_chet.append({
-                "docId": old_doc,
-                "soHieu": old_doc,
-                "loai": "Văn bản",
-                "tuNgay": "2026",
-                "thayBang": [new_doc],
-                "lyDo": f"Bị thay thế toàn bộ",
-                "phamVi": "toàn bộ",
-                "chuyenTiep": [],
-                "nguyenVan": rel.nguyen_van
-            })
-            su_kien_hieu_luc.append({
-                "cu": old_doc,
-                "tenCu": "Văn bản cũ",
-                "moi": new_doc,
-                "tenMoi": "Văn bản mới",
-                "lyDo": f"Bị thay thế toàn bộ",
-                "phamVi": "toàn bộ",
-                "tuNgay": "Theo hiệu lực",
-                "nguon": f"Theo văn bản {new_doc}",
-                "nguyenVan": rel.nguyen_van
-            })
+            key = (old_doc, new_doc)
+            if key not in vb_tu_chet_map:
+                vb_tu_chet_map[key] = {
+                    "docId": old_doc,
+                    "soHieu": old_doc,
+                    "loai": "Văn bản",
+                    "tuNgay": "2026",
+                    "thayBang": [new_doc],
+                    "lyDo": f"Bị thay thế toàn bộ",
+                    "phamVi": "toàn bộ",
+                    "chuyenTiep": [],
+                    "nguyenVan": rel.nguyen_van
+                }
+            if key not in su_kien_hieu_luc_map:
+                su_kien_hieu_luc_map[key] = {
+                    "cu": old_doc,
+                    "tenCu": "Văn bản cũ",
+                    "moi": new_doc,
+                    "tenMoi": "Văn bản mới",
+                    "lyDo": f"Bị thay thế toàn bộ",
+                    "phamVi": "toàn bộ",
+                    "tuNgay": "Theo hiệu lực",
+                    "nguon": f"Theo văn bản {new_doc}",
+                    "nguyenVan": rel.nguyen_van,
+                    "docId": old_doc
+                }
             
             # Gộp vào events_map cho Cây gia phả
             if old_doc not in events_map:
@@ -290,11 +342,11 @@ async def get_legal_data(db: Session = Depends(get_db), current_user: User = Dep
         "conSoChot": con_so_chot_list,
         "hanChot": han_chot_list,
         "chuaHieuLuc": chua_hieu_luc_list,
-        "vbTuChet": vb_tu_chet,
+        "vbTuChet": list(vb_tu_chet_map.values()),
         "vbSapChet": vb_sap_chet,
         "events": events,
         "impact": impact,
-        "suKienHieuLuc": su_kien_hieu_luc
+        "suKienHieuLuc": list(su_kien_hieu_luc_map.values())
     }
 
 
@@ -453,7 +505,6 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), curre
             "conSoChot": []
         }
     }
-
 
 
 @router.post("/documents/process_crawled")
