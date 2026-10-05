@@ -12,9 +12,15 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+GEMINI_API_KEYS = []
+for key_name in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]:
+    k = os.getenv(key_name)
+    if k:
+        GEMINI_API_KEYS.append(k)
+
+current_key_idx = 0
+if GEMINI_API_KEYS:
+    genai.configure(api_key=GEMINI_API_KEYS[0])
 
 # Lazy loading cho embedding model siêu nhẹ
 _embedding_model = None
@@ -386,28 +392,41 @@ def generate_rag_answer(query: str, context_chunks: list[str]) -> str:
     """
     Sử dụng Gemini API để sinh câu trả lời RAG dựa trên các đoạn ngữ cảnh.
     """
-    if not GEMINI_API_KEY:
-        return "Hệ thống chưa được cấu hình GEMINI_API_KEY trong file .env. Vui lòng thêm API Key để sử dụng tính năng Chatbot AI."
+    global current_key_idx
+    if not GEMINI_API_KEYS:
+        return "Hệ thống chưa được cấu hình GEMINI_API_KEY trong file .env. Vui lòng thêm ít nhất 1 API Key để sử dụng tính năng Chatbot AI."
         
     context_text = "\n\n---\n\n".join(context_chunks)
     
     prompt = f"""Bạn là một Trợ lý AI pháp lý chuyên nghiệp của Hệ thống DAU Second Brain. 
 Nguyên tắc hoạt động:
-1. GIAO TIẾP THÔNG THƯỜNG: Nếu người dùng chào hỏi, hỏi thăm hoặc hỏi về khả năng của bạn (VD: "Bạn là ai?", "Bạn làm được gì?"), hãy trả lời tự nhiên, lịch sự và giới thiệu bạn là Trợ lý AI chuyên tra cứu Quy chế, Thông tư nội bộ của trường.
-2. TRẢ LỜI NGHIỆP VỤ: Nếu người dùng hỏi về quy định, luật lệ, HÃY CHỈ DỰA VÀO phần TÀI LIỆU NGỮ CẢNH bên dưới để tổng hợp câu trả lời. 
-3. CHỐNG ẢO GIÁC (HALLUCINATION): Nếu câu hỏi liên quan đến quy định/pháp luật nhưng TÀI LIỆU NGỮ CẢNH không chứa thông tin phù hợp, HÃY NÓI RÕ: "Dựa vào các văn bản hiện có trên hệ thống, tôi không tìm thấy thông tin để trả lời câu hỏi này." Tuyệt đối không dùng kiến thức bên ngoài để bịa ra luật.
+1. GIAO TIẾP THÔNG THƯỜNG: Nếu người dùng chào hỏi, hỏi thăm (VD: "Bạn là ai?"), hãy giới thiệu bạn là Trợ lý AI chuyên tra cứu Quy chế, Thông tư nội bộ của trường.
+2. TRẢ LỜI NGHIỆP VỤ: Nếu người dùng hỏi về quy định, luật lệ, HÃY TRẢ LỜI TRỰC TIẾP VÀO TRỌNG TÂM, KHÔNG CẦN CHÀO HỎI HAY TỰ GIỚI THIỆU LẠI ("Chào bạn, tôi là..."). HÃY CHỈ DỰA VÀO TÀI LIỆU NGỮ CẢNH bên dưới để trả lời. 
+3. CHỐNG ẢO GIÁC: Nếu TÀI LIỆU NGỮ CẢNH không chứa thông tin phù hợp, HÃY NÓI RÕ: "Dựa vào các văn bản hiện có trên hệ thống, tôi không tìm thấy thông tin để trả lời câu hỏi này." Tuyệt đối không bịa ra luật.
 
 TÀI LIỆU NGỮ CẢNH:
 {context_text}
 
 CÂU HỎI CỦA NGƯỜI DÙNG: {query}
 """
-    try:
-        model = genai.GenerativeModel('gemini-3.5-flash')
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        error_msg = str(e)
-        if "429" in error_msg or "Quota exceeded" in error_msg:
-            return "Hệ thống đang quá tải do hết lượt gọi AI miễn phí (Lỗi 429 Quota Exceeded). Sếp vui lòng đợi khoảng 1-2 phút rồi hỏi lại nhé!"
-        return f"Xin lỗi, đã xảy ra lỗi khi gọi AI: {error_msg}"
+    
+    attempts = 0
+    last_error = ""
+    while attempts < len(GEMINI_API_KEYS):
+        try:
+            model = genai.GenerativeModel('gemini-3.5-flash')
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            error_msg = str(e)
+            last_error = error_msg
+            if "429" in error_msg or "Quota exceeded" in error_msg:
+                print(f"Key {current_key_idx + 1} quá tải. Chuyển sang key dự phòng...")
+                attempts += 1
+                if attempts < len(GEMINI_API_KEYS):
+                    current_key_idx = (current_key_idx + 1) % len(GEMINI_API_KEYS)
+                    genai.configure(api_key=GEMINI_API_KEYS[current_key_idx])
+            else:
+                return f"Xin lỗi, đã xảy ra lỗi khi gọi AI: {error_msg}"
+                
+    return "Tất cả các tài khoản dự phòng đều đang quá tải do hết lượt gọi AI miễn phí. Sếp vui lòng đợi khoảng 1-2 phút rồi hỏi lại nhé!"

@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/dau_second_brain"
     GEMINI_API_KEY: str | None = None
+    GEMINI_API_KEY_2: str | None = None
+    GEMINI_API_KEY_3: str | None = None
 
     class Config:
         env_file = ".env"

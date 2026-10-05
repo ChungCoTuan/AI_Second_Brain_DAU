@@ -457,7 +457,19 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), curre
             "type": "truong",
             "data": {
                 "soHieu": doc.filename,
-                "loai": doc.linh_vuc or "Văn bản",
+                "loai": (
+                    "Quyết định" if any(x in (doc.filename or "").upper() for x in ["_QD", "_QĐ", "QĐ", "QUYET DINH", "QUYẾT ĐỊNH", "-QD"]) else
+                    "Thông báo" if any(x in (doc.filename or "").upper() for x in ["_TB", "THONG BAO", "THÔNG BÁO", "-TB"]) else
+                    "Thông tư" if any(x in (doc.filename or "").upper() for x in ["_TT", "THONG TU", "THÔNG TƯ", "-TT"]) else
+                    "Nghị định" if any(x in (doc.filename or "").upper() for x in ["_ND", "_NĐ", "NGHI DINH", "NGHỊ ĐỊNH", "-ND"]) else
+                    "Kế hoạch" if any(x in (doc.filename or "").upper() for x in ["_KH", "KE HOACH", "KẾ HOẠCH", "-KH"]) else
+                    "Hướng dẫn" if any(x in (doc.filename or "").upper() for x in ["_HD", "HUONG DAN", "HƯỚNG DẪN", "-HD"]) else
+                    "Chỉ thị" if any(x in (doc.filename or "").upper() for x in ["_CT", "CHI THI", "CHỈ THỊ", "-CT"]) else
+                    "Công văn" if any(x in (doc.filename or "").upper() for x in ["_CV", "CONG VAN", "CÔNG VĂN", "-CV"]) else
+                    "Nghị quyết" if any(x in (doc.filename or "").upper() for x in ["_NQ", "NGHI QUYET", "NGHỊ QUYẾT", "-NQ"]) else
+                    "Kết luận" if any(x in (doc.filename or "").upper() for x in ["_KL", "KET LUAN", "KẾT LUẬN", "-KL"]) else
+                    doc.linh_vuc if doc.linh_vuc and str(doc.linh_vuc).lower() not in ["data", "khac", "khác"] else "Văn bản"
+                ),
                 "coQuan": doc.co_quan_ban_hanh or "",
                 "ngayKy": doc.ngay_ky or "",
                 "ngayBanHanh": doc.ngay_ky or "",
