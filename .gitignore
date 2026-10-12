@@ -11,3 +11,10 @@ backend/.env
 backend/data/
 backend/filenames.json
 backend/test_output.json
+
+# AI Assistant & Tool Configuration Folders (Local only)
+.agents/
+.antigravity/
+.antogravity/
+.claude/
+.gitnexus/
