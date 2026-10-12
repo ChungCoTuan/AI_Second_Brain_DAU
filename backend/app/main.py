@@ -8,7 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.ingestion.crawl_documents import crawl_chinhphu, check_new_chinhphu
 from app.db.session import engine, SessionLocal
 from app.db.models import Base, User
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,11 +22,15 @@ async def lifespan(app: FastAPI):
         if not admin_user:
             admin = User(email="admin@dau.edu.vn", hashed_password=get_password_hash("admin123"), role="admin")
             db.add(admin)
+        elif not verify_password("admin123", admin_user.hashed_password):
+            admin_user.hashed_password = get_password_hash("admin123")
             
         lecturer_user = db.query(User).filter(User.email == "giangvien@dau.edu.vn").first()
         if not lecturer_user:
             lecturer = User(email="giangvien@dau.edu.vn", hashed_password=get_password_hash("giangvien123"), role="lecturer")
             db.add(lecturer)
+        elif not verify_password("giangvien123", lecturer_user.hashed_password):
+            lecturer_user.hashed_password = get_password_hash("giangvien123")
             
         db.commit()
     except Exception as e:

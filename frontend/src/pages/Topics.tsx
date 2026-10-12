@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDetail } from '../context/DetailContext';
-import { Layers, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { Layers, CheckCircle2, Clock, XCircle, Filter, RotateCcw, Search } from 'lucide-react';
 
 interface Topic {
   id: string;
@@ -31,6 +31,15 @@ const Topics: React.FC = () => {
 
   // Reset page khi filter thay đổi - phải đặt trước mọi early return
   useEffect(() => { setPage(1); }, [searchQuery, loai, statusFilter, selectedTopic, nguon]);
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setNguon('all');
+    setLoai('all');
+    setStatusFilter('active');
+  };
+
+  const hasActiveFilters = searchQuery !== '' || nguon !== 'all' || loai !== 'all' || statusFilter !== 'active';
 
   // Lấy danh sách các chủ đề ban đầu
   useEffect(() => {
@@ -180,36 +189,194 @@ const Topics: React.FC = () => {
               Văn bản thuộc chủ đề <span style={{ color: 'var(--blue)' }}>{activeTopicName}</span>
             </h3>
 
-            <div className="srow" style={{ marginBottom: '20px' }}>
-              <input
-                id="topicTim"
-                className="inp"
-                type="text"
-                placeholder="Lọc văn bản theo số hiệu, loại, hoặc từ khóa..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <select className="sel" value={nguon} onChange={(e) => setNguon(e.target.value)}>
-                <option value="all">Mọi nguồn</option>
-                <option value="bộ">Bộ, CP, Quốc hội</option>
-                <option value="trường">Nội bộ Trường</option>
-              </select>
-              <select className="sel" value={loai} onChange={(e) => setLoai(e.target.value)}>
-                <option value="all">Mọi loại văn bản</option>
-                {uniqueLoais.map((l, i) => (
-                  <option key={i} value={l}>{l}</option>
-                ))}
-              </select>
-              <select className="sel" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="active">Ẩn mục từ chối</option>
-                <option value="all">Tất cả trạng thái</option>
-                <option value="published">Đã duyệt (Xuất bản)</option>
-                <option value="in_review">Chờ duyệt</option>
-                <option value="rejected">Bị từ chối</option>
-              </select>
-              <span className="cnt">
-                <b>{filteredDocuments.length}</b> / {documents.length} văn bản
-              </span>
+            {/* Card Bộ lọc chủ đề */}
+            <div
+              style={{
+                background: '#fff',
+                border: '1px solid var(--line, #e2e8f0)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                marginBottom: '20px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--ink, #1e293b)', fontSize: '15px' }}>
+                  <Filter size={18} style={{ color: 'var(--red, #b91c1c)' }} />
+                  <span>Bộ lọc văn bản theo chủ đề</span>
+                </div>
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleResetFilters}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '13px',
+                      color: 'var(--red, #b91c1c)',
+                      background: '#fee2e2',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    <RotateCcw size={14} /> Đặt lại bộ lọc
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                {/* Ô tìm kiếm */}
+                <div style={{ position: 'relative' }}>
+                  <Search
+                    size={16}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--muted, #64748b)'
+                    }}
+                  />
+                  <input
+                    id="topicTim"
+                    className="inp"
+                    style={{
+                      width: '100%',
+                      padding: '0 12px 0 36px',
+                      height: '42px',
+                      fontSize: '14px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--line, #cbd5e1)',
+                      boxSizing: 'border-box'
+                    }}
+                    type="search"
+                    placeholder="Lọc số hiệu, loại, từ khóa..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                {/* Nguồn */}
+                <div>
+                  <select
+                    className="inp"
+                    style={{
+                      width: '100%',
+                      padding: '0 28px 0 12px',
+                      height: '42px',
+                      fontSize: '14px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--line, #cbd5e1)',
+                      background: '#fff',
+                      color: 'var(--ink, #1e293b)',
+                      boxSizing: 'border-box'
+                    }}
+                    value={nguon}
+                    onChange={(e) => setNguon(e.target.value)}
+                  >
+                    <option value="all">Mọi nguồn</option>
+                    <option value="bộ">Bộ, CP, Quốc hội</option>
+                    <option value="trường">Nội bộ Trường</option>
+                  </select>
+                </div>
+
+                {/* Loại */}
+                <div>
+                  <select
+                    className="inp"
+                    style={{
+                      width: '100%',
+                      padding: '0 28px 0 12px',
+                      height: '42px',
+                      fontSize: '14px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--line, #cbd5e1)',
+                      background: '#fff',
+                      color: 'var(--ink, #1e293b)',
+                      boxSizing: 'border-box'
+                    }}
+                    value={loai}
+                    onChange={(e) => setLoai(e.target.value)}
+                  >
+                    <option value="all">Mọi loại văn bản</option>
+                    {uniqueLoais.map((l, i) => (
+                      <option key={i} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Trạng thái */}
+                <div>
+                  <select
+                    className="inp"
+                    style={{
+                      width: '100%',
+                      padding: '0 28px 0 12px',
+                      height: '42px',
+                      fontSize: '14px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--line, #cbd5e1)',
+                      background: '#fff',
+                      color: 'var(--ink, #1e293b)',
+                      boxSizing: 'border-box'
+                    }}
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="active">Ẩn mục từ chối</option>
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="published">Đã duyệt (Xuất bản)</option>
+                    <option value="in_review">Chờ duyệt</option>
+                    <option value="rejected">Bị từ chối</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Thanh tổng kết đếm số lượng */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: '12px',
+                  paddingTop: '10px',
+                  borderTop: '1px solid var(--line, #f1f5f9)',
+                  fontSize: '13px',
+                  color: 'var(--muted, #64748b)'
+                }}
+              >
+                <div>
+                  Hiển thị: <b style={{ color: 'var(--ink, #0f172a)' }}>{filteredDocuments.length}</b> / {documents.length} văn bản
+                  {hasActiveFilters && <span style={{ color: 'var(--red, #b91c1c)', marginLeft: '6px', fontWeight: 600 }}>(đang lọc)</span>}
+                </div>
+                {hasActiveFilters && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {searchQuery && (
+                      <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                        "{searchQuery}"
+                      </span>
+                    )}
+                    {nguon !== 'all' && (
+                      <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                        {nguon === 'bộ' ? 'Bộ / CP' : 'Trường'}
+                      </span>
+                    )}
+                    {loai !== 'all' && (
+                      <span style={{ background: '#f3e8ff', color: '#7e22ce', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                        {loai}
+                      </span>
+                    )}
+                    {statusFilter !== 'active' && (
+                      <span style={{ background: '#ecfdf5', color: '#047857', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                        {statusFilter === 'all' ? 'Tất cả' : statusFilter === 'published' ? 'Đã duyệt' : statusFilter === 'in_review' ? 'Chờ duyệt' : 'Bị từ chối'}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {documents.length === 0 ? (
@@ -235,7 +402,26 @@ const Topics: React.FC = () => {
                 </div>
 
                 {filteredDocuments.length === 0 ? (
-                  <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '20px 0' }}>Không tìm thấy văn bản phù hợp với bộ lọc.</p>
+                  <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff', borderRadius: '12px', border: '1px dashed var(--line)', margin: '16px 0' }}>
+                    <p style={{ color: 'var(--muted)', fontSize: '15px', margin: '0 0 12px 0' }}>Không tìm thấy văn bản phù hợp với bộ lọc.</p>
+                    {hasActiveFilters && (
+                      <button
+                        onClick={handleResetFilters}
+                        style={{
+                          padding: '8px 16px',
+                          background: 'var(--blue, #2563eb)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          fontSize: '13px'
+                        }}
+                      >
+                        Xóa bộ lọc để xem tất cả
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <>
                     {pagedDocuments.map((doc, idx) => (

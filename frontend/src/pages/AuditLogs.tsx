@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { History, Clock, User, CheckCircle, Edit, ArrowRight, XCircle, Search, Filter, Calendar } from 'lucide-react';
+import { History, Clock, User, CheckCircle, Edit, ArrowRight, XCircle, Search, Filter, RotateCcw } from 'lucide-react';
 
 interface AuditLog {
   id: number;
@@ -27,6 +27,14 @@ const AuditLogs: React.FC = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setTypeFilter('All');
+    setDateFilter('');
+  };
+
+  const hasActiveFilters = searchQuery !== '' || typeFilter !== 'All' || dateFilter !== '';
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -111,55 +119,164 @@ const AuditLogs: React.FC = () => {
           </p>
         </div>
 
-        {/* --- KHU VỰC BỘ LỌC --- */}
-        <div style={{ 
-          display: 'flex', gap: '15px', marginBottom: '24px', flexWrap: 'wrap',
-          background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid var(--line)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+        {/* --- KHU VỰC BỘ LỌC CHUẨN HOÁ --- */}
+        <div style={{
+          background: '#fff',
+          border: '1px solid var(--line, #e2e8f0)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          marginBottom: '24px'
         }}>
-          {/* Tìm kiếm */}
-          <div style={{ flex: '1 1 300px', display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: '8px', padding: '0 12px', background: 'var(--soft)' }}>
-            <Search size={18} color="var(--muted)" />
-            <input 
-              type="text" 
-              placeholder="Tìm theo văn bản, điều, nội dung..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', padding: '10px', width: '100%', fontSize: '14px' }}
-            />
-          </div>
-          
-          {/* Lọc loại thao tác */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--line)', borderRadius: '8px', padding: '0 12px', background: 'var(--soft)' }}>
-            <Filter size={18} color="var(--muted)" />
-            <select 
-              value={typeFilter} 
-              onChange={(e) => setTypeFilter(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', padding: '10px 0', fontSize: '14px', cursor: 'pointer' }}
-            >
-              <option value="All">Tất cả thao tác</option>
-              <option value="Duyệt giữ nguyên">Duyệt giữ nguyên</option>
-              <option value="Sửa & duyệt">Sửa & duyệt</option>
-              <option value="Từ chối duyệt">Từ chối duyệt</option>
-            </select>
+          {/* Header bộ lọc */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: 'var(--ink)' }}>
+              <Filter size={18} color="var(--blue, #2563eb)" />
+              <span>Bộ lọc nhật ký thao tác</span>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--blue, #2563eb)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--soft, #f1f5f9)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <RotateCcw size={14} />
+                Đặt lại bộ lọc
+              </button>
+            )}
           </div>
 
-          {/* Lọc ngày */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--line)', borderRadius: '8px', padding: '0 12px', background: 'var(--soft)' }}>
-            <Calendar size={18} color="var(--muted)" />
-            <input 
-              type="date" 
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', padding: '10px 0', fontSize: '14px', cursor: 'pointer', color: 'var(--ink)' }}
-            />
+          {/* Grid các trường lọc */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '12px'
+          }}>
+            {/* Tìm kiếm */}
+            <div style={{ position: 'relative' }}>
+              <Search size={16} color="var(--muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Tìm văn bản, điều, nội dung..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px 0 36px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+              />
+            </div>
+
+            {/* Loại thao tác */}
+            <div>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="All">Tất cả thao tác</option>
+                <option value="Duyệt giữ nguyên">Duyệt giữ nguyên</option>
+                <option value="Sửa & duyệt">Sửa & duyệt</option>
+                <option value="Từ chối duyệt">Từ chối duyệt</option>
+              </select>
+            </div>
+
+            {/* Lọc theo ngày */}
+            <div>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  color: dateFilter ? 'var(--ink)' : 'var(--muted)'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Dòng tóm tắt & tag lọc đang kích hoạt */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--line, #e2e8f0)', flexWrap: 'wrap', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
+            <div>
+              Hiển thị <strong style={{ color: 'var(--ink)' }}>{filteredLogs.length}</strong> / {logs.length} thao tác
+            </div>
+            {hasActiveFilters && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {searchQuery && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Tìm kiếm: "{searchQuery}"
+                  </span>
+                )}
+                {typeFilter !== 'All' && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Thao tác: {typeFilter}
+                  </span>
+                )}
+                {dateFilter && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Ngày: {dateFilter}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {filteredLogs.length === 0 ? (
           <div style={{ padding: '60px 40px', textAlign: 'center', backgroundColor: '#fff', borderRadius: '16px', border: '1px dashed var(--line)' }}>
             <h3 style={{ color: 'var(--muted)', fontSize: '20px', marginBottom: '8px' }}>Không tìm thấy thao tác nào</h3>
-            <p className="sub">Hãy thử thay đổi điều kiện lọc hoặc tìm kiếm.</p>
+            <p className="sub" style={{ marginBottom: '16px' }}>Hãy thử thay đổi điều kiện lọc hoặc tìm kiếm.</p>
+            {hasActiveFilters && (
+              <button
+                className="btn btn-primary"
+                onClick={handleResetFilters}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RotateCcw size={16} /> Đặt lại bộ lọc
+              </button>
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

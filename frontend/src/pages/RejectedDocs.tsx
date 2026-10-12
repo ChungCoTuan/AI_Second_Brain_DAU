@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, RefreshCw, XCircle, Search, Filter } from 'lucide-react';
+import { Trash2, RefreshCw, XCircle, Search, Filter, RotateCcw } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal';
 
 interface RejectedDocument {
@@ -24,6 +24,16 @@ const RejectedDocs: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [page, setPage] = useState(1);
   const limit = 15;
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setDomainFilter('All');
+    setStartDate('');
+    setEndDate('');
+    setSortOrder('newest');
+  };
+
+  const hasActiveFilters = searchTerm !== '' || domainFilter !== 'All' || startDate !== '' || endDate !== '' || sortOrder !== 'newest';
 
   // Reset page khi filter thay đổi - phải đặt trước mọi early return
   useEffect(() => { setPage(1); }, [searchTerm, domainFilter, startDate, endDate, sortOrder]);
@@ -172,67 +182,206 @@ const RejectedDocs: React.FC = () => {
           </div>
         )}
 
-        {/* Bộ lọc */}
+        {/* Bộ lọc chuẩn hoá */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px',
-          padding: '16px', background: 'var(--card-bg)', borderRadius: '8px', border: '1px solid var(--border)',
+          background: '#fff',
+          border: '1px solid var(--line, #e2e8f0)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
           marginBottom: '24px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-            <Search size={18} color="var(--muted)" />
-            <input
-              type="text"
-              placeholder="Tìm theo số hiệu..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
-            />
+          {/* Header bộ lọc */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: 'var(--ink)' }}>
+              <Filter size={18} color="var(--blue, #2563eb)" />
+              <span>Bộ lọc văn bản bị loại</span>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--blue, #2563eb)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--soft, #f1f5f9)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <RotateCcw size={14} />
+                Đặt lại bộ lọc
+              </button>
+            )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-            <Filter size={18} color="var(--muted)" />
-            <select
-              value={domainFilter}
-              onChange={(e) => setDomainFilter(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
-            >
-              <option value="All">Tất cả lĩnh vực</option>
-              <option value="Giáo dục">Giáo dục</option>
-              <option value="Tài chính">Tài chính</option>
-              <option value="Pháp luật khung">Pháp luật khung</option>
-              <option value="Khác">Khác</option>
-            </select>
+          {/* Grid các trường lọc */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '12px'
+          }}>
+            {/* Tìm kiếm */}
+            <div style={{ position: 'relative' }}>
+              <Search size={16} color="var(--muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Tìm theo số hiệu..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px 0 36px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+              />
+            </div>
+
+            {/* Lĩnh vực */}
+            <div>
+              <select
+                value={domainFilter}
+                onChange={(e) => setDomainFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="All">Tất cả lĩnh vực</option>
+                <option value="Giáo dục">Giáo dục</option>
+                <option value="Tài chính">Tài chính</option>
+                <option value="Pháp luật khung">Pháp luật khung</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+
+            {/* Từ ngày */}
+            <div>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                title="Từ ngày ký"
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  color: startDate ? 'var(--ink)' : 'var(--muted)'
+                }}
+              />
+            </div>
+
+            {/* Đến ngày */}
+            <div>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                title="Đến ngày ký"
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  color: endDate ? 'var(--ink)' : 'var(--muted)'
+                }}
+              />
+            </div>
+
+            {/* Sắp xếp */}
+            <div>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #e2e8f0)',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                  background: 'var(--soft, #f8fafc)',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="newest">Sắp xếp: Mới nhất</option>
+                <option value="oldest">Sắp xếp: Cũ nhất</option>
+              </select>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '14px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Từ:</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '14px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Đến:</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-              style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px', cursor: 'pointer' }}
-            >
-              <option value="newest">Sắp xếp: Mới nhất</option>
-              <option value="oldest">Sắp xếp: Cũ nhất</option>
-            </select>
+          {/* Dòng tóm tắt & tag lọc đang kích hoạt */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--line, #e2e8f0)', flexWrap: 'wrap', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
+            <div>
+              Hiển thị <strong style={{ color: 'var(--ink)' }}>{filteredDocs.length}</strong> / {documents.length} văn bản
+            </div>
+            {hasActiveFilters && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {searchTerm && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Số hiệu: "{searchTerm}"
+                  </span>
+                )}
+                {domainFilter !== 'All' && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Lĩnh vực: {domainFilter}
+                  </span>
+                )}
+                {startDate && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Từ: {startDate}
+                  </span>
+                )}
+                {endDate && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Đến: {endDate}
+                  </span>
+                )}
+                {sortOrder !== 'newest' && (
+                  <span style={{ background: 'var(--soft, #f1f5f9)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', color: 'var(--blue)' }}>
+                    Sắp xếp: Cũ nhất
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -262,8 +411,17 @@ const RejectedDocs: React.FC = () => {
             </div>
 
             {filteredDocs.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontWeight: 500 }}>
-                Không tìm thấy văn bản nào khớp với bộ lọc.
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--card-bg)', borderRadius: '12px', border: '1px dashed var(--line)' }}>
+                <p style={{ color: 'var(--muted)', fontWeight: 600, fontSize: '15px', marginBottom: '12px' }}>Không tìm thấy văn bản nào khớp với bộ lọc.</p>
+                {hasActiveFilters && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleResetFilters}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <RotateCcw size={16} /> Đặt lại bộ lọc
+                  </button>
+                )}
               </div>
             ) : (
               <>

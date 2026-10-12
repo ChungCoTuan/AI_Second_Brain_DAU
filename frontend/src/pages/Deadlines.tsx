@@ -2,12 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { fold, mucDo, nhanNgay, conLaiNode, fmtDate } from '../utils';
 import { useDetail } from '../context/DetailContext';
+import { Filter, RotateCcw, Search } from 'lucide-react';
 
 const Deadlines: React.FC = () => {
   const { openDetail } = useDetail();
   const { data, markAsRead, readDeadlines } = useData();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterChuThe, setFilterChuThe] = useState('all');
+  const [filterLoai, setFilterLoai] = useState('all');
   const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({});
 
   const moc = useMemo(() => {
@@ -47,13 +50,45 @@ const Deadlines: React.FC = () => {
   const lap = moc.filter((m) => mucDo(m.ngay) === 'lap').length;
   const khac = moc.filter((m) => !laTruong(m)).length;
 
+  const availableTypes = useMemo(() => {
+    const types = new Set<string>();
+    moc.forEach((m) => {
+      if (m.loai && m.loai.trim()) types.add(m.loai.trim());
+    });
+    return Array.from(types).sort();
+  }, [moc]);
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('all');
+    setFilterChuThe('all');
+    setFilterLoai('all');
+  };
+
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    filterStatus !== 'all' ||
+    filterChuThe !== 'all' ||
+    filterLoai !== 'all';
+
   const filteredMoc = useMemo(() => {
     const q = fold(searchTerm.trim());
     let kq = moc.filter((m) => {
-      if (filter !== 'all' && mucDo(m.ngay) !== filter) return false;
+      // 1. Trạng thái hạn
+      if (filterStatus !== 'all' && mucDo(m.ngay) !== filterStatus) return false;
+
+      // 2. Chủ thể
+      if (filterChuThe === 'truong' && !laTruong(m)) return false;
+      if (filterChuThe === 'khac' && laTruong(m)) return false;
+
+      // 3. Loại mốc
+      if (filterLoai !== 'all' && (m.loai || '').trim() !== filterLoai) return false;
+
+      // 4. Tìm kiếm từ khóa
       if (!q) return true;
       return fold([m.viec, m.vb, m.dieu, m.loai].join(' ')).includes(q);
     });
+
     kq.sort((a, b) => {
       const ma = mucDo(a.ngay);
       const mb = mucDo(b.ngay);
@@ -61,14 +96,12 @@ const Deadlines: React.FC = () => {
       return String(a.ngay).localeCompare(String(b.ngay));
     });
     return kq;
-  }, [moc, searchTerm, filter]);
+  }, [moc, searchTerm, filterStatus, filterChuThe, filterLoai]);
 
   const hl = (s: string, q: string) => {
     if (!q || !s) return s;
     const lowerS = fold(s);
     if (!lowerS.includes(q)) return s;
-    // Simple implementation for React without dangerouslySetInnerHTML for everything
-    // In a real app we'd split the string, here we just return the string for safety.
     return s;
   };
 
@@ -113,24 +146,220 @@ const Deadlines: React.FC = () => {
           </div>
         </div>
 
-        <div className="srow">
-          <input
-            id="hanTim"
-            className="inp"
-            placeholder="Lọc theo nội dung hoặc số hiệu: quy chế, công khai, 56/2026"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <select id="hanLoc" className="sel" value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="all">Tất cả mốc</option>
-            <option value="qua">Đã qua hạn</option>
-            <option value="gan">Còn dưới 120 ngày</option>
-            <option value="sau">Còn xa</option>
-          </select>
-          <span className="cnt" id="hanCnt">
-            <b>{filteredMoc.length}</b> / {moc.length} mốc
-          </span>
+        {/* Card Bộ lọc */}
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid var(--line, #e2e8f0)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginTop: '20px',
+            marginBottom: '20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--ink, #1e293b)', fontSize: '15px' }}>
+              <Filter size={18} style={{ color: 'var(--red, #b91c1c)' }} />
+              <span>Bộ lọc tra cứu hạn chót & mốc thời gian</span>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px',
+                  color: 'var(--red, #b91c1c)',
+                  background: '#fee2e2',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                <RotateCcw size={14} /> Đặt lại bộ lọc
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            {/* Ô tìm kiếm */}
+            <div style={{ position: 'relative' }}>
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--muted, #64748b)'
+                }}
+              />
+              <input
+                id="hanTim"
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 12px 0 36px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  boxSizing: 'border-box'
+                }}
+                type="search"
+                placeholder="Lọc: quy chế, công khai, 56/2026..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Trạng thái hạn */}
+            <div>
+              <select
+                id="hanLoc"
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 28px 0 12px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  background: '#fff',
+                  color: 'var(--ink, #1e293b)',
+                  boxSizing: 'border-box'
+                }}
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="all">Tất cả mốc</option>
+                <option value="qua">Đã qua hạn</option>
+                <option value="gan">Còn dưới 120 ngày</option>
+                <option value="sau">Còn xa</option>
+                <option value="lap">Hạn lặp hằng năm</option>
+              </select>
+            </div>
+
+            {/* Chủ thể */}
+            <div>
+              <select
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 28px 0 12px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  background: '#fff',
+                  color: 'var(--ink, #1e293b)',
+                  boxSizing: 'border-box'
+                }}
+                value={filterChuThe}
+                onChange={(e) => setFilterChuThe(e.target.value)}
+              >
+                <option value="all">Tất cả chủ thể</option>
+                <option value="truong">Việc của trường</option>
+                <option value="khac">Việc của cơ quan khác</option>
+              </select>
+            </div>
+
+            {/* Loại mốc */}
+            <div>
+              <select
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 28px 0 12px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  background: '#fff',
+                  color: 'var(--ink, #1e293b)',
+                  boxSizing: 'border-box'
+                }}
+                value={filterLoai}
+                onChange={(e) => setFilterLoai(e.target.value)}
+              >
+                <option value="all">Tất cả loại việc</option>
+                {availableTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Thanh tổng kết đếm số lượng */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: '12px',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--line, #f1f5f9)',
+              fontSize: '13px',
+              color: 'var(--muted, #64748b)'
+            }}
+          >
+            <div>
+              Hiển thị: <b style={{ color: 'var(--ink, #0f172a)' }}>{filteredMoc.length}</b> / {moc.length} mốc
+              {hasActiveFilters && <span style={{ color: 'var(--red, #b91c1c)', marginLeft: '6px', fontWeight: 600 }}>(đang lọc)</span>}
+            </div>
+            {hasActiveFilters && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {searchTerm && (
+                  <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                    "{searchTerm}"
+                  </span>
+                )}
+                {filterStatus !== 'all' && (
+                  <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    {filterStatus === 'qua' ? 'Đã qua hạn' : filterStatus === 'gan' ? 'Dưới 120 ngày' : filterStatus === 'sau' ? 'Còn xa' : 'Hạn lặp'}
+                  </span>
+                )}
+                {filterChuThe !== 'all' && (
+                  <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    {filterChuThe === 'truong' ? 'Việc của trường' : 'Cơ quan khác'}
+                  </span>
+                )}
+                {filterLoai !== 'all' && (
+                  <span style={{ background: '#f3e8ff', color: '#7e22ce', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    {filterLoai}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
+        {filteredMoc.length === 0 && (
+          <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fff', borderRadius: '12px', border: '1px dashed var(--line)', marginBottom: '20px' }}>
+            <p style={{ color: 'var(--muted)', fontSize: '15px', margin: '0 0 12px 0' }}>Không tìm thấy mốc thời gian nào khớp với điều kiện lọc.</p>
+            <button
+              onClick={handleResetFilters}
+              style={{
+                padding: '8px 16px',
+                background: 'var(--blue, #2563eb)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '13px'
+              }}
+            >
+              Xóa bộ lọc để xem tất cả
+            </button>
+          </div>
+        )}
 
         <div className="tl" id="hanList">
           {filteredMoc.length > 0 ? (

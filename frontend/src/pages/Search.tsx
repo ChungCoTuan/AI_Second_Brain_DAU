@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fold, hl } from '../utils';
 import { useDetail } from '../context/DetailContext';
 import axiosClient from '../api/axiosClient';
+import { Filter, RotateCcw, Search as SearchIcon } from 'lucide-react';
 
 const Search: React.FC = () => {
   const { openDetail } = useDetail();
@@ -46,11 +47,15 @@ const Search: React.FC = () => {
     setPage(1);
   }, [searchTerm, nguon, loai]);
 
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setNguon('all');
+    setLoai('all');
+  };
 
+  const hasActiveFilters = searchTerm !== '' || nguon !== 'all' || loai !== 'all';
 
-
-  // Giả lập danh sách loại văn bản để hiển thị trong select box
-  const loais = ['Công văn', 'Quyết định', 'Quy chế', 'Thông tư'];
+  const loais = ['Công văn', 'Quyết định', 'Quy chế', 'Thông tư', 'Nghị định', 'Luật'];
 
   const q = fold(searchTerm);
   const show = results;
@@ -70,32 +75,174 @@ const Search: React.FC = () => {
         <p className="sub">
           <b>{results.length}</b> bản ghi phù hợp trên tổng số <b>{total}</b> văn bản trong kho (được trả về qua API động).
         </p>
-        <div className="srow">
-          <input
-            id="traTim"
-            className="inp"
-            type="search"
-            autoComplete="off"
-            placeholder="Gõ không dấu cũng được: tuyen sinh, kiem dinh, 54/2026, giao trinh, van bang"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <select id="traNguon" className="sel" value={nguon} onChange={(e) => setNguon(e.target.value)}>
-            <option value="all">Mọi nguồn</option>
-            <option value="bộ">Văn bản pháp quy của Bộ/Chính phủ</option>
-            <option value="trường">Văn bản nội bộ của Trường</option>
-          </select>
-          <select id="traLoai" className="sel" value={loai} onChange={(e) => setLoai(e.target.value)}>
-            <option value="all">Mọi loại</option>
-            {loais.map((l: any) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <span className="cnt" id="traCnt">
-            {loading ? <b>Đang tìm...</b> : <><b>{results.length}</b> / {total} bản ghi</>}
-          </span>
+
+        {/* Card Bộ lọc */}
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid var(--line, #e2e8f0)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginTop: '16px',
+            marginBottom: '20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--ink, #1e293b)', fontSize: '15px' }}>
+              <Filter size={18} style={{ color: 'var(--red, #b91c1c)' }} />
+              <span>Bộ lọc tra cứu kho văn bản</span>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px',
+                  color: 'var(--red, #b91c1c)',
+                  background: '#fee2e2',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                <RotateCcw size={14} /> Đặt lại bộ lọc
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            {/* Ô tìm kiếm */}
+            <div style={{ position: 'relative' }}>
+              <SearchIcon
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--muted, #64748b)'
+                }}
+              />
+              <input
+                id="traTim"
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 12px 0 36px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  boxSizing: 'border-box'
+                }}
+                type="search"
+                autoComplete="off"
+                placeholder="Gõ không dấu cũng được: tuyen sinh, 54/2026..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Nguồn văn bản */}
+            <div>
+              <select
+                id="traNguon"
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 28px 0 12px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  background: '#fff',
+                  color: 'var(--ink, #1e293b)',
+                  boxSizing: 'border-box'
+                }}
+                value={nguon}
+                onChange={(e) => setNguon(e.target.value)}
+              >
+                <option value="all">Mọi nguồn</option>
+                <option value="bộ">Văn bản pháp quy của Bộ/Chính phủ</option>
+                <option value="trường">Văn bản nội bộ của Trường</option>
+              </select>
+            </div>
+
+            {/* Loại văn bản */}
+            <div>
+              <select
+                id="traLoai"
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 28px 0 12px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  background: '#fff',
+                  color: 'var(--ink, #1e293b)',
+                  boxSizing: 'border-box'
+                }}
+                value={loai}
+                onChange={(e) => setLoai(e.target.value)}
+              >
+                <option value="all">Mọi loại văn bản</option>
+                {loais.map((l: any) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Thanh tổng kết đếm số lượng */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: '12px',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--line, #f1f5f9)',
+              fontSize: '13px',
+              color: 'var(--muted, #64748b)'
+            }}
+          >
+            <div>
+              {loading ? (
+                <span>Đang tìm kiếm dữ liệu...</span>
+              ) : (
+                <>Hiển thị: <b style={{ color: 'var(--ink, #0f172a)' }}>{results.length}</b> / {total} bản ghi</>
+              )}
+              {hasActiveFilters && <span style={{ color: 'var(--red, #b91c1c)', marginLeft: '6px', fontWeight: 600 }}>(đang lọc)</span>}
+            </div>
+            {hasActiveFilters && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {searchTerm && (
+                  <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                    "{searchTerm}"
+                  </span>
+                )}
+                {nguon !== 'all' && (
+                  <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    Nguồn: {nguon === 'bộ' ? 'Bộ / CP' : 'Trường'}
+                  </span>
+                )}
+                {loai !== 'all' && (
+                  <span style={{ background: '#f3e8ff', color: '#7e22ce', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    {loai}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="rlist" id="traList">
@@ -138,7 +285,26 @@ const Search: React.FC = () => {
               </div>
             ))}
           {results.length === 0 && !loading && (
-            <div className="empty">Không tìm thấy. Thử gõ số hiệu, ví dụ 54/2026, hoặc từ khoá không dấu.</div>
+            <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fff', borderRadius: '12px', border: '1px dashed var(--line)', margin: '16px 0' }}>
+              <p style={{ color: 'var(--muted)', fontSize: '15px', margin: '0 0 12px 0' }}>Không tìm thấy văn bản phù hợp trong kho.</p>
+              {hasActiveFilters && (
+                <button
+                  onClick={handleResetFilters}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--blue, #2563eb)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '13px'
+                  }}
+                >
+                  Xóa bộ lọc để xem tất cả
+                </button>
+              )}
+            </div>
           )}
         </div>
         

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Filter, RotateCcw } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useDetail } from '../context/DetailContext';
 
@@ -69,57 +70,107 @@ const ImpactGraph: React.FC = () => {
         <p className="sub">Trực quan hoá dây chuyền "văn bản kéo văn bản".</p>
 
         <div className="impact">
-          <div style={{ marginBottom: '14px', display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                Lọc loại văn bản:
-              </span>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  padding: '8px 10px',
-                  border: '1px solid var(--line)',
-                  borderRadius: '8px',
-                  minWidth: '150px',
-                }}
-              >
-                <option value="Tất cả">Tất cả</option>
-                <option value="Nghị định">Nghị định</option>
-                <option value="Thông tư">Thông tư</option>
-                <option value="Quyết định">Quyết định</option>
-                <option value="Luật">Luật</option>
-                <option value="Khác">Khác</option>
-              </select>
+          {/* Thanh điều khiển lọc chuẩn hoá */}
+          <div style={{
+            background: '#fff',
+            border: '1px solid var(--line, #e2e8f0)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            marginBottom: '18px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: 'var(--ink)' }}>
+                <Filter size={18} color="var(--blue, #2563eb)" />
+                <span>Điều khiển phân tích tác động</span>
+              </div>
+              {filterType !== 'Tất cả' && (
+                <button
+                  onClick={() => setFilterType('Tất cả')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--blue, #2563eb)',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--soft, #f1f5f9)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <RotateCcw size={14} />
+                  Đặt lại bộ lọc
+                </button>
+              )}
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1' }}>
-              <span style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                Chọn căn cứ thay đổi:
-              </span>
-              <select
-                value={selectedCanCu}
-                onChange={(e) => setSelectedCanCu(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  padding: '8px 10px',
-                  border: '1px solid var(--line)',
-                  borderRadius: '8px',
-                  width: '100%',
-                  maxWidth: '500px',
-                }}
-              >
-                {filteredImpact.length === 0 ? (
-                  <option value="">Không có dữ liệu phù hợp</option>
-                ) : (
-                  filteredImpact.map((item: any) => (
-                    <option key={item.canCu} value={item.canCu}>
-                      {item.canCu} ({item.dependents.length} văn bản phụ thuộc)
-                    </option>
-                  ))
-                )}
-              </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--muted)', marginBottom: '4px' }}>
+                  Lọc loại văn bản căn cứ:
+                </label>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    boxSizing: 'border-box',
+                    fontSize: '14px',
+                    padding: '0 12px',
+                    border: '1px solid var(--line, #e2e8f0)',
+                    borderRadius: '8px',
+                    background: 'var(--soft, #f8fafc)',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="Tất cả">Tất cả loại văn bản</option>
+                  <option value="Nghị định">Nghị định</option>
+                  <option value="Thông tư">Thông tư</option>
+                  <option value="Quyết định">Quyết định</option>
+                  <option value="Luật">Luật</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--muted)', marginBottom: '4px' }}>
+                  Chọn căn cứ thay đổi cần xem:
+                </label>
+                <select
+                  value={selectedCanCu}
+                  onChange={(e) => setSelectedCanCu(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    boxSizing: 'border-box',
+                    fontSize: '14px',
+                    padding: '0 12px',
+                    border: '1px solid var(--line, #e2e8f0)',
+                    borderRadius: '8px',
+                    background: 'var(--soft, #f8fafc)',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {filteredImpact.length === 0 ? (
+                    <option value="">Không có dữ liệu phù hợp</option>
+                  ) : (
+                    filteredImpact.map((item: any) => (
+                      <option key={item.canCu} value={item.canCu}>
+                        {item.canCu} ({item.dependents.length} văn bản phụ thuộc)
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
             </div>
           </div>
 

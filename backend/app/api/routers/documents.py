@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 import os
 import shutil
 import random
+import re
 from ...db.session import get_db
 from ...db.models import Document, Obligation, Threshold, DocumentRelation, AuditTrail
 from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
@@ -16,6 +17,27 @@ from ...db.models import User
 
 class ExtractRequest(BaseModel):
     text: str
+
+def clean_doc_title(s: Optional[str]) -> str:
+    if not s:
+        return ""
+    return re.sub(r'[\)\.\,\;\:\/\-\s]+$', '', s.strip()).strip()
+
+def norm_doc_key(s: Optional[str]) -> str:
+    if not s:
+        return ""
+    return re.sub(r'[\)\.\,\;\:\/\-\s]+$', '', s.strip()).strip().lower()
+
+def extract_year(text: str) -> str:
+    if not text:
+        return ""
+    m = re.search(r'\b(20[0-2]\d)\b', text)
+    if m:
+        return m.group(1)
+    m = re.search(r'/(20[0-2]\d)/', text)
+    if m:
+        return m.group(1)
+    return ""
 
 router = APIRouter()
 
@@ -239,9 +261,11 @@ async def get_legal_data(db: Session = Depends(get_db), current_user: User = Dep
             "nguon": f"Theo dữ liệu hiệu lực của văn bản {doc.filename}"
         })
     
-    # Lấy dữ liệu quan hệ văn bản thực tế (Epic 6)
-    relations = db.query(DocumentRelation).filter(DocumentRelation.status == "published").all()
+    # Lấy dữ liệu quan hệ văn bản thực tế
+    relations = db.query(DocumentRelation).all()
+    doc_dates_map = {d.filename: d.ngay_ky or "" for d in db.query(Document).all()}
     
+
     vb_tu_chet_map = {}
     su_kien_hieu_luc_map = {}
     events_map = {}
@@ -249,92 +273,117 @@ async def get_legal_data(db: Session = Depends(get_db), current_user: User = Dep
     for rel in relations:
         rt = rel.relation_type.lower().strip()
         
-        if rt in ["thay thế", "bãi bỏ", "bị thay thế"]:
-            # Nếu DB có "bị thay thế", old_doc là source, new là target. Ngược lại.
-            if rt == "bị thay thế":
-                old_doc = rel.source_doc
-                new_doc = rel.target_doc
-            else:
-                old_doc = rel.target_doc
-                new_doc = rel.source_doc
+        if "thay thế" in rt or "bãi bỏ" in rt:
+            # old_doc là văn bản cũ bị thay thế/bãi bỏ (target_doc)
+            # new_doc là văn bản mới ban hành làm thay thế/bãi bỏ (source_doc)
+            old_doc = clean_doc_title(rel.target_doc)
+            new_doc = rel.source_doc
+            
+            if not old_doc:
+                continue
                 
-            key = (old_doc, new_doc)
-            if key not in vb_tu_chet_map:
-                vb_tu_chet_map[key] = {
+            old_key = norm_doc_key(old_doc)
+            key = (old_key, new_doc)
+            
+            ly_do_display = "Bị thay thế toàn bộ" if "thay thế" in rt else (
+                "Bị bãi bỏ một phần" if "một phần" in rt else "Bị bãi bỏ toàn bộ"
+            )
+            raw_type = "thay_the" if "thay thế" in rt else "bai_bo"
+            s_date = doc_dates_map.get(new_doc, "")
+            nam_val = extract_year(s_date) or extract_year(new_doc) or extract_year(old_doc)
+            
+            co_quan_parsed, loai_parsed = parse_agency_and_type(old_doc)
+            if old_key not in vb_tu_chet_map:
+                vb_tu_chet_map[old_key] = {
                     "docId": old_doc,
                     "soHieu": old_doc,
-                    "loai": "Văn bản",
-                    "tuNgay": "2026",
+                    "loai": loai_parsed,
+                    "coQuan": co_quan_parsed,
+                    "nam": nam_val,
+                    "rawType": raw_type,
+                    "tuNgay": s_date or "2026",
                     "thayBang": [new_doc],
-                    "lyDo": f"Bị thay thế toàn bộ",
-                    "phamVi": "toàn bộ",
+                    "lyDo": ly_do_display,
+                    "phamVi": "một phần" if "một phần" in rt else "toàn bộ",
                     "chuyenTiep": [],
                     "nguyenVan": rel.nguyen_van
                 }
+            else:
+                if new_doc not in vb_tu_chet_map[old_key]["thayBang"]:
+                    vb_tu_chet_map[old_key]["thayBang"].append(new_doc)
+                if not vb_tu_chet_map[old_key].get("nguyenVan") and rel.nguyen_van:
+                    vb_tu_chet_map[old_key]["nguyenVan"] = rel.nguyen_van
+                
             if key not in su_kien_hieu_luc_map:
                 su_kien_hieu_luc_map[key] = {
                     "cu": old_doc,
-                    "tenCu": "Văn bản cũ",
+                    "tenCu": "Văn bản cũ bị thay thế/bãi bỏ",
                     "moi": new_doc,
-                    "tenMoi": "Văn bản mới",
-                    "lyDo": f"Bị thay thế toàn bộ",
-                    "phamVi": "toàn bộ",
-                    "tuNgay": "Theo hiệu lực",
-                    "nguon": f"Theo văn bản {new_doc}",
-                    "nguyenVan": rel.nguyen_van,
-                    "docId": old_doc
+                    "tenMoi": "Văn bản mới ban hành",
+                    "lyDo": ly_do_display,
+                    "phamVi": "một phần" if "một phần" in rt else "toàn bộ",
+                    "tuNgay": s_date or "Theo hiệu lực",
+                    "nam": nam_val,
+                    "nguon": rel.nguyen_van or f"Theo văn bản {new_doc}",
+                    "docId": new_doc,
+                    "rawType": raw_type
                 }
             
-            # Gộp vào events_map cho Cây gia phả
-            if old_doc not in events_map:
-                events_map[old_doc] = {"canCu": old_doc, "thayBang": new_doc, "lyDo": f"bị thay thế", "docs": []}
+            # Gộp vào events_map cho Sự kiện thay đổi luật
+            if old_key not in events_map:
+                events_map[old_key] = {
+                    "canCu": old_doc,
+                    "thayBang": new_doc,
+                    "lyDo": ly_do_display,
+                    "rawType": raw_type,
+                    "nam": nam_val,
+                    "docs": []
+                }
             else:
-                events_map[old_doc]["thayBang"] = new_doc
-                events_map[old_doc]["lyDo"] = f"bị thay thế"
+                events_map[old_key]["thayBang"] = new_doc
+                events_map[old_key]["lyDo"] = ly_do_display
+                if not events_map[old_key].get("nam") and nam_val:
+                    events_map[old_key]["nam"] = nam_val
                 
         elif rt == "căn cứ":
-            old_doc = rel.target_doc
+            old_doc = clean_doc_title(rel.target_doc)
             dep_doc = rel.source_doc
+            old_key = norm_doc_key(old_doc)
             
-            if old_doc not in events_map:
-                events_map[old_doc] = {"canCu": old_doc, "thayBang": None, "lyDo": "được dùng làm căn cứ", "docs": []}
-            if not any(d["soHieu"] == dep_doc for d in events_map[old_doc]["docs"]):
-                events_map[old_doc]["docs"].append({
+            if not old_key:
+                continue
+                
+            if old_key not in events_map:
+                events_map[old_key] = {
+                    "canCu": old_doc,
+                    "thayBang": None,
+                    "lyDo": "được dùng làm căn cứ",
+                    "rawType": "can_cu",
+                    "nam": extract_year(doc_dates_map.get(dep_doc, "")) or extract_year(dep_doc),
+                    "docs": []
+                }
+            if not any(d["soHieu"] == dep_doc for d in events_map[old_key]["docs"]):
+                events_map[old_key]["docs"].append({
                     "soHieu": dep_doc,
                     "loai": "Văn bản"
                 })
                 
-    events = []
     impact = []
-    
     for e in events_map.values():
-        # -- Đồ thị ảnh hưởng (impact): Lấy TOÀN BỘ dây chuyền phụ thuộc --
         if len(e["docs"]) > 0:
             impact.append({
                 "canCu": e["canCu"],
                 "thayBang": e["thayBang"],
                 "lyDo": e.get("lyDo", ""),
-                "dependents": list(e["docs"]) # clone mảng docs
+                "dependents": list(e["docs"])
             })
             
-        # -- Sự kiện cảnh báo (events): Chỉ lấy các dây chuyền có văn bản chưa rà soát (draft) --
-        valid_docs = []
-        for d in e["docs"]:
-            so_hieu = d["soHieu"]
-            # Kiểm tra xem văn bản này có Obligation hoặc Threshold nào ở trạng thái "draft" không
-            has_draft_obl = db.query(Obligation).filter(Obligation.vb == so_hieu, Obligation.status == "draft").first()
-            has_draft_thresh = db.query(Threshold).filter(Threshold.vb == so_hieu, Threshold.status == "draft").first()
+    # Sự kiện cảnh báo: Tất cả sự kiện thay đổi luật thực tế trong CSDL
+    # Sắp xếp ưu tiên các sự kiện có văn bản nội bộ bị ảnh hưởng lên đầu
+    valid_events = [e for e in events_map.values() if e.get("thayBang")]
+    valid_events.sort(key=lambda x: (len(x["docs"]), x.get("nam") or ""), reverse=True)
+    events = valid_events
             
-            if has_draft_obl or has_draft_thresh:
-                valid_docs.append(d)
-                
-        # Nếu có ít nhất 1 văn bản cần rà soát thì mới giữ lại sự kiện cảnh báo này
-        if len(valid_docs) > 0:
-            event_obj = dict(e)
-            event_obj["docs"] = valid_docs
-            events.append(event_obj)
-            
-    # Không còn dữ liệu giả. Nếu DB trống, UI sẽ hiển thị mảng rỗng và hiển thị trạng thái Empty state.
     vb_sap_chet = []
         
     return {
@@ -376,19 +425,105 @@ async def get_document_impact(db: Session = Depends(get_db), current_user: User 
     return {"impact": impacts}
 
 
+def parse_agency_and_type(doc_name: str) -> tuple[str, str]:
+    if not doc_name:
+        return ("Cơ quan ban hành nhà nước", "Văn bản")
+    s_upper = doc_name.upper()
+    
+    # Type
+    if "THÔNG TƯ" in s_upper or "/TT" in s_upper or "_TT" in s_upper:
+        loai = "Thông tư"
+    elif "NGHỊ ĐỊNH" in s_upper or "/NĐ" in s_upper or "/ND" in s_upper or "_ND" in s_upper or "_NĐ" in s_upper:
+        loai = "Nghị định"
+    elif "QUYẾT ĐỊNH" in s_upper or "/QĐ" in s_upper or "/QD" in s_upper or "_QD" in s_upper or "_QĐ" in s_upper:
+        loai = "Quyết định"
+    elif "LUẬT" in s_upper or "/QH" in s_upper:
+        loai = "Luật"
+    elif "NGHỊ QUYẾT" in s_upper or "/NQ" in s_upper:
+        loai = "Nghị quyết"
+    elif "CHỈ THỊ" in s_upper or "/CT" in s_upper:
+        loai = "Chỉ thị"
+    elif "THÔNG BÁO" in s_upper or "/TB" in s_upper:
+        loai = "Thông báo"
+    elif "CÔNG VĂN" in s_upper or "/CV" in s_upper:
+        loai = "Công văn"
+    elif "KẾ HOẠCH" in s_upper or "/KH" in s_upper:
+        loai = "Kế hoạch"
+    elif "HƯỚNG DẪN" in s_upper or "/HD" in s_upper:
+        loai = "Hướng dẫn"
+    elif "QUY CHẾ" in s_upper or "_QC" in s_upper:
+        loai = "Quy chế"
+    else:
+        loai = "Văn bản"
+
+    # Agency
+    if "BCT" in s_upper:
+        co_quan = "Bộ Công Thương"
+    elif "BGDĐT" in s_upper or "BGD" in s_upper:
+        co_quan = "Bộ Giáo dục và Đào tạo"
+    elif "BTC" in s_upper:
+        co_quan = "Bộ Tài chính"
+    elif "CP" in s_upper or "CHÍNH PHỦ" in s_upper:
+        co_quan = "Chính phủ"
+    elif "TTG" in s_upper or "THỦ TƯỚNG" in s_upper:
+        co_quan = "Thủ tướng Chính phủ"
+    elif "BNNMT" in s_upper or "BNN" in s_upper:
+        co_quan = "Bộ Nông nghiệp và Môi trường"
+    elif "BTNMT" in s_upper:
+        co_quan = "Bộ Tài nguyên và Môi trường"
+    elif "BQP" in s_upper:
+        co_quan = "Bộ Quốc phòng"
+    elif "BVHTTDL" in s_upper:
+        co_quan = "Bộ Văn hóa, Thể thao và Du lịch"
+    elif "NHNN" in s_upper:
+        co_quan = "Ngân hàng Nhà nước Việt Nam"
+    elif "BXD" in s_upper:
+        co_quan = "Bộ Xây dựng"
+    elif "BNV" in s_upper:
+        co_quan = "Bộ Nội vụ"
+    elif "BYT" in s_upper:
+        co_quan = "Bộ Y tế"
+    elif "BTP" in s_upper:
+        co_quan = "Bộ Tư pháp"
+    elif "BCA" in s_upper:
+        co_quan = "Bộ Công an"
+    elif "VKSTC" in s_upper:
+        co_quan = "Viện kiểm sát nhân dân tối cao"
+    elif "TANDTC" in s_upper:
+        co_quan = "Tòa án nhân dân tối cao"
+    elif "QH" in s_upper:
+        co_quan = "Quốc hội"
+    elif "VPCP" in s_upper:
+        co_quan = "Văn phòng Chính phủ"
+    elif "DAU" in s_upper or "NT" in s_upper:
+        co_quan = "Trường Đại học Kiến trúc Đà Nẵng (DAU)"
+    else:
+        co_quan = "Cơ quan ban hành nhà nước"
+        
+    return (co_quan, loai)
+
+
 @router.get("/documents/detail/{so_hieu:path}")
 async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Trả về chi tiết hồ sơ văn bản.
+    Trả về chi tiết hồ sơ văn bản (cả văn bản có file trong kho lẫn văn bản ngoại dẫn bị khai tử/thay thế).
     """
-    # Frontend đôi khi gửi kèm prefix "bo:" hoặc "truong:" để điều hướng giao diện cũ.
-    # Ta cần cắt nó đi để khớp với filename trong DB.
     if so_hieu.startswith("bo:"):
         so_hieu = so_hieu[3:]
     elif so_hieu.startswith("truong:"):
         so_hieu = so_hieu[7:]
         
+    so_hieu = so_hieu.strip()
+    clean_so_hieu = re.sub(r'[\)\.\,\;\:\/\-\s]+$', '', so_hieu).strip()
+    
+    # 1. Tìm trong bảng Document
     doc = db.query(Document).filter(Document.filename == so_hieu).first()
+    if not doc:
+        doc = db.query(Document).filter(Document.filename.ilike(clean_so_hieu)).first()
+    if not doc:
+        doc = db.query(Document).filter(Document.filename.ilike(f"%{clean_so_hieu}%")).first()
+        
+    doc_dates_map = {d.filename: d.ngay_ky or "" for d in db.query(Document).all()}
     
     if doc:
         nghia_vu = []
@@ -412,20 +547,20 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), curre
                     "nguon": cs.nguon
                 })
                 
-        # Lấy Căn cứ đã hết hiệu lực
+        # Lấy Căn cứ mà văn bản này viện dẫn
         can_cu = db.query(DocumentRelation).filter(
             DocumentRelation.source_doc == doc.filename,
             DocumentRelation.relation_type == "căn cứ"
         ).all()
+        can_cu_names = list(set([r.target_doc for r in can_cu]))
         
-        can_cu_names = [r.target_doc for r in can_cu]
+        # Căn cứ đã hết hiệu lực
         items = []
         if can_cu_names:
             het_hieu_luc = db.query(DocumentRelation).filter(
                 DocumentRelation.source_doc.in_(can_cu_names),
                 DocumentRelation.relation_type.in_(["bị thay thế", "bị bãi bỏ"])
             ).all()
-            
             for h in het_hieu_luc:
                 items.append({
                     "canCu": h.source_doc,
@@ -433,44 +568,65 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), curre
                     "lyDo": h.relation_type
                 })
         
-        # Văn bản này làm văn bản khác hết hiệu lực (thay thế, bãi bỏ)
-        # old_doc là source, new_doc (văn bản hiện tại) là target
+        # Văn bản này làm văn bản khác hết hiệu lực (source là doc.filename)
         lam_het_hieu_luc = db.query(DocumentRelation).filter(
-            DocumentRelation.target_doc == doc.filename,
+            DocumentRelation.source_doc == doc.filename,
             DocumentRelation.relation_type.in_(["bị thay thế", "bị bãi bỏ", "thay thế", "bãi bỏ"])
         ).all()
-        
         thay_the = []
         bai_bo = []
         for r in lam_het_hieu_luc:
-            rt = r.relation_type.lower()
+            rt = (r.relation_type or "").lower()
             obj = {
-                "soHieu": r.source_doc,
-                "nguon": r.nguyen_van
+                "soHieu": r.target_doc,
+                "nguon": r.nguyen_van,
+                "phamVi": "một phần" if "một phần" in rt else "toàn bộ"
             }
             if "thay thế" in rt:
                 thay_the.append(obj)
             elif "bãi bỏ" in rt:
                 bai_bo.append(obj)
+                
+        # Văn bản này bị văn bản khác làm hết hiệu lực (target là doc.filename)
+        bi_het_hieu_luc = db.query(DocumentRelation).filter(
+            DocumentRelation.target_doc == doc.filename,
+            DocumentRelation.relation_type.in_(["bị thay thế", "bị bãi bỏ", "thay thế", "bãi bỏ"])
+        ).all()
+        thay_the_boi = []
+        for r in bi_het_hieu_luc:
+            rt = (r.relation_type or "").lower()
+            ly_do_val = "Bị thay thế toàn bộ" if "thay thế" in rt else (
+                "Bị bãi bỏ một phần" if "một phần" in rt else "Bị bãi bỏ toàn bộ"
+            )
+            s_date = doc_dates_map.get(r.source_doc, "")
+            thay_the_boi.append({
+                "soHieu": r.source_doc,
+                "lyDo": ly_do_val,
+                "ngayHieuLuc": s_date or "2026",
+                "nguon": r.nguyen_van or f"Theo quy định tại văn bản {r.source_doc}"
+            })
+            
+        # Văn bản nội bộ phụ thuộc viện dẫn văn bản này
+        dependents = db.query(DocumentRelation).filter(
+            DocumentRelation.relation_type == "căn cứ",
+            DocumentRelation.target_doc == doc.filename
+        ).all()
+        van_ban_anh_huong = []
+        for dep in dependents:
+            van_ban_anh_huong.append({
+                "soHieu": dep.source_doc,
+                "loai": "Văn bản nội bộ" if dep.source_doc.startswith("NT") else "Văn bản trong kho",
+                "nguon": dep.nguyen_van or f"Viện dẫn {doc.filename} làm căn cứ pháp lý"
+            })
+            
+        parsed_cq, parsed_loai = parse_agency_and_type(doc.filename)
 
         return {
-            "type": "truong",
+            "type": "truong" if (doc.filename or "").startswith("NT") or "QĐ" in (doc.filename or "") else "bo",
             "data": {
                 "soHieu": doc.filename,
-                "loai": (
-                    "Quyết định" if any(x in (doc.filename or "").upper() for x in ["_QD", "_QĐ", "QĐ", "QUYET DINH", "QUYẾT ĐỊNH", "-QD"]) else
-                    "Thông báo" if any(x in (doc.filename or "").upper() for x in ["_TB", "THONG BAO", "THÔNG BÁO", "-TB"]) else
-                    "Thông tư" if any(x in (doc.filename or "").upper() for x in ["_TT", "THONG TU", "THÔNG TƯ", "-TT"]) else
-                    "Nghị định" if any(x in (doc.filename or "").upper() for x in ["_ND", "_NĐ", "NGHI DINH", "NGHỊ ĐỊNH", "-ND"]) else
-                    "Kế hoạch" if any(x in (doc.filename or "").upper() for x in ["_KH", "KE HOACH", "KẾ HOẠCH", "-KH"]) else
-                    "Hướng dẫn" if any(x in (doc.filename or "").upper() for x in ["_HD", "HUONG DAN", "HƯỚNG DẪN", "-HD"]) else
-                    "Chỉ thị" if any(x in (doc.filename or "").upper() for x in ["_CT", "CHI THI", "CHỈ THỊ", "-CT"]) else
-                    "Công văn" if any(x in (doc.filename or "").upper() for x in ["_CV", "CONG VAN", "CÔNG VĂN", "-CV"]) else
-                    "Nghị quyết" if any(x in (doc.filename or "").upper() for x in ["_NQ", "NGHI QUYET", "NGHỊ QUYẾT", "-NQ"]) else
-                    "Kết luận" if any(x in (doc.filename or "").upper() for x in ["_KL", "KET LUAN", "KẾT LUẬN", "-KL"]) else
-                    doc.linh_vuc if doc.linh_vuc and str(doc.linh_vuc).lower() not in ["data", "khac", "khác"] else "Văn bản"
-                ),
-                "coQuan": doc.co_quan_ban_hanh or "",
+                "loai": doc.linh_vuc if doc.linh_vuc and str(doc.linh_vuc).lower() not in ["data", "khac", "khác"] else parsed_loai,
+                "coQuan": doc.co_quan_ban_hanh or parsed_cq,
                 "ngayKy": doc.ngay_ky or "",
                 "ngayBanHanh": doc.ngay_ky or "",
                 "nguoiKy": doc.nguoi_ky or "",
@@ -480,7 +636,7 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), curre
                     "nguon": doc.dieu_khoan_hieu_luc_nguyen_van or ""
                 },
                 "hieuLucDen": doc.hieu_luc_den,
-                "status": doc.trang_thai_hieu_luc or "Còn hiệu lực",
+                "status": "Đã hết hiệu lực" if thay_the_boi else (doc.trang_thai_hieu_luc or "Còn hiệu lực"),
                 "tomTat": doc.tom_tat or "",
                 "trichYeu": doc.tom_tat or "",
                 "ghiChu": doc.ghi_chu or "",
@@ -491,31 +647,139 @@ async def get_document_detail(so_hieu: str, db: Session = Depends(get_db), curre
                 "dieuKhoan": doc.muc_luc_dieu_khoan or [],
                 "thayThe": thay_the,
                 "baiBo": bai_bo,
+                "thayTheBoi": thay_the_boi,
+                "vanBanAnhHuong": van_ban_anh_huong,
                 "canCu": [{"soHieu": name} for name in can_cu_names],
                 "conf": doc.conf,
-                "ocr": doc.ocr
+                "ocr": doc.ocr,
+                "hasPdf": True
             },
             "items": items
         }
+
+    # 2. Xử lý khi là văn bản pháp luật đối chiếu ngoại dẫn (như Thông tư 26/2026/TT-BCT...)
+    target_rels = db.query(DocumentRelation).filter(
+        (DocumentRelation.target_doc == so_hieu) |
+        (DocumentRelation.target_doc.ilike(f"%{clean_so_hieu}%"))
+    ).all()
     
-    # Fallback nếu không tìm thấy trong DB thì trả về rỗng để xoá sạch dữ liệu giả.
+    thay_the_boi = []
+    is_replaced = False
+    is_repealed_part = False
+    is_repealed_all = False
+    
+    for r in target_rels:
+        rt = (r.relation_type or "").lower().strip()
+        if "thay thế" in rt or "bãi bỏ" in rt:
+            if "thay thế" in rt:
+                is_replaced = True
+                ly_do_display = "Bị thay thế toàn bộ"
+            elif "một phần" in rt:
+                is_repealed_part = True
+                ly_do_display = "Bị bãi bỏ một phần"
+            else:
+                is_repealed_all = True
+                ly_do_display = "Bị bãi bỏ toàn bộ"
+                
+            s_date = doc_dates_map.get(r.source_doc, "")
+            thay_the_boi.append({
+                "soHieu": r.source_doc,
+                "lyDo": ly_do_display,
+                "ngayHieuLuc": s_date or "2026",
+                "nguon": r.nguyen_van or f"Theo điều khoản thi hành của văn bản {r.source_doc}"
+            })
+
+    # Lọc trùng thay_the_boi theo soHieu
+    seen_sources = set()
+    unique_thay_the_boi = []
+    for t in thay_the_boi:
+        if t["soHieu"] not in seen_sources:
+            seen_sources.add(t["soHieu"])
+            unique_thay_the_boi.append(t)
+
+    # Tìm văn bản nội bộ viện dẫn văn bản này làm căn cứ
+    dependent_rels = db.query(DocumentRelation).filter(
+        DocumentRelation.relation_type == "căn cứ",
+        (DocumentRelation.target_doc == so_hieu) |
+        (DocumentRelation.target_doc.ilike(f"%{clean_so_hieu}%"))
+    ).all()
+    
+    seen_deps = set()
+    van_ban_anh_huong = []
+    for dep in dependent_rels:
+        if dep.source_doc not in seen_deps:
+            seen_deps.add(dep.source_doc)
+            van_ban_anh_huong.append({
+                "soHieu": dep.source_doc,
+                "loai": "Văn bản nội bộ" if dep.source_doc.startswith("NT") else "Văn bản trong kho",
+                "nguon": dep.nguyen_van or f"Viện dẫn {so_hieu} làm căn cứ ban hành"
+            })
+            
+    co_quan_val, loai_val = parse_agency_and_type(so_hieu)
+    year_val = extract_year(so_hieu)
+    ngay_ban_hanh = f"Năm {year_val}" if year_val else ""
+    
+    if is_replaced:
+        status_val = "Đã hết hiệu lực (Bị thay thế toàn bộ)"
+    elif is_repealed_all:
+        status_val = "Đã hết hiệu lực (Bị bãi bỏ toàn bộ)"
+    elif is_repealed_part:
+        status_val = "Hết hiệu lực một phần (Bị bãi bỏ một phần)"
+    elif unique_thay_the_boi:
+        status_val = "Đã hết hiệu lực"
+    else:
+        status_val = "Văn bản đối chiếu"
+        
+    new_names = [t["soHieu"] for t in unique_thay_the_boi]
+    new_names_str = ", ".join(new_names) if new_names else "văn bản mới"
+    
+    tom_tat_val = (
+        f"Văn bản {so_hieu} ({loai_val}) do {co_quan_val} ban hành. "
+        f"Theo dữ liệu rà soát hiệu lực của hệ thống, văn bản này {status_val.lower()} bởi {new_names_str}. "
+        f"Các quy định, điều khoản thuộc phạm vi bãi bỏ/thay thế không còn giá trị áp dụng trực tiếp. "
+    )
+    if van_ban_anh_huong:
+        tom_tat_val += f"Hiện tại hệ thống ghi nhận {len(van_ban_anh_huong)} văn bản trong trường viện dẫn văn bản này làm căn cứ pháp lý cần rà soát cập nhật."
+    else:
+        tom_tat_val += "Chưa ghi nhận văn bản nội bộ nào của Trường viện dẫn văn bản này làm căn cứ."
+        
+    items = []
+    for t in unique_thay_the_boi:
+        items.append({
+            "canCu": so_hieu,
+            "thayBang": t["soHieu"],
+            "lyDo": t["lyDo"]
+        })
+        
     return {
-        "type": "truong" if "QĐ" in so_hieu else "bo",
+        "type": "truong" if so_hieu.startswith("NT") or "QĐ" in so_hieu else "bo",
         "data": {
             "soHieu": so_hieu,
-            "loai": "Văn bản",
-            "coQuan": "",
-            "ngayBanHanh": "",
+            "loai": loai_val,
+            "coQuan": co_quan_val,
+            "ngayBanHanh": ngay_ban_hanh,
+            "ngayKy": ngay_ban_hanh,
             "nguoiKy": "",
+            "chucVu": "",
             "hieuLucTu": None,
-            "trichYeu": "Đang cập nhật",
+            "hieuLucDen": None,
+            "status": status_val,
+            "tomTat": tom_tat_val,
+            "trichYeu": tom_tat_val,
+            "ghiChu": f"Đối chiếu hiệu lực tự động từ {len(unique_thay_the_boi)} văn bản mới trong kho.",
+            "chuDe": [loai_val],
+            "tags": [co_quan_val, loai_val],
+            "nghiaVu": [],
+            "conSoChot": [],
+            "dieuKhoan": [],
             "thayThe": [],
             "baiBo": [],
+            "thayTheBoi": unique_thay_the_boi,
+            "vanBanAnhHuong": van_ban_anh_huong,
             "canCu": [],
-            "dieuKhoan": [],
-            "nghiaVu": [],
-            "conSoChot": []
-        }
+            "hasPdf": False
+        },
+        "items": items
     }
 
 

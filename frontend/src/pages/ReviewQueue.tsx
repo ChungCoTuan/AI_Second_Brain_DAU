@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Check, X, AlertTriangle, Edit2, RefreshCw, Clock, Filter } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Check, X, AlertTriangle, Edit2, RefreshCw, Clock, Filter, RotateCcw, Search } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { fold } from '../utils';
+import axiosClient from '../api/axiosClient';
 
 interface ReviewItem {
   id: number;
@@ -26,7 +28,11 @@ const ReviewQueue: React.FC = () => {
   const [pendingItems, setPendingItems] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'nghiaVu' | 'conSoChot'>('all');
+  const [filterNli, setFilterNli] = useState<string>('all'); // all, entailment, contradiction, neutral
   const [page, setPage] = useState(1);
   const limit = 15;
 
@@ -37,7 +43,15 @@ const ReviewQueue: React.FC = () => {
   const [tempLabel, setTempLabel] = useState<string | null>(null);
 
   // Reset page khi filter thay đổi - phải đặt ở đây, trước mọi early return
-  useEffect(() => { setPage(1); }, [filterType]);
+  useEffect(() => { setPage(1); }, [searchQuery, filterType, filterNli]);
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setFilterType('all');
+    setFilterNli('all');
+  };
+
+  const hasActiveFilters = searchQuery !== '' || filterType !== 'all' || filterNli !== 'all';
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -46,8 +60,8 @@ const ReviewQueue: React.FC = () => {
 
   const fetchPendingData = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/review/pending');
-      const data = await response.json();
+      const response = await axiosClient.get('/review/pending');
+      const data = response.data;
 
       const nghiaVu: ReviewItem[] = (data.nghiaVu || []).map((i: any) => ({ ...i, _itemType: 'nghiaVu' }));
       const conSoChot: ReviewItem[] = (data.conSoChot || []).map((i: any) => ({ ...i, _itemType: 'conSoChot' }));
@@ -69,13 +83,9 @@ const ReviewQueue: React.FC = () => {
 
   const handlePublish = async (itemType: string, id: number, textToPublish?: string) => {
     try {
-      const body = textToPublish ? JSON.stringify({ edited_summary: textToPublish }) : JSON.stringify({});
-      const response = await fetch(`http://localhost:8000/api/v1/review/${itemType}/${id}/publish`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body
-      });
-      if (response.ok) {
+      const body = textToPublish ? { edited_summary: textToPublish } : {};
+      const response = await axiosClient.put(`/review/${itemType}/${id}/publish`, body);
+      if (response.status === 200) {
         setPendingItems(prev => prev.filter(item => !(item._itemType === itemType && item.id === id)));
         refreshData();
         showToast("Đã duyệt & Publish thành công!");
@@ -89,10 +99,8 @@ const ReviewQueue: React.FC = () => {
 
   const handleReject = async (itemType: string, id: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/review/${itemType}/${id}/reject`, {
-        method: 'PUT',
-      });
-      if (response.ok) {
+      const response = await axiosClient.put(`/review/${itemType}/${id}/reject`);
+      if (response.status === 200) {
         setPendingItems(prev => prev.filter(item => !(item._itemType === itemType && item.id === id)));
         refreshData();
       }
@@ -105,16 +113,11 @@ const ReviewQueue: React.FC = () => {
     if (!editedText) return;
     setRevalidating(true);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/review/revalidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          original_text: originalText,
-          edited_summary: editedText
-        })
+      const res = await axiosClient.post('/review/revalidate', {
+        original_text: originalText,
+        edited_summary: editedText
       });
-      const data = await res.json();
-      setTempLabel(data.nli_label);
+      setTempLabel(res.data.nli_label);
     } catch (e) {
       console.error(e);
     } finally {
@@ -137,6 +140,38 @@ const ReviewQueue: React.FC = () => {
     }).format(date);
   };
 
+  const displayedItems = useMemo(() => {
+    return pendingItems.filter(item => {
+      // 1. Loại bóc tách
+      if (filterType !== 'all' && item._itemType !== filterType) return false;
+
+      // 2. Nhãn suy luận NLI
+      if (filterNli !== 'all' && item.nli_label !== filterNli) return false;
+
+      // 3. Tìm kiếm từ khóa
+      if (searchQuery.trim()) {
+        const q = fold(searchQuery.trim());
+        const matchText = fold([
+          item.vb || '',
+          item.dieu || '',
+          item.noiDung || '',
+          item.giaTri || '',
+          item.yNghia || '',
+          item.tom_tat || '',
+          item.nguon || '',
+          item.chuThe || '',
+          item.loai || ''
+        ].join(' '));
+        if (!matchText.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [pendingItems, filterType, filterNli, searchQuery]);
+
+  const totalPages = Math.ceil(displayedItems.length / limit) || 1;
+  const pagedItems = displayedItems.slice((page - 1) * limit, page * limit);
+
   if (loading) {
     return (
       <section id="ra-soat">
@@ -147,10 +182,6 @@ const ReviewQueue: React.FC = () => {
       </section>
     );
   }
-
-  const displayedItems = pendingItems.filter(item => filterType === 'all' || item._itemType === filterType);
-  const totalPages = Math.ceil(displayedItems.length / limit) || 1;
-  const pagedItems = displayedItems.slice((page - 1) * limit, page * limit);
 
 
   const renderItemRightColumn = (item: ReviewItem) => {
@@ -255,26 +286,169 @@ const ReviewQueue: React.FC = () => {
         </div>
       )}
       <div className="wrap">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
-          <div>
-            <h2 style={{ fontSize: '28px', color: 'var(--blue)', marginBottom: '8px' }}>Cổng Duyệt Văn Bản</h2>
-            <p className="sub" style={{ margin: 0, fontSize: '15px' }}>
-              <AlertTriangle size={18} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px', color: 'var(--amber)' }} />
-              Rà soát kết quả bóc tách của AI để đảm bảo độ chính xác tuyệt đối.
-            </p>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '28px', color: 'var(--blue)', marginBottom: '8px' }}>Cổng Duyệt Văn Bản</h2>
+          <p className="sub" style={{ margin: 0, fontSize: '15px' }}>
+            <AlertTriangle size={18} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px', color: 'var(--amber)' }} />
+            Rà soát kết quả bóc tách của AI để đảm bảo độ chính xác tuyệt đối.
+          </p>
+        </div>
+
+        {/* Card Bộ lọc */}
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid var(--line, #e2e8f0)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--ink, #1e293b)', fontSize: '15px' }}>
+              <Filter size={18} style={{ color: 'var(--red, #b91c1c)' }} />
+              <span>Bộ lọc danh sách bóc tách chờ duyệt</span>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '13px',
+                  color: 'var(--red, #b91c1c)',
+                  background: '#fee2e2',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                <RotateCcw size={14} /> Đặt lại bộ lọc
+              </button>
+            )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid var(--line)', padding: '6px', borderRadius: '12px' }}>
-            <Filter size={16} style={{ color: 'var(--muted)', marginLeft: '8px' }} />
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as any)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', padding: '4px 8px', fontSize: '14px', fontWeight: 600, color: 'var(--ink)', cursor: 'pointer' }}
-            >
-              <option value="all">Tất cả ({pendingItems.length})</option>
-              <option value="nghiaVu">Nghĩa vụ ({pendingItems.filter(i => i._itemType === 'nghiaVu').length})</option>
-              <option value="conSoChot">Con số chốt ({pendingItems.filter(i => i._itemType === 'conSoChot').length})</option>
-            </select>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            {/* Ô tìm kiếm */}
+            <div style={{ position: 'relative' }}>
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--muted, #64748b)'
+                }}
+              />
+              <input
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 12px 0 36px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  boxSizing: 'border-box'
+                }}
+                type="search"
+                placeholder="Tìm số hiệu, điều, nội dung, tóm tắt..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Phân loại bóc tách */}
+            <div>
+              <select
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 28px 0 12px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  background: '#fff',
+                  color: 'var(--ink, #1e293b)',
+                  boxSizing: 'border-box'
+                }}
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+              >
+                <option value="all">Tất cả mục ({pendingItems.length})</option>
+                <option value="nghiaVu">Nghĩa vụ ({pendingItems.filter(i => i._itemType === 'nghiaVu').length})</option>
+                <option value="conSoChot">Con số chốt ({pendingItems.filter(i => i._itemType === 'conSoChot').length})</option>
+              </select>
+            </div>
+
+            {/* Đánh giá suy luận NLI */}
+            <div>
+              <select
+                className="inp"
+                style={{
+                  width: '100%',
+                  padding: '0 28px 0 12px',
+                  height: '42px',
+                  fontSize: '14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #cbd5e1)',
+                  background: '#fff',
+                  color: 'var(--ink, #1e293b)',
+                  boxSizing: 'border-box'
+                }}
+                value={filterNli}
+                onChange={(e) => setFilterNli(e.target.value)}
+              >
+                <option value="all">Tất cả nhãn NLI</option>
+                <option value="entailment">🟢 An toàn (Entailment)</option>
+                <option value="contradiction">🔴 Mâu thuẫn (Contradiction)</option>
+                <option value="neutral">🟠 Chung chung (Neutral)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Thanh tổng kết đếm số lượng */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: '12px',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--line, #f1f5f9)',
+              fontSize: '13px',
+              color: 'var(--muted, #64748b)'
+            }}
+          >
+            <div>
+              Hiển thị: <b style={{ color: 'var(--ink, #0f172a)' }}>{displayedItems.length}</b> / {pendingItems.length} mục chờ duyệt
+              {hasActiveFilters && <span style={{ color: 'var(--red, #b91c1c)', marginLeft: '6px', fontWeight: 600 }}>(đang lọc)</span>}
+            </div>
+            {hasActiveFilters && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {searchQuery && (
+                  <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                    "{searchQuery}"
+                  </span>
+                )}
+                {filterType !== 'all' && (
+                  <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    {filterType === 'nghiaVu' ? 'Nghĩa vụ' : 'Con số chốt'}
+                  </span>
+                )}
+                {filterNli !== 'all' && (
+                  <span style={{ background: filterNli === 'entailment' ? '#ecfdf5' : filterNli === 'contradiction' ? '#fee2e2' : '#fef3c7', color: filterNli === 'entailment' ? '#047857' : filterNli === 'contradiction' ? '#b91c1c' : '#92400e', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                    {filterNli === 'entailment' ? 'An toàn' : filterNli === 'contradiction' ? 'Mâu thuẫn' : 'Chung chung'}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -282,6 +456,25 @@ const ReviewQueue: React.FC = () => {
           <div style={{ padding: '60px 40px', textAlign: 'center', backgroundColor: '#fff', borderRadius: '16px', border: '1px dashed var(--line)', marginTop: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
             <h3 style={{ color: 'var(--green)', fontSize: '22px', marginBottom: '8px' }}>Tuyệt vời! 🎉</h3>
             <p className="sub" style={{ fontSize: '16px' }}>Không còn văn bản nào đang chờ duyệt trong hàng đợi.</p>
+          </div>
+        ) : displayedItems.length === 0 ? (
+          <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fff', borderRadius: '12px', border: '1px dashed var(--line)', margin: '16px 0' }}>
+            <p style={{ color: 'var(--muted)', fontSize: '15px', margin: '0 0 12px 0' }}>Không tìm thấy mục nào khớp với điều kiện lọc.</p>
+            <button
+              onClick={handleResetFilters}
+              style={{
+                padding: '8px 16px',
+                background: 'var(--blue, #2563eb)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '13px'
+              }}
+            >
+              Xóa bộ lọc để xem tất cả
+            </button>
           </div>
         ) : (
           <div className="cards" style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '20px' }}>

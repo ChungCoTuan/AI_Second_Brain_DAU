@@ -5,7 +5,7 @@ import { Download, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DocumentDetailDrawer: React.FC = () => {
-  const { docId, closeDetail } = useDetail();
+  const { docId, openDetail, closeDetail } = useDetail();
   const [data, setData] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -130,6 +130,8 @@ const DocumentDetailDrawer: React.FC = () => {
       const cs = o.conSoChot || [];
       const qc = o.quyCheKemTheo;
       const conf = o.conf != null ? Math.round(o.conf * 100) : null;
+      const thayTheBoi = o.thayTheBoi || [];
+      const vanBanAnhHuong = o.vanBanAnhHuong || [];
 
       return (
         <>
@@ -141,31 +143,68 @@ const DocumentDetailDrawer: React.FC = () => {
             <div className="x" onClick={closeDetail}>&times;</div>
           </div>
           <div className="dr-b">
-            <button 
-              style={{ 
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
-                width: '100%', padding: '12px 16px', fontSize: '14px', fontWeight: 600,
-                borderRadius: '8px', cursor: 'pointer', marginBottom: '16px',
-                border: 'none', background: 'var(--blue)', color: '#fff',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.05)', transition: 'all 0.2s'
-              }}
-              title="Xem bản gốc PDF"
-              onClick={(e) => {
-                e.stopPropagation();
-                const token = localStorage.getItem('token') || '';
-                window.open(`http://localhost:8000/api/v1/documents/${encodeURIComponent(docId || '')}/pdf?token=${token}`, '_blank');
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
-              }}
-            >
-              <Eye size={18} /> Mở bản gốc PDF toàn màn hình
-            </button>
+            {o.hasPdf === false ? (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{
+                  background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px',
+                  padding: '12px 14px', marginBottom: '10px', fontSize: '13px', color: '#991b1b',
+                  lineHeight: '1.5'
+                }}>
+                  <b>⚠️ Văn bản đối chiếu ngoài kho:</b> Bản PDF gốc chưa được nạp trực tiếp vào kho lưu trữ của Trường. Văn bản này được phát hiện qua các điều khoản thay thế / bãi bỏ trong kho.
+                </div>
+                {thayTheBoi.length > 0 && (
+                  <button
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      width: '100%', padding: '10px 14px', fontSize: '13px', fontWeight: 600,
+                      borderRadius: '8px', cursor: 'pointer', marginBottom: '8px',
+                      border: '1px solid #16a34a', background: '#f0fdf4', color: '#166534',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.03)', transition: 'all 0.2s'
+                    }}
+                    onClick={() => openDetail(thayTheBoi[0].soHieu)}
+                  >
+                    <Eye size={16} /> Xem văn bản mới thay thế / bãi bỏ ({thayTheBoi[0].soHieu})
+                  </button>
+                )}
+                <button
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    width: '100%', padding: '10px 14px', fontSize: '13px', fontWeight: 600,
+                    borderRadius: '8px', cursor: 'pointer',
+                    border: '1px solid var(--line, #cbd5e1)', background: '#fff', color: 'var(--ink, #1e293b)'
+                  }}
+                  onClick={() => window.open(`https://vbpl.vn/pages/tim-kiem-van-ban.aspx?keyword=${encodeURIComponent(o.soHieu)}`, '_blank')}
+                >
+                  Tra cứu trên Cổng thông tin VBQPPL (vbpl.vn) ↗
+                </button>
+              </div>
+            ) : (
+              <button 
+                style={{ 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
+                  width: '100%', padding: '12px 16px', fontSize: '14px', fontWeight: 600,
+                  borderRadius: '8px', cursor: 'pointer', marginBottom: '16px',
+                  border: 'none', background: 'var(--blue)', color: '#fff',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.05)', transition: 'all 0.2s'
+                }}
+                title="Xem bản gốc PDF"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const token = localStorage.getItem('token') || '';
+                  window.open(`http://localhost:8000/api/v1/documents/${encodeURIComponent(docId || '')}/pdf?token=${token}`, '_blank');
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+                }}
+              >
+                <Eye size={18} /> Mở bản gốc PDF toàn màn hình
+              </button>
+            )}
             {o.ngayNghiNgo && (
               <div className="alert" style={{ marginBottom: '14px' }}>
                 Văn bản này đọc từ <b>bản scan qua OCR</b>. Các con số đã được đối chiếu bằng mắt trên ảnh trang gốc,
@@ -178,7 +217,17 @@ const DocumentDetailDrawer: React.FC = () => {
               {row('Người ký', [o.chucVu, o.nguoiKy].filter(Boolean).join(' · '))}
               {row('Ngày ký', fmtDate(o.ngayKy || o.ngayBanHanh))}
               {row('Hiệu lực', o.hieuLucDen ? `${fmtDate(hl0.ngay)} — ${fmtDate(o.hieuLucDen)}` : (hl0.ngay ? `${fmtDate(hl0.ngay)} — nay` : ''))}
-              {o.status && row('Trạng thái', o.status)}
+              {o.status && (
+                <>
+                  <span className="k">Trạng thái</span>
+                  <span className="v" style={{
+                    color: o.status.toLowerCase().includes('hết hiệu lực') || o.status.toLowerCase().includes('bãi bỏ') || o.status.toLowerCase().includes('thay thế') ? 'var(--red, #b91c1c)' : 'inherit',
+                    fontWeight: 600
+                  }}>
+                    {o.status}
+                  </span>
+                </>
+              )}
               {ad.ngay && row('Áp dụng từ', fmtDate(ad.ngay))}
             </div>
 
@@ -204,6 +253,74 @@ const DocumentDetailDrawer: React.FC = () => {
                 <div className="sec-t" style={{ textTransform: 'uppercase' }}>Tóm tắt (AI trích)</div>
                 <div className="sum" style={{ background: 'var(--soft)', padding: '12px', borderRadius: '8px', border: '1px dashed var(--line)', marginBottom: '16px' }}>{o.tomTat || o.trichYeu}</div>
               </>
+            )}
+
+            {thayTheBoi.length > 0 && (
+              <div style={{ marginTop: '18px', marginBottom: '16px' }}>
+                <div className="sec-t" style={{ color: 'var(--red, #b91c1c)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Văn bản mới làm hết hiệu lực ({thayTheBoi.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                  {thayTheBoi.map((t: any, i: number) => (
+                    <div key={`ttb-${i}`} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
+                        <b
+                          style={{ color: 'var(--green, #16a34a)', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline' }}
+                          onClick={() => openDetail(t.soHieu)}
+                        >
+                          {t.soHieu}
+                        </b>
+                        <span className="badge replace" style={{ fontSize: '12px' }}>{t.lyDo}</span>
+                      </div>
+                      {t.ngayHieuLuc && (
+                        <div style={{ fontSize: '12px', color: 'var(--muted, #64748b)', marginBottom: '4px' }}>
+                          Hiệu lực từ: <b>{fmtDate(t.ngayHieuLuc)}</b>
+                        </div>
+                      )}
+                      {t.nguon && (
+                        <details style={{ marginTop: '6px' }}>
+                          <summary style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--blue)' }}>Xem điều khoản bãi bỏ / thay thế</summary>
+                          <div style={{ fontSize: '12px', background: '#fff', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #cbd5e1', marginTop: '6px', color: '#334155' }}>
+                            {t.nguon}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {o.hasPdf === false && (
+              <div style={{ marginTop: '18px', marginBottom: '16px' }}>
+                <div className="sec-t" style={{ textTransform: 'uppercase' }}>
+                  Văn bản nội bộ viện dẫn văn bản này ({vanBanAnhHuong.length})
+                </div>
+                {vanBanAnhHuong.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                    {vanBanAnhHuong.map((vb: any, i: number) => (
+                      <div key={`vbah-${i}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff0f0', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--red)', fontSize: '13px', cursor: 'pointer' }} onClick={() => openDetail(vb.soHieu)}>
+                            {vb.soHieu}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>{vb.loai} · Viện dẫn làm căn cứ</div>
+                        </div>
+                        <button
+                          onClick={() => openDetail(vb.soHieu)}
+                          style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--red)', background: '#fff', color: 'var(--red)', cursor: 'pointer' }}
+                        >
+                          Xem văn bản
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '13px', color: 'var(--muted, #64748b)', padding: '8px 0', fontStyle: 'italic' }}>
+                    Chưa ghi nhận văn bản nội bộ nào của Trường viện dẫn trực tiếp văn bản này làm căn cứ.
+                  </div>
+                )}
+              </div>
             )}
 
             {items && items.length > 0 && (
