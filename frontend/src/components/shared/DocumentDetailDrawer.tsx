@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDetail } from '../../context/DetailContext';
 import { fmtDate, badge } from '../../utils';
 import { Download, Eye, X } from 'lucide-react';
@@ -546,12 +547,16 @@ const DocumentDetailDrawer: React.FC = () => {
         {renderContent()}
       </div>
 
-      {showPreview && data && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', zIndex: 10000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
+      {showPreview && data && createPortal(
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPreview(false); }}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)', zIndex: 999999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)'
+          }}
+        >
           <div style={{
             background: '#fff', width: '600px', maxWidth: '90vw', maxHeight: '90vh',
             borderRadius: '8px', display: 'flex', flexDirection: 'column',
@@ -854,7 +859,8 @@ const DocumentDetailDrawer: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
