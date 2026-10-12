@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { History, Clock, User, CheckCircle, Edit, ArrowRight, XCircle, Search, Filter, RotateCcw } from 'lucide-react';
+import { API_BASE_URL } from '../api/axiosClient';
 
 interface AuditLog {
   id: number;
@@ -39,7 +40,7 @@ const AuditLogs: React.FC = () => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/v1/audit/logs');
+        const response = await fetch(`${API_BASE_URL}/audit/logs`);
         const data = await response.json();
         setLogs(data.logs || []);
       } catch (error) {

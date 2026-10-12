@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, RefreshCw, XCircle, Search, Filter, RotateCcw } from 'lucide-react';
 import ConfirmModal from '../components/shared/ConfirmModal';
+import { API_BASE_URL } from '../api/axiosClient';
 
 interface RejectedDocument {
   id: number;
@@ -40,7 +41,7 @@ const RejectedDocs: React.FC = () => {
 
   const fetchRejectedDocs = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/documents/rejected');
+      const response = await fetch(`${API_BASE_URL}/documents/rejected`);
       const data = await response.json();
       setDocuments(data.documents || []);
     } catch (error) {
@@ -72,7 +73,7 @@ const RejectedDocs: React.FC = () => {
         setConfirmState(prev => ({ ...prev, isOpen: false }));
         setProcessingId(id);
         try {
-          const response = await fetch(`http://localhost:8000/api/v1/documents/${id}/reprocess`, {
+          const response = await fetch(`${API_BASE_URL}/documents/${id}/reprocess`, {
             method: 'POST'
           });
           const result = await response.json();
@@ -101,7 +102,7 @@ const RejectedDocs: React.FC = () => {
         setConfirmState(prev => ({ ...prev, isOpen: false }));
         setProcessingId(id);
         try {
-          const response = await fetch(`http://localhost:8000/api/v1/documents/${id}/hard_delete`, {
+          const response = await fetch(`${API_BASE_URL}/documents/${id}/hard_delete`, {
             method: 'DELETE'
           });
           const result = await response.json();

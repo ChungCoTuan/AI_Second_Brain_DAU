@@ -1,19 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-import os
-import random
 from ...db.session import get_db
-from ...db.models import Document, Obligation, Threshold, DocumentRelation, AuditTrail
-from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
-from ...services.pdf_parser import extract_text_from_pdf, chunk_document
-from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR
+from ...db.models import Document, User
 from ...core.security import get_current_user
-from ...db.models import User
-
-class ExtractRequest(BaseModel):
-    text: str
 
 router = APIRouter()
 

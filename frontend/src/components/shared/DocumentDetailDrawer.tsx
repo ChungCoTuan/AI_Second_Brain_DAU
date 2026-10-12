@@ -3,6 +3,7 @@ import { useDetail } from '../../context/DetailContext';
 import { fmtDate, badge } from '../../utils';
 import { Download, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../../api/axiosClient';
 
 const DocumentDetailDrawer: React.FC = () => {
   const { docId, openDetail, closeDetail } = useDetail();
@@ -28,7 +29,7 @@ const DocumentDetailDrawer: React.FC = () => {
     }
 
     // Fetch dữ liệu thật từ API
-    fetch(`http://localhost:8000/api/v1/documents/detail/${encodeURIComponent(docId)}`)
+    fetch(`${API_BASE_URL}/documents/detail/${encodeURIComponent(docId)}`)
       .then(res => {
         if (!res.ok) throw new Error('Not found');
         return res.json();
@@ -45,7 +46,7 @@ const DocumentDetailDrawer: React.FC = () => {
 
   const handleDownloadReport = async (soHieu: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/reports/template/${encodeURIComponent(soHieu)}`);
+      const response = await fetch(`${API_BASE_URL}/reports/template/${encodeURIComponent(soHieu)}`);
       if (!response.ok) throw new Error('Download failed');
       
       const blob = await response.blob();
@@ -191,7 +192,7 @@ const DocumentDetailDrawer: React.FC = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   const token = localStorage.getItem('token') || '';
-                  window.open(`http://localhost:8000/api/v1/documents/${encodeURIComponent(docId || '')}/pdf?token=${token}`, '_blank');
+                  window.open(`${API_BASE_URL}/documents/${encodeURIComponent(docId || '')}/pdf?token=${token}`, '_blank');
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-1px)';

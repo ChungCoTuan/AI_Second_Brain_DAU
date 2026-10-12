@@ -6,8 +6,9 @@
 
 import re
 import os
+import json
 import warnings
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -21,6 +22,8 @@ for key_name in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]:
 current_key_idx = 0
 if GEMINI_API_KEYS:
     genai.configure(api_key=GEMINI_API_KEYS[0])
+
+
 
 # Lazy loading cho embedding model siêu nhẹ
 _embedding_model = None
@@ -138,35 +141,59 @@ class LegalInformationExtractor:
     def extract_obligation(self, text_chunk: str) -> Dict[str, str]:
         """
         Bóc tách Nghĩa vụ (Chủ thể, Hành động, Hạn chót) từ một đoạn văn bản.
+        Sử dụng 100% thuật toán NLP nội bộ (Rule-based & Pattern Matching).
+        Tuyệt đối không gọi API bên ngoài (chỉ dùng Gemini tại tab Chatbot).
         """
-        try:
-            # Ngưỡng tự tin (Score threshold) để ngăn chặn "vơ đại"
-            confidence_threshold = 0.05
-            safe_context = text_chunk[:1000]
-            
-            # 1. Hỏi Chủ thể
-            ans_sub = self._ask_qa("Ai là người thực hiện hoặc chịu trách nhiệm?", safe_context)
-            subject = ans_sub['answer'] if ans_sub['score'] > confidence_threshold else "Không có"
-            
-            # 2. Hỏi Hành động
-            ans_act = self._ask_qa("Phải làm nhiệm vụ gì?", safe_context)
-            action = ans_act['answer'] if ans_act['score'] > confidence_threshold else "Không có"
-            
-            # 3. Hỏi Hạn chót
-            ans_dead = self._ask_qa("Hạn chót hoặc thời gian thực hiện là khi nào?", safe_context)
-            deadline = ans_dead['answer'] if ans_dead['score'] > confidence_threshold else "Không có"
-            
-            return {
-                "chu_the": subject.capitalize(),
-                "han_chot": deadline,
-                "noi_dung": action.capitalize()
-            }
-        except Exception as e:
-            err_msg = str(e)
-            if "1455" in err_msg or "memory" in err_msg.lower() or "paging file" in err_msg.lower() or "allocate" in err_msg.lower():
-                raise RuntimeError("Lỗi xử lý do tràn bộ nhớ, bạn có thể bắt đầu lại.")
-            else:
-                raise RuntimeError(f"Lỗi AI khi bóc tách Nghĩa vụ: {err_msg}. Bạn có thể xử lý lại.")
+        # Thuật toán NLP Rule-based thông minh
+        clean = re.sub(r'--- TRANG \d+ ---', '', text_chunk)
+        clean = re.sub(r'Cơ quan:[^\n]+', '', clean)
+        clean = re.sub(r'Người ký:[^\n]+', '', clean)
+        clean = re.sub(r'Thời gian ký:[^\n]+', '', clean)
+        clean = re.sub(r'Email:[^\n]+', '', clean)
+        clean = re.sub(r'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM[^\n]*', '', clean, flags=re.IGNORECASE)
+        clean = re.sub(r'Độc lập - Tự do - Hạnh phúc[^\n]*', '', clean, flags=re.IGNORECASE)
+        clean = clean.strip()
+        
+        subject = "Cơ quan/đối tượng có liên quan"
+        sub_patterns = [
+            r"(?:tiêu chuẩn.*?của|áp dụng đối với|trách nhiệm của|đối với)\s+([a-zà-ỹ\s]{5,60})",
+            r"\b(Bộ\s+[A-ZÀ-Ỹa-zà-ỹ\s]+?)(?:cộng hòa|\,|-|\n|kính gửi)",
+            r"\b(Bộ\s+[A-ZÀ-Ỹa-zà-ỹ\s]+|Ủy ban nhân dân\s+[A-ZÀ-Ỹa-zà-ỹ\s]+|Thủ tướng Chính phủ|Chính phủ|Viên chức[^\,\.\n]*|Giảng viên[^\,\.\n]*|Sinh viên[^\,\.\n]*)"
+        ]
+        for p in sub_patterns:
+            m = re.search(p, clean, re.IGNORECASE)
+            if m:
+                subject = m.group(1).strip()
+                break
+                
+        action = "Thực hiện theo các điều khoản quy định"
+        act_patterns = [
+            r"(?:thực hiện|chấp hành|chịu trách nhiệm|có trách nhiệm|phải|báo cáo|tổ chức)\s+([^;\.\n]{10,150})"
+        ]
+        for p in act_patterns:
+            m = re.search(p, clean, re.IGNORECASE)
+            if m:
+                action = m.group(0).strip()
+                break
+                
+        deadline = "Không quy định thời hạn cụ thể"
+        dead_patterns = [
+            r"(theo tuần|theo tháng|theo quý|hằng năm)",
+            r"(trước ngày\s+\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
+            r"(chậm nhất\s+(?:vào\s+)?(?:ngày\s+)?\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
+            r"(trong thời hạn\s+\d+\s+ngày)"
+        ]
+        for p in dead_patterns:
+            m = re.search(p, clean, re.IGNORECASE)
+            if m:
+                deadline = m.group(1).strip()
+                break
+                
+        return {
+            "chu_the": subject.capitalize(),
+            "noi_dung": action.capitalize(),
+            "han_chot": deadline
+        }
 
     def extract_document_metadata(self, text: str) -> Dict[str, str]:
         """
@@ -236,26 +263,68 @@ class LegalInformationExtractor:
 
     def extract_threshold(self, text_chunk: str) -> Dict[str, str]:
         """
-        Bóc tách Con số chốt (Thresholds / Định mức).
+        Bóc tách Con số chốt (Thresholds / Định mức / Tỷ lệ / Hệ số lương / Ngân sách).
+        Sử dụng 100% thuật toán NLP nội bộ (Rule-based & Pattern Matching).
+        Tuyệt đối không gọi API bên ngoài (chỉ dùng Gemini tại tab Chatbot).
         """
-        try:
-            safe_context = text_chunk[:1000]
-            ans_thresh = self._ask_qa("Con số, số lượng hoặc tỷ lệ là bao nhiêu?", safe_context)
-            if ans_thresh['score'] > 0.05 and ans_thresh['answer']:
-                return {
-                    "gia_tri": f"Ngưỡng: {ans_thresh['answer']}",
-                    "y_nghia": "Được trích xuất bởi AI"
-                }
+        # Thuật toán Rule-based: Lọc bỏ trước các ngày tháng ban hành luật / căn cứ pháp lý để tránh nhầm ngày ký thành ngưỡng
+        clean = re.sub(r'ngày\s+\d{1,2}\s+tháng\s+\d{1,2}\s+năm\s+\d{4}', '', text_chunk, flags=re.IGNORECASE)
+        clean = re.sub(r'ngày\s+\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', '', clean, flags=re.IGNORECASE)
+        clean = re.sub(r'--- TRANG \d+ ---', '', clean)
+
+        # 1. Quét hệ số lương
+        coef_pattern = r"((?:từ\s+)?hệ số\s+(?:lương\s+)?\d+[\.,]\d+(?:\s+đến\s+(?:hệ số\s+)?\d+[\.,]\d+)?)"
+        m_coef = re.search(coef_pattern, clean, re.IGNORECASE)
+        if m_coef:
+            val = m_coef.group(1).strip()
             return {
-                "gia_tri": "Không có con số chốt",
-                "y_nghia": "Định mức chung"
+                "gia_tri": val,
+                "y_nghia": "Hệ số lương chức danh nghề nghiệp viên chức theo quy định"
             }
-        except Exception as e:
-            err_msg = str(e)
-            if "1455" in err_msg or "memory" in err_msg.lower() or "paging file" in err_msg.lower() or "allocate" in err_msg.lower():
-                raise RuntimeError("Lỗi xử lý do tràn bộ nhớ, bạn có thể bắt đầu lại.")
-            else:
-                raise RuntimeError(f"Lỗi AI khi bóc tách Định mức: {err_msg}. Bạn có thể xử lý lại.")
+
+        # 2. Quét số tiền và ngân sách
+        money_pattern = r"(\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d+)?\s*(?:tỷ đồng|triệu đồng|nghìn đồng|đồng|USD|VNĐ))"
+        m_money = re.search(money_pattern, clean, re.IGNORECASE)
+        if m_money:
+            val = m_money.group(1).strip()
+            # Tìm câu chứa số tiền để lấy ý nghĩa
+            sentences = re.split(r'[\n;\.]', clean)
+            meaning = "Định mức tài chính / ngân sách được giao"
+            for s in sentences:
+                if val in s:
+                    s_clean = s.strip()
+                    if len(s_clean) > 10:
+                        meaning = s_clean[:120].strip()
+                        break
+            return {
+                "gia_tri": val,
+                "y_nghia": meaning
+            }
+
+        # 3. Quét tỷ lệ phần trăm
+        pct_pattern = r"(\d+(?:[\.,]\d+)?\s*(?:%|phần trăm))"
+        m_pct = re.search(pct_pattern, clean, re.IGNORECASE)
+        if m_pct:
+            val = m_pct.group(1).strip()
+            return {
+                "gia_tri": val,
+                "y_nghia": "Tỷ lệ phần trăm quy định"
+            }
+
+        # 4. Quét định mức thời hạn / chu kỳ / chỉ tiêu
+        quota_pattern = r"((?:tối đa|tối thiểu|ít nhất|không quá|trong thời hạn)\s+\d+\s*(?:ngày làm việc|ngày|tháng|năm|chỉ tiêu|học viên|sinh viên))"
+        m_quota = re.search(quota_pattern, clean, re.IGNORECASE)
+        if m_quota:
+            val = m_quota.group(1).strip()
+            return {
+                "gia_tri": val,
+                "y_nghia": "Thời hạn hoặc định mức quy định"
+            }
+
+        return {
+            "gia_tri": "Không có con số chốt",
+            "y_nghia": "Định mức chung"
+        }
 
     def summarize_text(self, text: str) -> str:
         """
@@ -414,8 +483,8 @@ CÂU HỎI CỦA NGƯỜI DÙNG: {query}
     last_error = ""
     while attempts < len(GEMINI_API_KEYS):
         try:
-            model = genai.GenerativeModel('gemini-3.5-flash')
-            response = model.generate_content(prompt)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content(prompt, request_options={"timeout": 20})
             return response.text
         except Exception as e:
             error_msg = str(e)

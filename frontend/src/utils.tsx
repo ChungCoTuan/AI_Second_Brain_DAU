@@ -63,7 +63,7 @@ export function nhanNgay(ngay: string): string {
   return fmtDate(ngay);
 }
 
-export const HOM_NAY = '2026-08-19';
+export const HOM_NAY = new Date().toISOString().slice(0, 10);
 
 export function ngayTu(a: string, b: string): number {
   return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);

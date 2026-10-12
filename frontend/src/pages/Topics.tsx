@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDetail } from '../context/DetailContext';
 import { Layers, CheckCircle2, Clock, XCircle, Filter, RotateCcw, Search } from 'lucide-react';
+import { API_BASE_URL } from '../api/axiosClient';
 
 interface Topic {
   id: string;
@@ -43,7 +44,7 @@ const Topics: React.FC = () => {
 
   // Lấy danh sách các chủ đề ban đầu
   useEffect(() => {
-    fetch('http://localhost:8000/api/v1/topics')
+    fetch(`${API_BASE_URL}/topics`)
       .then(res => res.json())
       .then(data => {
         setTopics(data.topics || []);
@@ -66,7 +67,7 @@ const Topics: React.FC = () => {
     }
 
     setDocuments([]);
-    fetch(`http://localhost:8000/api/v1/topics/${selectedTopic}/documents`)
+    fetch(`${API_BASE_URL}/topics/${selectedTopic}/documents`)
       .then(res => res.json())
       .then(data => {
         setDocuments(data.documents || []);

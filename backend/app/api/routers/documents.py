@@ -5,18 +5,13 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 import os
 import shutil
-import random
 import re
 from ...db.session import get_db
-from ...db.models import Document, Obligation, Threshold, DocumentRelation, AuditTrail
-from ...services.nlp_pipeline import generate_rag_answer, extractor, classify_text
+from ...db.models import Document, Obligation, Threshold, DocumentRelation, AuditTrail, User
+from ...services.nlp_pipeline import extractor, classify_text
 from ...services.pdf_parser import extract_text_from_pdf, chunk_document
-from ...services.ingestion.crawl_documents import crawl_chinhphu, get_sync_status, BASE_OUTPUT_DIR
+from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
 from ...core.security import get_current_user, get_current_admin
-from ...db.models import User
-
-class ExtractRequest(BaseModel):
-    text: str
 
 def clean_doc_title(s: Optional[str]) -> str:
     if not s:
@@ -91,16 +86,7 @@ async def get_document_pdf(document_id: str, token: Optional[str] = None, db: Se
         headers={"Content-Disposition": f"inline; filename={document.filename}"}
     )
 
-@router.post("/extract")
-async def extract_information(request: ExtractRequest) -> Dict[str, Any]:
-    """
-    Placeholder endpoint for information extraction using Gemini.
-    """
-    # This will later call llm_service
-    return {
-        "message": "Information extraction endpoint ready.",
-        "input_text_length": len(request.text)
-    }
+
 
 
 @router.post("/documents/upload")
@@ -811,8 +797,6 @@ def process_crawled_document(request: ProcessCrawledRequest, background_tasks: B
     return {"status": "success", "message": f"Đã đưa {request.filename} vào hàng đợi xử lý ngầm."}
 
 def _run_extraction(filepath: str, filename: str, source_folder: str, domain: str):
-    """Hàm chạy ngầm trong background thread - không chặn event loop của FastAPI."""
-    import random
     from ...db.session import SessionLocal
     from ...db.models import Document, Obligation, Threshold, DocumentRelation
     from ...services.pdf_parser import extract_text_from_pdf, chunk_document
@@ -863,7 +847,10 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
         db.refresh(doc)
         
         if len(articles) > 0:
-            art_obl = random.choice(articles)
+            # Bóc tách có điều kiện: Tìm điều khoản phù hợp nhất dựa trên từ khóa nghiệp vụ
+            obl_keywords = ["trách nhiệm", "nghĩa vụ", "thực hiện", "phải", "hạn chót", "thời hạn", "báo cáo"]
+            art_obl = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in obl_keywords)), articles[0])
+            
             obl_info = extractor.extract_obligation(art_obl["raw"])
             obl_tom_tat = extractor.summarize_text(art_obl["raw"])
             obl_nli = extractor.verify_nli(art_obl["raw"], obl_tom_tat)
@@ -882,7 +869,12 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
                 nli_label=obl_nli
             ))
             
-            art_thresh = random.choice(articles)
+            # Điều khoản con số chốt: ưu tiên chứa số liệu tài chính, %, tỷ lệ, hệ số lương hoặc định mức
+            thresh_keywords = ["tỷ đồng", "triệu đồng", "nghìn đồng", "đồng", "%", "tỷ lệ", "hệ số", "định mức", "tối thiểu", "tối đa", "không quá", "ít nhất", "chỉ tiêu"]
+            art_thresh = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in thresh_keywords) and a != art_obl), None)
+            if not art_thresh:
+                art_thresh = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in thresh_keywords)), articles[-1] if len(articles) > 1 else articles[0])
+            
             thresh_info = extractor.extract_threshold(art_thresh["raw"])
             thresh_tom_tat = extractor.summarize_text(art_thresh["raw"])
             thresh_nli = extractor.verify_nli(art_thresh["raw"], thresh_tom_tat)

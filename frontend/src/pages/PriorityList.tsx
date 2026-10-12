@@ -3,6 +3,7 @@ import { useData } from '../context/DataContext';
 import { useDetail } from '../context/DetailContext';
 import { Filter, RotateCcw, Search } from 'lucide-react';
 import { fold } from '../utils';
+import { API_BASE_URL } from '../api/axiosClient';
 
 const PriorityList: React.FC = () => {
   const { openDetail } = useDetail();
@@ -88,7 +89,7 @@ const PriorityList: React.FC = () => {
     markAsRead('warning', soHieu);
     openDetail(soHieu);
     try {
-      await fetch(`http://localhost:8000/api/v1/auditing/warnings/${encodeURIComponent(soHieu)}/resolve`, {
+      await fetch(`${API_BASE_URL}/auditing/warnings/${encodeURIComponent(soHieu)}/resolve`, {
         method: 'POST'
       });
       refreshData();
