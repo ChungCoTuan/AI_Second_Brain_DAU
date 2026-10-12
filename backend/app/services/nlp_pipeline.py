@@ -479,23 +479,48 @@ TÀI LIỆU NGỮ CẢNH:
 CÂU HỎI CỦA NGƯỜI DÙNG: {query}
 """
     
+    # Danh sách model ứng viên: ưu tiên cấu hình GEMINI_MODEL -> gemini-3.8-flash -> gemini-flash-latest -> gemini-3.5-flash
+    env_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    fallback_models = [m for m in [env_model, "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"] if m]
+    candidate_models = list(dict.fromkeys(fallback_models))
+    
+    # Timeout cho cuộc gọi AI (mặc định 60s thay vì 20s để xử lý câu trả lời văn bản dài)
+    try:
+        call_timeout = int(os.getenv("GEMINI_TIMEOUT", "60"))
+    except ValueError:
+        call_timeout = 60
+    
     attempts = 0
     last_error = ""
     while attempts < len(GEMINI_API_KEYS):
-        try:
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            response = model.generate_content(prompt, request_options={"timeout": 20})
-            return response.text
-        except Exception as e:
-            error_msg = str(e)
-            last_error = error_msg
-            if "429" in error_msg or "Quota exceeded" in error_msg:
-                print(f"Key {current_key_idx + 1} quá tải. Chuyển sang key dự phòng...")
-                attempts += 1
-                if attempts < len(GEMINI_API_KEYS):
-                    current_key_idx = (current_key_idx + 1) % len(GEMINI_API_KEYS)
-                    genai.configure(api_key=GEMINI_API_KEYS[current_key_idx])
-            else:
+        current_api_key = GEMINI_API_KEYS[current_key_idx]
+        genai.configure(api_key=current_api_key)
+        
+        for model_name in candidate_models:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt, request_options={"timeout": call_timeout})
+                return response.text
+            except Exception as e:
+                error_msg = str(e)
+                last_error = error_msg
+                # Nếu model bị 404 hoặc không hỗ trợ, thử model tiếp theo trong candidate_models
+                if "404" in error_msg or "not found" in error_msg.lower():
+                    continue
+                # Nếu hết quota cho riêng model này, thử model khác trong candidate_models
+                if "Quota exceeded for metric" in error_msg:
+                    continue
+                # Nếu hết quota 429 chung, bị timeout 504 hoặc server bận 503: chuyển sang key dự phòng
+                if any(err_code in error_msg for err_code in ["429", "Quota exceeded", "RESOURCE_EXHAUSTED", "504", "503", "Deadline expired", "deadline expired"]):
+                    try:
+                        print(f"[Gemini RAG] Key {current_key_idx + 1} quota/timeout on {model_name}. Rotating to next key...", flush=True)
+                    except Exception:
+                        pass
+                    break
+                # Các lỗi khác (cấm nội dung...)
                 return f"Xin lỗi, đã xảy ra lỗi khi gọi AI: {error_msg}"
                 
-    return "Tất cả các tài khoản dự phòng đều đang quá tải do hết lượt gọi AI miễn phí. Sếp vui lòng đợi khoảng 1-2 phút rồi hỏi lại nhé!"
+        attempts += 1
+        current_key_idx = (current_key_idx + 1) % len(GEMINI_API_KEYS)
+                
+    return f"Tất cả các tài khoản dự phòng đều đang quá tải hoặc phản hồi chậm ({last_error[:80] if last_error else 'Timeout'}). Bạn vui lòng thử lại sau ít phút!"

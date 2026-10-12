@@ -12,7 +12,7 @@ backend/data/
 backend/filenames.json
 backend/test_output.json
 
-# AI Assistant & Tool Configuration Folders (Local only)
+# AI Assistant & Tool Configuration Folders
 .agents/
 .antigravity/
 .antogravity/
