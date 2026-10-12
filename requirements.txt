@@ -1,0 +1,58 @@
+# ==============================================================================
+# DAU SECOND BRAIN - DANH MỤC THƯ VIỆN & PHỤ THUỘC (DEPENDENCIES)
+# ==============================================================================
+
+# --- 1. Web Framework & API Server ---
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.9.0
+pydantic-settings>=2.2.0
+python-multipart>=0.0.9
+
+# --- 2. Cơ sở dữ liệu & ORM (PostgreSQL) ---
+sqlalchemy>=2.0.28
+psycopg2-binary>=2.9.9
+pgvector>=0.2.5
+
+# --- 3. Bảo mật, Xác thực & Phân quyền (JWT / Hashing) ---
+python-jose>=3.3.0
+passlib>=1.7.4
+bcrypt>=4.0.1
+cryptography>=42.0.0
+
+# --- 4. Mô hình Trí tuệ Nhân tạo & Deep Learning Cục bộ (Local AI Models) ---
+# Tóm tắt (ViT5/BARTpho), NLI (XLM-RoBERTa), Embedding (MiniLM)
+torch>=2.2.0
+torchvision>=0.17.0
+torchaudio>=2.2.0
+transformers>=4.40.0
+tokenizers>=0.19.0
+sentencepiece>=0.2.0
+safetensors>=0.4.0
+accelerate>=0.29.0
+sentence-transformers>=2.7.0
+faiss-cpu>=1.8.0
+scikit-learn>=1.4.0
+numpy>=1.26.0
+scipy>=1.12.0
+
+# --- 5. Xử lý Văn bản, Trích xuất PDF & Nhận dạng Ký tự Quang học (OCR) ---
+pymupdf>=1.23.0
+pdfplumber>=0.11.0
+pdf2image>=1.17.0
+pytesseract>=0.3.10
+pillow>=10.2.0
+python-docx>=1.1.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+lxml>=5.1.0
+
+# --- 6. AI API Ngoại vi (DUY NHẤT dành riêng cho Tab Tra cứu AI / Chatbot RAG) ---
+google-generativeai>=0.5.0
+
+# --- 7. Tác vụ ngầm, Lập lịch Cron & Tiện ích Hệ thống ---
+apscheduler>=3.10.4
+python-dotenv>=1.0.1
+psutil>=5.9.0
+tqdm>=4.66.0
+rich>=13.7.0
