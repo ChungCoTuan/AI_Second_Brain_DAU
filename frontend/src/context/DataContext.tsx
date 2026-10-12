@@ -30,7 +30,8 @@ const emptyData = {
     theoNam: [],
     tapTrung: { theoLoai: [], theoChuDe: [] },
     tinCay: { tb: 0, tong: 0, ocr: 0, duoi80: 0 },
-    uuTien: []
+    uuTien: [],
+    summaryText: ''
   }
 };
 

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FileText } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 interface CitationBadgeProps {
   documentId: string;

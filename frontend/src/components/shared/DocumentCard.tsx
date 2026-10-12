@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import StatusBadge from './StatusBadge';
-import toast from 'react-hot-toast';
 
 interface DocumentCardProps {
   id: string;

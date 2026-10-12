@@ -6,7 +6,14 @@ const Analytics: React.FC = () => {
   const I = data.insights || {};
 
   const renderBars = (rows: any[], className = '') => {
-    const max = Math.max(...rows.map((r) => r.n));
+    if (!rows || rows.length === 0) {
+      return (
+        <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
+          Chưa có dữ liệu thống kê
+        </div>
+      );
+    }
+    const max = Math.max(...rows.map((r) => r.n), 1);
     return (
       <div className={className}>
         {rows.map((r, idx) => (
@@ -25,9 +32,16 @@ const Analytics: React.FC = () => {
   };
 
   const renderDonut = () => {
-    const a = I.thayThe;
-    const b = I.baiBo;
+    const a = I.thayThe || 0;
+    const b = I.baiBo || 0;
     const tot = a + b;
+    if (tot === 0) {
+      return (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
+          Chưa có sự kiện thay thế hoặc bãi bỏ
+        </div>
+      );
+    }
     const r = 42;
     const c = 2 * Math.PI * r;
     const segA = (a / tot) * c;
@@ -98,7 +112,13 @@ const Analytics: React.FC = () => {
 
   const t = I.tinCay;
   const renderTrust = () => {
-    if (!t) return null;
+    if (!t || t.tong === 0) {
+      return (
+        <div style={{ padding: '20px 0', color: 'var(--muted)', fontSize: '13px' }}>
+          Chưa có dữ liệu trích xuất độ tin cậy.
+        </div>
+      );
+    }
     return (
       <>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
@@ -120,14 +140,14 @@ const Analytics: React.FC = () => {
             </text>
           </svg>
           <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-            Độ tin cậy trung bình khi AI bóc tách {t.tong} văn bản cảnh báo.
+            Độ tin cậy trung bình khi AI bóc tách {t.tong} văn bản trong kho.
           </div>
         </div>
         <div className="tline">
           <b>
             {t.ocr}/{t.tong}
           </b>{' '}
-          văn bản đọc bằng OCR (ảnh scan)
+          văn bản đọc qua kênh xử lý quang học (OCR)
         </div>
         <div className="tline">
           <b>
@@ -136,7 +156,7 @@ const Analytics: React.FC = () => {
           văn bản có độ tin cậy dưới 80%: <span style={{ color: 'var(--amber)' }}>nên có người kiểm lại</span>
         </div>
         <div className="tline" style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '8px' }}>
-          Hệ thống không tự quyết; con người duyệt cuối (HITL) + lưu vết.
+          Hệ thống không tự quyết; con người duyệt cuối (HITL) + lưu vết kiểm toán.
         </div>
       </>
     );
@@ -146,25 +166,25 @@ const Analytics: React.FC = () => {
     <section id="phan-tich" style={{ background: 'var(--soft)' }}>
       <div className="wrap">
         <h2>Phân tích nhanh</h2>
-        <p className="sub">Rút trực tiếp từ kết quả rà soát, không phải số minh hoạ.</p>
+        <p className="sub">Rút trích trực tiếp từ kết quả rà soát, không phải số minh hoạ.</p>
 
         <div className="metrics" id="metrics">
           <div className="metric">
-            <b>{I.luotVien}</b>
+            <b>{I.luotVien ?? 0}</b>
             <span>lượt viện dẫn căn cứ đã hết hiệu lực</span>
           </div>
           <div className="metric">
             <b>
-              {I.thayThe} / {I.baiBo}
+              {I.thayThe ?? 0} / {I.baiBo ?? 0}
             </b>
             <span>bị thay thế / bị bãi bỏ</span>
           </div>
           <div className="metric">
-            <b>{I.vbNhieuCanCu}</b>
+            <b>{I.vbNhieuCanCu ?? 0}</b>
             <span>văn bản dính từ 2 căn cứ hỏng trở lên</span>
           </div>
           <div className="metric">
-            <b>{I.luotLuatMoi}</b>
+            <b>{I.luotLuatMoi ?? 0}</b>
             <span>lượt do luật mới 2025 tới 2026</span>
           </div>
         </div>
@@ -209,9 +229,20 @@ const Analytics: React.FC = () => {
         </div>
 
         <div className="note" style={{ marginTop: '16px' }}>
-          <b>Vì sao bây giờ:</b> {I.luotLuatMoi}/{I.luotVien} lượt viện căn cứ hết hiệu lực là do đợt sửa luật lớn{' '}
-          <b>2025 tới 2026</b>. Riêng <b>Luật Giáo dục đại học 125/2025</b> đã có nguyên văn điều khoản thi hành trong
-          kho và tự khai làm 5 luật cũ hết hiệu lực. Càng để lâu, số văn bản đứng trên căn cứ đã chết càng dồn.
+          <b>Nhận định rà soát:</b>{' '}
+          {I.summaryText ? (
+            <span>{I.summaryText}</span>
+          ) : (
+            <span>
+              {I.luotVien > 0 ? (
+                <>
+                  Có <b>{I.luotVien}</b> lượt viện căn cứ hết hiệu lực hoặc bị thay thế. Cần ưu tiên rà soát để giảm thiểu rủi ro pháp lý.
+                </>
+              ) : (
+                'Hệ thống đối soát chưa ghi nhận văn bản nào viện dẫn căn cứ đã hết hiệu lực. Toàn bộ căn cứ pháp lý đang ở trạng thái an toàn.'
+              )}
+            </span>
+          )}
         </div>
       </div>
     </section>

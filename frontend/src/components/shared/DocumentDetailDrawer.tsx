@@ -153,7 +153,7 @@ const DocumentDetailDrawer: React.FC = () => {
               onClick={(e) => {
                 e.stopPropagation();
                 const token = localStorage.getItem('token') || '';
-                window.open(`http://localhost:8000/api/v1/documents/${encodeURIComponent(docId)}/pdf?token=${token}`, '_blank');
+                window.open(`http://localhost:8000/api/v1/documents/${encodeURIComponent(docId || '')}/pdf?token=${token}`, '_blank');
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';

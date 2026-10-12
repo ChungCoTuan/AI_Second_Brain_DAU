@@ -32,34 +32,55 @@ async def get_auditing_warnings(db: Session = Depends(get_db), current_user: Use
     
     # Lấy tất cả văn bản đã bị thay thế/bãi bỏ
     het_hieu_luc = db.query(DocumentRelation).filter(
-        DocumentRelation.relation_type.in_(["bị thay thế", "bị bãi bỏ"])
+        DocumentRelation.relation_type.ilike("%thay thế%") |
+        DocumentRelation.relation_type.ilike("%bãi bỏ%")
     ).all()
     
-    # Tạo dictionary map văn bản bị thay thế -> văn bản mới
-    het_hieu_luc_map = {rel.source_doc: rel for rel in het_hieu_luc}
+    import re
+    def normalize_doc_id(s: Optional[str]) -> str:
+        if not s:
+            return ""
+        return re.sub(r'[\)\.\,\;\:\/\-\s]+$', '', s.strip()).strip().lower()
+    
+    # Map normalized target_doc của văn bản bị thay thế/bãi bỏ -> relation
+    het_hieu_luc_map = {}
+    for rel in het_hieu_luc:
+        norm_key = normalize_doc_id(rel.target_doc)
+        if norm_key and norm_key not in het_hieu_luc_map:
+            het_hieu_luc_map[norm_key] = rel
+            
+    # Bổ sung các văn bản trong CSDL có trạng thái Hết hiệu lực
+    docs_expired = db.query(Document).filter(
+        Document.trang_thai_hieu_luc.in_(["Hết hiệu lực", "Hết hiệu lực một phần", "Bị thay thế", "Bị bãi bỏ"])
+    ).all()
+    for d in docs_expired:
+        norm_key = normalize_doc_id(d.filename)
+        if norm_key and norm_key not in het_hieu_luc_map:
+            het_hieu_luc_map[norm_key] = d
     
     warnings_map = {}
     
     for rel in can_cu_relations:
-        if rel.target_doc in het_hieu_luc_map:
-            thay_the_rel = het_hieu_luc_map[rel.target_doc]
+        norm_target = normalize_doc_id(rel.target_doc)
+        if norm_target in het_hieu_luc_map:
+            thay_the_item = het_hieu_luc_map[norm_target]
+            rel_type_display = getattr(thay_the_item, 'relation_type', 'hết hiệu lực')
             
             so_hieu = rel.source_doc
             if so_hieu not in warnings_map:
                 warnings_map[so_hieu] = {
-                    "docId": str(rel.id), # Dùng ID tạm
-                    "soHieu": so_hieu, # Tên văn bản quy chế, vd QĐ 324
+                    "docId": str(rel.id),
+                    "soHieu": so_hieu,
                     "loai": "Văn bản",
-                    "n": 1, # Số căn cứ hỏng
-                    "baiBo": True if thay_the_rel.relation_type == "bị bãi bỏ" else False,
-                    "chiTietLoi": f"Căn cứ {rel.target_doc} đã {thay_the_rel.relation_type}"
+                    "n": 1,
+                    "baiBo": True if "bãi bỏ" in rel_type_display else False,
+                    "chiTietLoi": f"Căn cứ {rel.target_doc} đã {rel_type_display}"
                 }
             else:
                 warnings_map[so_hieu]["n"] += 1
-                warnings_map[so_hieu]["chiTietLoi"] += f", {rel.target_doc} đã {thay_the_rel.relation_type}"
+                warnings_map[so_hieu]["chiTietLoi"] += f", {rel.target_doc} đã {rel_type_display}"
                 
-            # Nếu có ít nhất 1 căn cứ bị bãi bỏ thì đánh dấu baiBo là True
-            if thay_the_rel.relation_type == "bị bãi bỏ":
+            if "bãi bỏ" in rel_type_display:
                 warnings_map[so_hieu]["baiBo"] = True
                 
     warnings = list(warnings_map.values())
