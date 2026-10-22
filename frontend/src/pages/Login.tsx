@@ -59,9 +59,9 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#faf7f7', fontFamily: 'system-ui, sans-serif' }}>
+    <div className="login-page" style={{ display: 'flex', height: '100vh', width: '100vw', background: '#faf7f7', fontFamily: 'system-ui, sans-serif' }}>
       {/* Cột trái: Hình ảnh giới thiệu DAU */}
-      <div style={{ 
+      <div className="login-hero" style={{ 
         flex: 1, 
         background: 'linear-gradient(135deg, #7a0000 0%, #990000 100%)', 
         color: 'white', 
@@ -91,8 +91,8 @@ const Login: React.FC = () => {
       </div>
 
       {/* Cột phải: Form đăng nhập */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-        <div style={{ width: '100%', maxWidth: '420px', background: 'white', padding: '48px', borderRadius: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
+      <div className="login-form-panel" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
+        <div className="login-card" style={{ width: '100%', maxWidth: '420px', background: 'white', padding: '48px', borderRadius: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
           <div style={{ textAlign: 'center', marginBottom: '36px' }}>
             <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>Đăng nhập</h2>
             <p style={{ color: '#64748b', margin: 0, fontSize: '15px' }}>Vui lòng đăng nhập để tiếp tục</p>

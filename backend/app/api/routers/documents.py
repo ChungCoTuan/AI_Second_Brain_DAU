@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
@@ -90,9 +90,16 @@ async def get_document_pdf(document_id: str, token: Optional[str] = None, db: Se
 
 
 @router.post("/documents/upload")
-async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    allow_external_ocr: bool = Form(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
+):
     """
     Nhận file PDF tải lên, lưu xuống ổ cứng và đưa vào Background Task để xử lý.
+    allow_external_ocr phải được người dùng xác nhận ở frontend cho tài liệu không nhạy cảm.
     """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
@@ -109,7 +116,9 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
         shutil.copyfileobj(file.file, buffer)
         
     # Thêm tác vụ bóc tách vào hàng đợi ngầm
-    background_tasks.add_task(_run_extraction, file_path, file.filename, "data/uploads", "Khac")
+    background_tasks.add_task(
+        _run_extraction, file_path, file.filename, "data/uploads", "Khac", allow_external_ocr
+    )
     
     return {
         "status": "success",
@@ -792,11 +801,18 @@ def process_crawled_document(request: ProcessCrawledRequest, background_tasks: B
     else:
         source_folder = f"vanban_caotudong/{domain}/{category}"
     
-    background_tasks.add_task(_run_extraction, filepath, request.filename, source_folder, domain)
+    # Văn bản đã crawl từ cổng công khai nên được phép OCR qua API.
+    background_tasks.add_task(_run_extraction, filepath, request.filename, source_folder, domain, True)
         
     return {"status": "success", "message": f"Đã đưa {request.filename} vào hàng đợi xử lý ngầm."}
 
-def _run_extraction(filepath: str, filename: str, source_folder: str, domain: str):
+def _run_extraction(
+    filepath: str,
+    filename: str,
+    source_folder: str,
+    domain: str,
+    allow_external_ocr: bool = False,
+):
     from ...db.session import SessionLocal
     from ...db.models import Document, Obligation, Threshold, DocumentRelation
     from ...services.pdf_parser import extract_text_from_pdf, chunk_document
@@ -808,7 +824,7 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
             print(f"[BACKGROUND] Bỏ qua xử lý, văn bản đã tồn tại: {filename}")
             return
             
-        text = extract_text_from_pdf(filepath)
+        text = extract_text_from_pdf(filepath, allow_external_ocr=allow_external_ocr)
         if not text:
             print(f"[BACKGROUND] Không thể đọc nội dung file: {filename}")
             return
@@ -955,8 +971,19 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
         
         # Đơn giản hóa thông báo lỗi cho người dùng
         user_msg = "Có lỗi xảy ra trong quá trình phân tích văn bản. Vui lòng thử lại."
+        expected_error = False
         if "tràn bộ nhớ" in err_msg or "Hệ thống đang quá tải" in err_msg:
             user_msg = "Hệ thống đang quá tải bộ nhớ, vui lòng thử lại sau."
+            expected_error = True
+        elif "bản scan" in err_msg and "xác nhận" in err_msg:
+            user_msg = "Tài liệu là bản scan. Vui lòng xác nhận tài liệu không chứa dữ liệu nhạy cảm trước khi dùng OCR."
+            expected_error = True
+        elif "vượt giới hạn OCR" in err_msg:
+            user_msg = "Tài liệu vượt giới hạn OCR (số trang hoặc dung lượng). Vui lòng chia nhỏ file."
+            expected_error = True
+        elif "OCR" in err_msg:
+            user_msg = "Dịch vụ OCR đang gặp sự cố hoặc hết quota. Vui lòng thử lại sau."
+            expected_error = True
         elif "Lỗi AI" in err_msg:
             user_msg = "Có lỗi trong quá trình phân tích thông minh, vui lòng xử lý lại."
         elif "quá lớn" in err_msg or "scan quá lớn" in err_msg:
@@ -966,7 +993,11 @@ def _run_extraction(filepath: str, filename: str, source_folder: str, domain: st
             
         from ...services.notifier import notifier
         notifier.push_sync(f"error:{filename}:{user_msg}")
-        raise e
+
+        # Lỗi OCR/giới hạn là luồng nghiệp vụ bình thường (đã báo cho người dùng
+        # qua notifier), không ném tiếp để tránh traceback ASGI gây nhiễu log.
+        if not expected_error:
+            raise
     finally:
         db.close()
 

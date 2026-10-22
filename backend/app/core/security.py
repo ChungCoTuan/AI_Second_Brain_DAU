@@ -8,11 +8,17 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import User
 from app.api.schemas.user import TokenData
+from app.core.config import settings
 
-# Thay đổi bằng secret key phức tạp trong production (thường cấu hình ở .env)
-SECRET_KEY = "DAU_AI_SECOND_BRAIN_SUPER_SECRET_KEY_123!" 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 ngày
+if not settings.SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY chưa được cấu hình. Hãy đặt SECRET_KEY trong backend/.env "
+        "(chuỗi ngẫu nhiên tối thiểu 32 ký tự) trước khi chạy ứng dụng."
+    )
+
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

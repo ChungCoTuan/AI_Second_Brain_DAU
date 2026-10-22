@@ -2,12 +2,13 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, FileSearch, PlayCircle, Search, Filter, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import ConfirmModal from '../components/shared/ConfirmModal';
-import { API_BASE_URL } from '../api/axiosClient';
+import axiosClient, { API_BASE_URL } from '../api/axiosClient';
 
 const Admin: React.FC = () => {
   const { data, refreshData, setIsProcessing, processingFiles, setProcessingFiles } = useData();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [allowExternalOcr, setAllowExternalOcr] = useState(false);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error' | 'crawling'>('idle');
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -143,26 +144,16 @@ const Admin: React.FC = () => {
     
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('allow_external_ocr', String(allowExternalOcr));
     
     try {
-      const response = await fetch(`${API_BASE_URL}/documents/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        setStatus('success');
-        setMessage(data.message || 'Xử lý thành công!');
-        setFile(null); // Clear file sau khi xong
-      } else {
-        setStatus('error');
-        setMessage(data.detail || 'Lỗi khi xử lý file.');
-      }
-    } catch (error) {
+      const response = await axiosClient.post('/documents/upload', formData);
+      setStatus('success');
+      setMessage(response.data.message || 'Xử lý thành công!');
+      setFile(null); // Clear file sau khi xong
+    } catch (error: any) {
       setStatus('error');
-      setMessage('Không thể kết nối đến máy chủ.');
+      setMessage(error?.response?.data?.detail || 'Không thể kết nối đến máy chủ.');
       console.error(error);
     }
   };
@@ -473,7 +464,7 @@ const Admin: React.FC = () => {
                 Kéo thả file PDF vào đây
               </p>
               <p style={{ fontSize: '14px', color: 'var(--muted)', marginTop: '8px' }}>
-                hoặc click để chọn file từ máy tính của bạn (tối đa 50MB)
+                hoặc click để chọn file từ máy tính của bạn (tối đa 20MB, OCR tối đa 20 trang)
               </p>
               {isAnyFileProcessing && (
                 <p style={{ fontSize: '14px', color: 'var(--amber)', fontWeight: 600, marginTop: '12px' }}>
@@ -525,6 +516,31 @@ const Admin: React.FC = () => {
               {status === 'uploading' ? 'Đang xử lý...' : 'Bắt đầu Xử lý'}
             </button>
           </div>
+        )}
+
+        {file && (
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              marginTop: '12px',
+              fontSize: '14px',
+              color: 'var(--muted)',
+              cursor: 'pointer'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={allowExternalOcr}
+              onChange={(e) => setAllowExternalOcr(e.target.checked)}
+              style={{ marginTop: '3px' }}
+            />
+            <span>
+              Tôi xác nhận tài liệu không chứa dữ liệu nhạy cảm và đồng ý gửi ảnh scan
+              tới dịch vụ OCR bên ngoài (tối đa 20 trang).
+            </span>
+          </label>
         )}
       </div>
       <ConfirmModal

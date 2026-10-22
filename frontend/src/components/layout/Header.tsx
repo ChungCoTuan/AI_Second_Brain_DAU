@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Bell, User, CheckCircle2, AlertTriangle, CalendarClock, ClipboardList, FileText } from 'lucide-react';
+import { Bell, User, CheckCircle2, AlertTriangle, CalendarClock, ClipboardList, FileText, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  onMenu?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onMenu }) => {
   const { data, readWarnings, readDeadlines, markAsRead } = useData();
   const { role } = useAuth();
   const navigate = useNavigate();
@@ -100,8 +104,22 @@ const Header: React.FC = () => {
       padding: '0 20px', height: '58px', background: 'var(--blue)', color: '#fff',
       boxShadow: '0 1px 0 rgba(0,0,0,.15)', zIndex: 10, position: 'sticky', top: 0
     }}>
-      <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div className="brand" style={{ fontWeight: 700, fontSize: '16px' }}>Hệ thống Trợ lý Pháp lý</div>
+      <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+        {onMenu && (
+          <button
+            className="menu-btn"
+            onClick={onMenu}
+            aria-label="Mở menu"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer',
+              padding: '6px', borderRadius: '8px',
+            }}
+          >
+            <Menu size={22} />
+          </button>
+        )}
+        <div className="brand" style={{ fontWeight: 700, fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hệ thống Trợ lý Pháp lý</div>
       </div>
       <div className="header-right" style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
         
@@ -133,7 +151,7 @@ const Header: React.FC = () => {
           {/* Dropdown UI */}
           {isOpen && (
             <div style={{
-              position: 'absolute', top: '44px', right: '-10px', width: '340px',
+              position: 'absolute', top: '44px', right: '-10px', width: 'min(340px, calc(100vw - 24px))',
               background: '#fff', borderRadius: '12px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
               border: '1px solid var(--line)', color: 'var(--ink)', zIndex: 100,
               overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '420px'

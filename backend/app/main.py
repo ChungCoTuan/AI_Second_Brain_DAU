@@ -6,38 +6,16 @@ from .api import endpoints
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.ingestion.crawl_documents import crawl_chinhphu, check_new_chinhphu
-from app.db.session import engine, SessionLocal
-from app.db.models import Base, User
-from app.core.security import get_password_hash, verify_password
+from app.db.session import engine
+from app.db.models import Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Khởi tạo DB
     Base.metadata.create_all(bind=engine)
-    
-    # Tạo users mặc định
-    db = SessionLocal()
-    try:
-        admin_user = db.query(User).filter(User.email == "admin@dau.edu.vn").first()
-        if not admin_user:
-            admin = User(email="admin@dau.edu.vn", hashed_password=get_password_hash("admin123"), role="admin")
-            db.add(admin)
-        elif not verify_password("admin123", admin_user.hashed_password):
-            admin_user.hashed_password = get_password_hash("admin123")
-            
-        lecturer_user = db.query(User).filter(User.email == "giangvien@dau.edu.vn").first()
-        if not lecturer_user:
-            lecturer = User(email="giangvien@dau.edu.vn", hashed_password=get_password_hash("giangvien123"), role="lecturer")
-            db.add(lecturer)
-        elif not verify_password("giangvien123", lecturer_user.hashed_password):
-            lecturer_user.hashed_password = get_password_hash("giangvien123")
-            
-        db.commit()
-    except Exception as e:
-        print("Lỗi tạo user mặc định:", e)
-        db.rollback()
-    finally:
-        db.close()
+
+    # Tài khoản được tạo một lần bằng CLI: python -m app.scripts.create_admin
+    # Không tạo/đặt lại mật khẩu mặc định ở đây.
 
     # Khởi động Cron Job khi app start
     scheduler = BackgroundScheduler()
@@ -57,10 +35,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Set all CORS enabled origins
+# CORS: chỉ cho phép origin frontend được cấu hình trong .env
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For development. In production, change to specific origins.
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

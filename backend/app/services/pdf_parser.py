@@ -1,13 +1,22 @@
-import pymupdf as fitz  # PyMuPDF
+import io
 import os
 import re
-from typing import List, Dict
+from typing import Dict, List
 
-def extract_text_from_pdf(pdf_path: str) -> str:
+import pymupdf as fitz  # PyMuPDF
+
+from ..core.config import settings
+from .ocr_api import extract_page_text
+
+
+def extract_text_from_pdf(pdf_path: str, *, allow_external_ocr: bool = False) -> str:
     """
     Đọc file PDF và trích xuất toàn bộ văn bản thô.
     Sử dụng PyMuPDF (fitz) để giải quyết lỗi font (cid:xxx) của các file scan hoặc subset fonts.
-    Hỗ trợ Fallback OCR nếu phát hiện file scan.
+    Hỗ trợ Fallback OCR qua API nếu phát hiện file scan.
+
+    allow_external_ocr: phải bật rõ ràng để gửi ảnh trang ra dịch vụ OCR bên ngoài.
+    Mặc định tắt để tránh vô tình gửi tài liệu nhạy cảm ra ngoài.
     """
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"Không tìm thấy file PDF tại: {pdf_path}")
@@ -31,55 +40,87 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 
     # Fallback OCR
     if total_pages > 0 and (total_words / total_pages < 20):
-        if total_pages > 100:
-            raise RuntimeError(f"Văn bản scan quá lớn ({total_pages} trang). Hệ thống từ chối chạy OCR tự động để ngăn ngừa lỗi tràn bộ nhớ (RAM Overflow). Vui lòng chẻ nhỏ file PDF dưới 100 trang hoặc tải lên văn bản gốc (Word/PDF có text).")
-            
-        print(f"Phát hiện file scan ({total_words} từ / {total_pages} trang), kích hoạt luồng Fallback OCR (Tesseract)...")
+        if not allow_external_ocr:
+            raise RuntimeError(
+                "Văn bản này là bản scan. Cần xác nhận tài liệu không chứa dữ liệu "
+                "nhạy cảm trước khi gửi ảnh trang tới dịch vụ OCR bên ngoài."
+            )
+
+        if total_pages > settings.OCR_MAX_PAGES:
+            raise RuntimeError(
+                f"Văn bản scan có {total_pages} trang, vượt giới hạn OCR "
+                f"{settings.OCR_MAX_PAGES} trang. Vui lòng chia nhỏ file PDF."
+            )
+
+        size_mb = os.path.getsize(pdf_path) / (1024 * 1024)
+        if size_mb > settings.OCR_MAX_PDF_MB:
+            raise RuntimeError(
+                f"File PDF {size_mb:.1f} MB vượt giới hạn OCR "
+                f"{settings.OCR_MAX_PDF_MB} MB. Vui lòng giảm dung lượng hoặc chia nhỏ file."
+            )
+
+        print(f"Phát hiện file scan ({total_words} từ / {total_pages} trang), kích hoạt Fallback OCR qua API...")
         ocr_result = _extract_text_via_ocr(pdf_path)
         if ocr_result:
             extracted_text = ocr_result
-                
+
     full_text = "\n\n".join(extracted_text)
     return full_text
 
+
 def _extract_text_via_ocr(pdf_path: str) -> List[str]:
     """
-    Sử dụng pdf2image và pytesseract để trích xuất văn bản từ bản scan.
-    Đã được cấu hình tự động trỏ tới thư mục bin cục bộ.
+    Render từng trang PDF thành JPEG rồi gọi OCR API.
+    Giữ nguyên định dạng trả về "--- TRANG N ---\\n..." như luồng Tesseract cũ.
     """
-    try:
-        from pdf2image import convert_from_path
-        import pytesseract
-        import platform
-        
-        # Đường dẫn thư mục bin cục bộ
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        tesseract_local = os.path.join(BASE_DIR, "bin", "Tesseract-OCR", "tesseract.exe")
-        tesseract_global = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-        poppler_path = os.path.join(BASE_DIR, "bin", "poppler", "Library", "bin")
-        tessdata_dir = os.path.join(BASE_DIR, "bin", "tessdata")
-        if os.path.exists(tessdata_dir):
-            os.environ["TESSDATA_PREFIX"] = tessdata_dir
-        
-        if platform.system() == "Windows":
-            if os.path.exists(tesseract_local):
-                pytesseract.pytesseract.tesseract_cmd = tesseract_local
-            elif os.path.exists(tesseract_global):
-                pytesseract.pytesseract.tesseract_cmd = tesseract_global
-            
-        print(f"Bắt đầu convert PDF sang ảnh để OCR: {pdf_path}")
-        images = convert_from_path(pdf_path, poppler_path=poppler_path if os.path.exists(poppler_path) else None)
-        extracted = []
-        
-        for i, img in enumerate(images):
-            print(f"OCR trang {i+1}...")
-            text = pytesseract.image_to_string(img, lang='vie')
-            if text.strip():
-                extracted.append(f"--- TRANG {i+1} ---\n{text.strip()}")
-        return extracted
-    except Exception as e:
-        print(f"Lỗi Fallback OCR: {e}. Vui lòng kiểm tra lại quá trình cài đặt Tesseract/Poppler.")
-        return []
+    from pdf2image import convert_from_path
+
+    print(f"Bắt đầu convert PDF sang ảnh để OCR: {pdf_path}")
+    images = convert_from_path(
+        pdf_path,
+        dpi=150,
+        fmt="jpeg",
+        jpegopt={"quality": 75},
+        thread_count=1,
+        first_page=1,
+        last_page=settings.OCR_MAX_PAGES,
+    )
+
+    max_image_bytes = settings.OCR_MAX_IMAGE_MB * 1024 * 1024
+    extracted: List[str] = []
+
+    for i, image in enumerate(images):
+        print(f"OCR trang {i + 1}...")
+        image_bytes = _encode_page_image(image, max_image_bytes)
+        text = extract_page_text(image_bytes)
+        if text.strip():
+            extracted.append(f"--- TRANG {i+1} ---\n{text.strip()}")
+
+    return extracted
+
+
+def _encode_page_image(image, max_bytes: int) -> bytes:
+    """Chuẩn hoá ảnh trang thành JPEG nhỏ hơn giới hạn trước khi gửi API."""
+    from PIL import Image
+
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    max_side = 2000
+    if max(image.size) > max_side:
+        image.thumbnail((max_side, max_side), Image.LANCZOS)
+
+    for quality in (75, 60, 45):
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=quality, optimize=True)
+        data = buffer.getvalue()
+        if len(data) <= max_bytes:
+            return data
+
+    raise RuntimeError(
+        f"Ảnh trang sau khi nén vẫn vượt giới hạn {settings.OCR_MAX_IMAGE_MB} MB. "
+        "Vui lòng giảm độ phân giải hoặc chia nhỏ tài liệu."
+    )
 
 def chunk_document(text: str) -> List[Dict[str, str]]:
     """

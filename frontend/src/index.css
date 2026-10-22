@@ -9,6 +9,24 @@
 html,body{margin:0;background:var(--bg);color:var(--ink);
   font-family:-apple-system,"Segoe UI","Be Vietnam Pro",Roboto,system-ui,sans-serif;line-height:1.55}
 a{color:var(--blue);text-decoration:none}
+
+/* ===== Responsive chung ===== */
+.menu-btn{display:none}
+.page-content{padding-bottom:40px}
+@media(max-width:768px){
+  .menu-btn{display:flex}
+  .user-profile > span{display:none}
+  .wrap{padding:0 14px}
+  h1{font-size:24px}
+  .lead{font-size:15px}
+}
+
+/* ===== Trang đăng nhập responsive ===== */
+@media(max-width:768px){
+  .login-hero{display:none !important}
+  .login-form-panel{padding:16px !important}
+  .login-card{padding:32px 24px !important;box-shadow:none !important}
+}
 .wrap{max-width:1600px;margin:0 auto;padding:0 20px}
 header{background:var(--blue);position:sticky;top:0;z-index:10;box-shadow:0 1px 0 rgba(0,0,0,.15)}
 header .wrap{display:flex;align-items:center;gap:12px;height:58px}
