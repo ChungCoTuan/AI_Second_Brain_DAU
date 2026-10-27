@@ -806,6 +806,12 @@ def process_crawled_document(request: ProcessCrawledRequest, background_tasks: B
         
     return {"status": "success", "message": f"Đã đưa {request.filename} vào hàng đợi xử lý ngầm."}
 
+def _report_progress(filename: str, progress: int, step: str):
+    """Đẩy tiến trình bóc tách (0-100%) qua SSE cho frontend."""
+    from ...services.notifier import notifier
+    notifier.push_sync(f"progress:{filename}:{progress}:{step}")
+
+
 def _run_extraction(
     filepath: str,
     filename: str,
@@ -823,12 +829,15 @@ def _run_extraction(
         if db.query(Document).filter(Document.filename == filename).first():
             print(f"[BACKGROUND] Bỏ qua xử lý, văn bản đã tồn tại: {filename}")
             return
-            
+
+        _report_progress(filename, 5, "Đang đọc file PDF...")
         text = extract_text_from_pdf(filepath, allow_external_ocr=allow_external_ocr)
         if not text:
             print(f"[BACKGROUND] Không thể đọc nội dung file: {filename}")
+            _report_progress(filename, 100, "Lỗi: không đọc được nội dung file")
             return
         
+        _report_progress(filename, 20, "Đang chia đoạn văn bản...")
         articles = chunk_document(text)
         
         domain_display = {
@@ -841,8 +850,11 @@ def _run_extraction(
             "Khac": "Khác"
         }.get(domain, domain)
         
+        _report_progress(filename, 30, "Đang bóc tách metadata...")
         metadata = extractor.extract_document_metadata(text)
+        _report_progress(filename, 40, "Đang tóm tắt toàn văn...")
         tom_tat_toan_van = extractor.summarize_text(text)
+        _report_progress(filename, 50, "Đang phân loại chủ đề...")
         chu_de = classify_text(text)
         
         doc = Document(
@@ -867,8 +879,10 @@ def _run_extraction(
             obl_keywords = ["trách nhiệm", "nghĩa vụ", "thực hiện", "phải", "hạn chót", "thời hạn", "báo cáo"]
             art_obl = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in obl_keywords)), articles[0])
             
+            _report_progress(filename, 60, "Đang bóc tách nghĩa vụ...")
             obl_info = extractor.extract_obligation(art_obl["raw"])
             obl_tom_tat = extractor.summarize_text(art_obl["raw"])
+            _report_progress(filename, 70, "Đang kiểm chứng NLI nghĩa vụ...")
             obl_nli = extractor.verify_nli(art_obl["raw"], obl_tom_tat)
             
             db.add(Obligation(
@@ -891,8 +905,10 @@ def _run_extraction(
             if not art_thresh:
                 art_thresh = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in thresh_keywords)), articles[-1] if len(articles) > 1 else articles[0])
             
+            _report_progress(filename, 75, "Đang bóc tách con số chốt...")
             thresh_info = extractor.extract_threshold(art_thresh["raw"])
             thresh_tom_tat = extractor.summarize_text(art_thresh["raw"])
+            _report_progress(filename, 80, "Đang kiểm chứng NLI con số chốt...")
             thresh_nli = extractor.verify_nli(art_thresh["raw"], thresh_tom_tat)
             
             db.add(Threshold(
@@ -907,6 +923,7 @@ def _run_extraction(
                 nli_label=thresh_nli
             ))
             
+            _report_progress(filename, 85, "Đang trích quan hệ văn bản...")
             relations = extractor.extract_document_relations(text, filename)
             for rel in relations:
                 db.add(DocumentRelation(
@@ -932,6 +949,7 @@ def _run_extraction(
             ))
             db.commit()
         # Đưa dữ liệu vào Vector DB cho Chatbot RAG
+        _report_progress(filename, 90, "Đang tạo vector index...")
         from ...services.vector_db import vector_db
         from ...services.nlp_pipeline import create_embedding
         
@@ -961,6 +979,7 @@ def _run_extraction(
             vector_db.add_texts(embeddings, metadatas)
             
         print(f"[BACKGROUND] Xử lý thành công: {filename}")
+        _report_progress(filename, 100, "Hoàn tất")
         from ...services.notifier import notifier
         notifier.push_sync("update")
         notifier.push_sync(f"success:{filename}")
@@ -993,6 +1012,7 @@ def _run_extraction(
             
         from ...services.notifier import notifier
         notifier.push_sync(f"error:{filename}:{user_msg}")
+        _report_progress(filename, 100, f"Lỗi: {user_msg}")
 
         # Lỗi OCR/giới hạn là luồng nghiệp vụ bình thường (đã báo cho người dùng
         # qua notifier), không ném tiếp để tránh traceback ASGI gây nhiễu log.

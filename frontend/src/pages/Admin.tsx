@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, FileSearch, PlayCircle, Search, Filter, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import ConfirmModal from '../components/shared/ConfirmModal';
+import toast from 'react-hot-toast';
 import axiosClient, { API_BASE_URL } from '../api/axiosClient';
 
 const Admin: React.FC = () => {
-  const { data, refreshData, setIsProcessing, processingFiles, setProcessingFiles } = useData();
+  const { data, refreshData, setIsProcessing, processingFiles, setProcessingFiles, processingProgress } = useData();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [allowExternalOcr, setAllowExternalOcr] = useState(false);
@@ -69,13 +70,14 @@ const Admin: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+    useEffect(() => {
     const onSuccess = (e: any) => {
       const filename = e.detail;
       // Đã set processingFiles ở DataContext
       setCrawledFiles(prev => prev.filter(f => f.filename !== filename));
       setStatus('success');
       setMessage(`Xử lý thành công: ${filename}`);
+      toast.success(`✓ Đã xử lý xong: ${filename}`, { duration: 6000 });
       refreshData();
     };
     const onError = (e: any) => {
@@ -87,6 +89,7 @@ const Admin: React.FC = () => {
       // Đã set processingFiles ở DataContext
       setStatus('error');
       setMessage(`Lỗi xử lý ${filename}: ${errText}`);
+      toast.error(`Lỗi xử lý ${filename}: ${errText}`, { duration: 8000 });
     };
     
     window.addEventListener('processing_success', onSuccess);
@@ -185,6 +188,7 @@ const Admin: React.FC = () => {
     setProcessingFiles(prev => ({ ...prev, [filename]: true }));
     setStatus('processing');
     setMessage(`Đang đưa ${filename} vào hàng đợi xử lý bằng AI... Bạn có thể tiếp tục công việc.`);
+    toast.loading(`Đang bắt đầu xử lý: ${filename}`, { id: `proc-${filename}`, duration: 4000 });
     try {
       const response = await fetch(`${API_BASE_URL}/documents/process_crawled`, {
         method: 'POST',
@@ -195,15 +199,18 @@ const Admin: React.FC = () => {
       if (response.ok) {
         setStatus('success');
         setMessage(result.message || `Đã đưa ${filename} vào hàng đợi xử lý ngầm. Vui lòng đợi trong giây lát...`);
+        toast.success(`Đã đưa ${filename} vào hàng đợi xử lý bằng AI`, { duration: 5000 });
       } else {
         setStatus('error');
         setMessage(`Lỗi khi đưa ${filename} vào hàng đợi: ${result.detail}`);
         setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+        toast.error(`Lỗi khi đưa ${filename} vào hàng đợi: ${result.detail}`, { duration: 8000 });
       }
     } catch (error) {
       setStatus('error');
       setMessage(`Không thể kết nối đến máy chủ để xử lý ${filename}`);
       setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+      toast.error(`Không thể kết nối đến máy chủ để xử lý ${filename}`, { duration: 8000 });
     }
   };
 
@@ -384,8 +391,10 @@ const Admin: React.FC = () => {
                       }}
                     >
                       {processingFiles[fileObj.filename] ? <RefreshCw size={16} className="spin" /> : <PlayCircle size={16} />}
-                      {processingFiles[fileObj.filename] ? 'Đang bóc tách...' : 'Bắt đầu xử lý'}
-                    </button>
+            {processingFiles[fileObj.filename]
+              ? `Đang bóc tách... ${processingProgress[fileObj.filename]?.progress ?? 0}%`
+              : 'Bắt đầu xử lý'}
+          </button>
                     
                     <button
                       className="btn"
@@ -401,6 +410,23 @@ const Admin: React.FC = () => {
                       <Trash2 size={16} />
                     </button>
                   </div>
+                  {processingFiles[fileObj.filename] && (
+                    <div style={{ marginTop: '14px', width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>
+                        <span>{processingProgress[fileObj.filename]?.step || 'Đang khởi tạo...'}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--blue)' }}>{processingProgress[fileObj.filename]?.progress ?? 0}%</span>
+                      </div>
+                      <div style={{ height: '8px', background: 'var(--blue-50)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${processingProgress[fileObj.filename]?.progress ?? 0}%`,
+                          background: 'linear-gradient(90deg, var(--blue), #60a5fa)',
+                          borderRadius: '4px',
+                          transition: 'width 0.4s ease'
+                        }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {filteredCrawledFiles.length === 0 && (

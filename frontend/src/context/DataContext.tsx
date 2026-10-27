@@ -51,6 +51,7 @@ interface DataContextType {
   setIsProcessing: (v: boolean) => void;
   processingFiles: Record<string, boolean>;
   setProcessingFiles: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  processingProgress: Record<string, { progress: number; step: string }>;
 }
 
 const DataContext = createContext<DataContextType>({
@@ -69,6 +70,7 @@ const DataContext = createContext<DataContextType>({
   setIsProcessing: () => {},
   processingFiles: {},
   setProcessingFiles: () => {},
+  processingProgress: {},
 });
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -77,6 +79,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingFiles, setProcessingFiles] = useState<Record<string, boolean>>({});
+  const [processingProgress, setProcessingProgress] = useState<Record<string, { progress: number; step: string }>>({});
 
   const [readDeadDocs, setReadDeadDocs] = useState<string[]>([]);
   const [readEvents, setReadEvents] = useState<string[]>([]);
@@ -206,9 +209,36 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     evtSource.onmessage = (event) => {
       if (event.data === 'update') {
         fetchData(true);
+      } else if (event.data.startsWith('progress:')) {
+        // progress:<filename>:<percent>:<step>
+        const rest = event.data.substring(9);
+        const lastColon = rest.lastIndexOf(':');
+        const secondLastColon = rest.lastIndexOf(':', lastColon - 1);
+        if (secondLastColon > -1) {
+          const filename = rest.substring(0, secondLastColon);
+          const progress = parseInt(rest.substring(secondLastColon + 1, lastColon), 10);
+          const step = rest.substring(lastColon + 1);
+          if (!isNaN(progress)) {
+            setProcessingProgress(prev => ({ ...prev, [filename]: { progress, step } }));
+            if (progress >= 100) {
+              setTimeout(() => {
+                setProcessingProgress(prev => {
+                  const next = { ...prev };
+                  delete next[filename];
+                  return next;
+                });
+              }, 3000);
+            }
+          }
+        }
       } else if (event.data.startsWith('success:')) {
         const filename = event.data.substring(8);
         setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+        setProcessingProgress(prev => {
+          const next = { ...prev };
+          delete next[filename];
+          return next;
+        });
         window.dispatchEvent(new CustomEvent('processing_success', { detail: filename }));
         fetchData(true);
       } else if (event.data.startsWith('error:')) {
@@ -216,6 +246,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const firstColon = msg.indexOf(':');
         const filename = firstColon > -1 ? msg.substring(0, firstColon) : msg;
         setProcessingFiles(prev => ({ ...prev, [filename]: false }));
+        setProcessingProgress(prev => {
+          const next = { ...prev };
+          delete next[filename];
+          return next;
+        });
         window.dispatchEvent(new CustomEvent('processing_error', { detail: msg }));
       }
     };
@@ -230,7 +265,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   return (
-    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings, markAsRead, isProcessing, setIsProcessing, processingFiles, setProcessingFiles }}>
+    <DataContext.Provider value={{ data, loading, error, refreshData: fetchData, readDeadDocs, readEvents, readObligations, readThresholds, readDeadlines, readWarnings, markAsRead, isProcessing, setIsProcessing, processingFiles, setProcessingFiles, processingProgress }}>
       {children}
     </DataContext.Provider>
   );
