@@ -25,20 +25,11 @@ import ConfirmModal from '../shared/ConfirmModal';
 const Badge = ({ count }: { count: number }) => {
   if (!count) return null;
   return (
-    <span style={{
-      background: '#ef4444', 
-      color: 'white', 
-      fontSize: '11px', 
-      fontWeight: 700, 
-      padding: '2px 8px', 
-      borderRadius: '12px'
-    }}>
+    <span className="snav-badge">
       {count}
     </span>
   );
 };
-
-const navStyle = {};
 
 interface SidebarProps {
   mobile?: boolean;
@@ -73,163 +64,139 @@ const Sidebar: React.FC<SidebarProps> = ({ mobile = false, open = false, onClose
     <aside
       className={`sidebar ${mobile ? 'sidebar--mobile' : ''} ${open ? 'sidebar--open' : ''}`}
       onClick={mobile ? onClose : undefined}
-      style={{
-        width: '260px',
-        background: '#fff',
-        borderRight: '1px solid var(--line)',
-        paddingTop: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        position: mobile ? 'fixed' : 'sticky',
-        top: mobile ? 0 : '0',
-        left: 0,
-        zIndex: mobile ? 50 : undefined,
-        transform: mobile ? (open ? 'translateX(0)' : 'translateX(-100%)') : undefined,
-        transition: mobile ? 'transform .25s ease' : undefined,
-        maxWidth: mobile ? '85vw' : undefined,
-        boxShadow: mobile ? '4px 0 24px rgba(0,0,0,.18)' : undefined,
-      }}
     >
-      <div className="sidebar-header" style={{ padding: '0 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div className="logo" style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="sidebar-header">
+        <div className="logo">
           <img src="/dau-logo.png" alt="DAU" style={{ maxWidth: '100%', maxHeight: '100%' }} />
         </div>
-        <span style={{ fontWeight: 800, color: 'var(--blue)', fontSize: '18px' }}>Second Brain</span>
+        <span className="sidebar-brand">Second Brain</span>
       </div>
       
       {/* Sidebar nav wrap */}
-      <div style={{ position: 'relative', flex: 1, overflowY: 'auto' }}>
-
-        <nav className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 12px' }}>
+      <nav className="sidebar-nav">
           
           {role === 'admin' && (
             <>
-              <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div className="snav-section">
                 Cảnh báo & Rà soát
               </div>
-          <NavLink to="/priority" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/priority" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <AlertTriangle size={18} />
               <span>Ưu tiên xử lý</span>
             </div>
             <Badge count={unreadWarningsCount} />
           </NavLink>
-          <NavLink to="/dead-docs" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/dead-docs" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <FileX2 size={18} />
               <span>Văn bản khai tử</span>
             </div>
             <Badge count={Math.max(0, unreadDeadDocsCount)} />
           </NavLink>
-          <NavLink to="/deadlines" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/deadlines" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <CalendarClock size={18} />
               <span>Hạn chót & mốc</span>
             </div>
             <Badge count={unreadDeadlinesCount} />
           </NavLink>
-          <NavLink to="/analytics" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <NavLink to="/analytics" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`}>
             <PieChart size={18} />
             <span>Phân tích</span>
           </NavLink>
-          <NavLink to="/events" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/events" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <History size={18} />
               <span>Sự kiện luật</span>
             </div>
             <Badge count={Math.max(0, unreadEventsCount)} />
           </NavLink>
-          <NavLink to="/review" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/review" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <ClipboardList size={18} />
               <span>Cần rà soát</span>
             </div>
             <Badge count={data?.pendingCount || 0} />
           </NavLink>
-          <NavLink to="/topics" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <NavLink to="/topics" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`}>
             <Layers size={18} />
             <span>Chủ đề văn bản</span>
           </NavLink>
           </>
           )}
           
-          <div style={{ padding: '16px 12px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div className="snav-section">
             Tra cứu & Dữ liệu
           </div>
-          <NavLink to="/search" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <NavLink to="/search" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`}>
             <Search size={18} />
             <span>Tra cứu thủ công</span>
           </NavLink>
-          <NavLink to="/chat" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <NavLink to="/chat" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`}>
             <Bot size={18} />
             <span>Tra cứu AI (Chatbot)</span>
           </NavLink>
-          <NavLink to="/obligations" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/obligations" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <CheckSquare size={18} />
               <span>Việc phải làm</span>
             </div>
             <Badge count={unreadObligationsCount} />
           </NavLink>
-          <NavLink to="/thresholds" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/thresholds" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <Book size={18} />
               <span>Sổ ngưỡng & định mức</span>
             </div>
             <Badge count={unreadThresholdsCount} />
           </NavLink>
-          <NavLink to="/graph" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <NavLink to="/graph" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`}>
             <Network size={18} />
             <span>Đồ thị ảnh hưởng</span>
           </NavLink>
 
           {role === 'admin' && (
           <>
-          <div style={{ padding: '16px 12px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div className="snav-section">
             Hệ thống
           </div>
-          <NavLink to="/admin" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={{...navStyle, justifyContent: 'space-between'}}>
+          <NavLink to="/admin" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`} style={{ justifyContent: 'space-between' }}>
             <div style={{display: 'flex', alignItems: 'center', gap: '10px', width: '100%'}}>
               <Settings size={18} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
                 <span>Tải tài liệu (Admin)</span>
-                {data.hasNewDocs && (
-                  <div style={{
-                    background: 'var(--red)', color: 'white', borderRadius: '50%',
-                    width: '8px', height: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}></div>
-                )}
+                {data.hasNewDocs && <span className="snav-dot" />}
               </div>
             </div>
             <Badge count={data?.adminCount || 0} />
           </NavLink>
-          <NavLink to="/audit" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <NavLink to="/audit" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`}>
             <History size={18} />
             <span>Nhật ký thao tác</span>
           </NavLink>
-          <NavLink to="/rejected" className={({ isActive }) => `navtabs-a ${isActive ? 'active' : ''}`} style={navStyle}>
+          <NavLink to="/rejected" className={({ isActive }) => `snav ${isActive ? 'active' : ''}`}>
             <Trash2 size={18} />
             <span>Văn bản loại bỏ</span>
           </NavLink>
           </>
           )}
-        </nav>
-      </div>
+      </nav>
       
-      <div style={{ padding: '20px', borderTop: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--blue)', fontWeight: 'bold' }}>
+      <div className="sidebar-user">
+        <div className="sidebar-user-row">
+          <div className="sidebar-avatar">
             {user?.email?.[0].toUpperCase()}
           </div>
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{user?.email}</div>
-            <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{role === 'admin' ? 'Quản trị viên' : 'Giảng viên'}</div>
+          <div className="sidebar-user-meta">
+            <div className="sidebar-user-email">{user?.email}</div>
+            <div className="sidebar-user-role">{role === 'admin' ? 'Quản trị viên' : 'Giảng viên'}</div>
           </div>
         </div>
         <button 
           onClick={() => setIsLogoutModalOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '6px', color: 'var(--red)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, justifyContent: 'center' }}
+          className="btn btn-ghost-danger"
+          style={{ width: '100%', justifyContent: 'center' }}
         >
           <LogOut size={16} /> Đăng xuất
         </button>
@@ -247,30 +214,6 @@ const Sidebar: React.FC<SidebarProps> = ({ mobile = false, open = false, onClose
         }}
         onCancel={() => setIsLogoutModalOpen(false)}
       />
-
-      <style>{`
-        .navtabs-a {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 14px;
-          color: var(--muted);
-          text-decoration: none;
-          font-size: 14px;
-          font-weight: 600;
-          border-radius: 8px;
-          transition: 0.15s;
-        }
-        .navtabs-a:hover {
-          background: var(--soft);
-          color: var(--ink);
-        }
-        .navtabs-a.active {
-          background: var(--blue-50);
-          color: var(--blue);
-          border-right: 3px solid var(--blue);
-        }
-      `}</style>
     </aside>
   );
 };

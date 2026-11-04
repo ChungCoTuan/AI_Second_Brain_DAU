@@ -255,16 +255,12 @@ const Admin: React.FC = () => {
       <div className="wrap" style={{ margin: '0 auto', paddingTop: '32px' }}>
         
         {/* Nút Rà soát văn bản mới (Ping) */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
-          <button 
-            className="btn btn-secondary" 
-            onClick={handlePing} 
+        <div className="newdocs-actions">
+          <button
+            className="btn"
+            onClick={handlePing}
             disabled={isPinging}
-            style={{
-              background: '#fff', color: 'var(--ink)', border: '1px solid var(--line)', padding: '10px 20px', 
-              borderRadius: '8px', fontWeight: 600, cursor: isPinging ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-            }}>
+          >
             {isPinging ? <RefreshCw size={18} className="spin" /> : <FileSearch size={18} />}
             {isPinging ? 'Đang rà soát...' : 'Rà soát văn bản mới'}
           </button>
@@ -272,24 +268,16 @@ const Admin: React.FC = () => {
 
         {/* Banner phát hiện văn bản mới */}
         {data.hasNewDocs && (
-          <div style={{
-            background: 'linear-gradient(90deg, #fffbe6, #fff)', border: '1px solid #ffe58f',
-            padding: '24px', borderRadius: '16px', marginBottom: '24px',
-            boxShadow: '0 4px 12px rgba(250, 173, 20, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-          }}>
+          <div className="newdocs-banner">
             <div>
-              <h3 style={{ color: 'var(--amber)', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <h3>
                 <AlertCircle size={20} /> Phát hiện văn bản mới trên Chinhphu.vn!
               </h3>
-              <p style={{ margin: 0, fontSize: '14px', color: 'var(--muted)' }}>
+              <p>
                 Hệ thống phát hiện có văn bản pháp luật mới vừa được ban hành. Bấm Đồng bộ để tải các văn bản này về máy chủ (Quá trình có thể mất vài giây).
               </p>
             </div>
-            <button className="btn" onClick={handleCrawl} disabled={status === 'crawling'} style={{
-              background: 'var(--amber)', color: '#fff', border: 'none', padding: '10px 20px', 
-              borderRadius: '8px', fontWeight: 600, cursor: status === 'crawling' ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: '8px'
-            }}>
+            <button className="btn btn-primary" onClick={handleCrawl} disabled={status === 'crawling'}>
               {status === 'crawling' ? <RefreshCw size={16} className="spin" /> : null}
               {status === 'crawling' ? 'Đang đồng bộ...' : 'Đồng bộ ngay'}
             </button>
@@ -298,139 +286,114 @@ const Admin: React.FC = () => {
 
         {/* Global Status Message */}
         {status !== 'idle' && (
-          <div style={{ 
-            marginBottom: '24px',
-            padding: '16px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            background: status === 'error' ? 'var(--red-50)' : status === 'success' ? 'var(--green-50)' : 'var(--amber-50)',
-            color: status === 'error' ? 'var(--red)' : status === 'success' ? 'var(--green)' : 'var(--amber)',
-            border: `1px solid ${status === 'error' ? 'var(--red-200)' : status === 'success' ? 'var(--green-200)' : 'var(--amber-200)'}`
-          }}>
+          <div className={`status-banner ${
+            status === 'error' ? 'error' : status === 'success' ? 'success' : 'info'
+          }`}>
             {status === 'error' && <AlertCircle size={20} />}
             {status === 'success' && <CheckCircle2 size={20} />}
-            {(status === 'uploading' || status === 'crawling') && <div className="spinner" style={{ width: '20px', height: '20px', borderTopColor: 'currentColor', borderRightColor: 'currentColor', borderRadius: '50%', border: '2px solid transparent' }}></div>}
-            
-            <span style={{ fontWeight: 500, fontSize: '14px' }}>{message}</span>
+            {(status === 'uploading' || status === 'crawling') && <div className="spinner"></div>}
+
+            <span>{message}</span>
           </div>
         )}
 
         {/* Khu vực file cào tự động chờ xử lý */}
         {crawledFiles.length > 0 && (
           <div style={{ marginBottom: '40px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <FileSearch size={28} /> Văn bản chờ bóc tách ({crawledFiles.length})
+            <h2 style={{ fontSize: '21px', fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <FileSearch size={26} style={{ color: 'var(--brand)' }} /> Văn bản chờ bóc tách ({crawledFiles.length})
             </h2>
-            
-            <div style={{ 
-              display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap',
-              background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid var(--amber-200)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-            }}>
-              <div style={{ flex: '1 1 300px', display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: '8px', padding: '0 12px', background: 'var(--soft)' }}>
-                <Search size={18} color="var(--muted)" />
-                <input 
-                  type="text" 
-                  placeholder="Tìm theo tên văn bản..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ border: 'none', background: 'transparent', outline: 'none', padding: '10px', width: '100%', fontSize: '14px' }}
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--line)', borderRadius: '8px', padding: '0 12px', background: 'var(--soft)' }}>
-                <Filter size={18} color="var(--muted)" />
-                <select 
-                  value={domainFilter} 
-                  onChange={(e) => setDomainFilter(e.target.value)}
-                  style={{ border: 'none', background: 'transparent', outline: 'none', padding: '10px 0', fontSize: '14px', cursor: 'pointer' }}
-                >
-                  <option value="All">Tất cả nguồn</option>
-                  {uniqueDomains.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+
+            <div className="panel-filters" style={{ marginTop: 0, marginBottom: '20px' }}>
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div className="field" style={{ flex: '1 1 300px' }}>
+                  <Search size={18} className="field-icon" />
+                  <input
+                    type="text"
+                    className="inp"
+                    placeholder="Tìm theo tên văn bản..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Filter size={16} className="field-icon" style={{ display: 'none' }} />
+                  <select
+                    className="sel"
+                    value={domainFilter}
+                    onChange={(e) => setDomainFilter(e.target.value)}
+                  >
+                    <option value="All">Tất cả nguồn</option>
+                    {uniqueDomains.map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '16px' }}>
-              {filteredCrawledFiles.map((fileObj) => (
-                <div key={fileObj.filename} style={{
-                  padding: '20px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--amber-200)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: '#fff',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
-                  transition: 'transform 0.2s',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    <div style={{ padding: '10px', background: 'var(--amber-50)', borderRadius: '10px', color: 'var(--amber)' }}>
-                      <FileText size={24} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '6px', fontSize: '15px' }}>{fileObj.filename}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
-                        <span style={{ padding: '3px 10px', background: '#e0e7ff', color: '#4338ca', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>{fileObj.domain}</span>
+              {filteredCrawledFiles.map((fileObj) => {
+                const isProcessing = !!processingFiles[fileObj.filename];
+                const progress = processingProgress[fileObj.filename]?.progress ?? 0;
+                const step = processingProgress[fileObj.filename]?.step || 'Đang khởi tạo...';
+                return (
+                <div key={fileObj.filename} className={`doc-card ${isProcessing ? 'processing' : ''}`}>
+                  <div className="doc-card-top">
+                    <div className="doc-card-info">
+                      <div className="doc-card-icon">
+                        <FileText size={24} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="doc-card-name">{fileObj.filename}</div>
+                        <div>
+                          <span className="domain-tag">{fileObj.domain}</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="doc-card-actions">
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => handleProcessCrawled(fileObj.filename)}
+                        disabled={isAnyFileProcessing || isProcessing}
+                      >
+                        {isProcessing ? <RefreshCw size={16} className="spin" /> : <PlayCircle size={16} />}
+                        {isProcessing ? 'Đang xử lý' : 'Bắt đầu xử lý'}
+                      </button>
+
+                      <button
+                        className="btn btn-ghost-danger"
+                        onClick={() => handleDeleteCrawled(fileObj.filename)}
+                        disabled={isAnyFileProcessing || isProcessing}
+                        title="Xoá file"
+                        style={{ padding: '10px' }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => handleProcessCrawled(fileObj.filename)}
-                      disabled={isAnyFileProcessing || processingFiles[fileObj.filename]}
-                      style={{
-                        background: 'var(--blue)', color: 'white', border: 'none', padding: '10px 16px',
-                        borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 'not-allowed' : 'pointer',
-                        opacity: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {processingFiles[fileObj.filename] ? <RefreshCw size={16} className="spin" /> : <PlayCircle size={16} />}
-            {processingFiles[fileObj.filename]
-              ? `Đang bóc tách... ${processingProgress[fileObj.filename]?.progress ?? 0}%`
-              : 'Bắt đầu xử lý'}
-          </button>
-                    
-                    <button
-                      className="btn"
-                      onClick={() => handleDeleteCrawled(fileObj.filename)}
-                      disabled={isAnyFileProcessing || processingFiles[fileObj.filename]}
-                      title="Xoá file"
-                      style={{
-                        background: '#fee2e2', color: '#ef4444', border: '1px solid #f87171', padding: '10px',
-                        borderRadius: '8px', cursor: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 'not-allowed' : 'pointer',
-                        opacity: (isAnyFileProcessing || processingFiles[fileObj.filename]) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  {processingFiles[fileObj.filename] && (
-                    <div style={{ marginTop: '14px', width: '100%' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>
-                        <span>{processingProgress[fileObj.filename]?.step || 'Đang khởi tạo...'}</span>
-                        <span style={{ fontWeight: 700, color: 'var(--blue)' }}>{processingProgress[fileObj.filename]?.progress ?? 0}%</span>
+                  {isProcessing && (
+                    <div className="progress-block">
+                      <div className="progress-head">
+                        <span className="progress-step">
+                          <RefreshCw size={14} className="spin" />
+                          <span className="progress-step-text">{step}</span>
+                        </span>
+                        <span className="progress-pct">{progress}%</span>
                       </div>
-                      <div style={{ height: '8px', background: 'var(--blue-50)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${processingProgress[fileObj.filename]?.progress ?? 0}%`,
-                          background: 'linear-gradient(90deg, var(--blue), #60a5fa)',
-                          borderRadius: '4px',
-                          transition: 'width 0.4s ease'
-                        }} />
+                      <div className="progress-track">
+                        <div
+                          className={`progress-fill ${progress >= 100 ? 'done' : ''}`}
+                          style={{ width: `${progress}%` }}
+                        />
                       </div>
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
               {filteredCrawledFiles.length === 0 && (
-                <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--muted)', background: '#fff', borderRadius: '12px', border: '1px dashed var(--amber-200)' }}>
+                <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--muted)', background: '#fff', borderRadius: '12px', border: '1px dashed var(--line)' }}>
                   Không tìm thấy văn bản phù hợp với bộ lọc.
                 </div>
               )}

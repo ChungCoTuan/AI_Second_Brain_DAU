@@ -33,25 +33,19 @@ const Layout: React.FC = () => {
 
   return (
     <DetailProvider>
-      <div className="app-container" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+      <div className="app-container">
         <Sidebar mobile={isMobile} open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
         {isMobile && mobileOpen && (
           <div
             className="sidebar-backdrop"
             onClick={() => setMobileOpen(false)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(15,23,42,.45)',
-              zIndex: 49,
-            }}
           />
         )}
 
-        <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', minWidth: 0 }}>
+        <div className="main-content">
           <Header onMenu={() => setMobileOpen(true)} />
-          <main className="page-content" style={{ flex: 1, overflowY: 'auto' }}>
+          <main className="page-content">
             <Outlet />
           </main>
         </div>

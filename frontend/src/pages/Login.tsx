@@ -59,92 +59,62 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="login-page" style={{ display: 'flex', height: '100vh', width: '100vw', background: '#faf7f7', fontFamily: 'system-ui, sans-serif' }}>
+    <div className="auth-page">
       {/* Cột trái: Hình ảnh giới thiệu DAU */}
-      <div className="login-hero" style={{ 
-        flex: 1, 
-        background: 'linear-gradient(135deg, #7a0000 0%, #990000 100%)', 
-        color: 'white', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'center', 
-        padding: '0 8%', 
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
+      <div className="auth-hero">
         {/* Abstract pattern */}
-        <div style={{ position: 'absolute', top: '-10%', right: '-10%', opacity: 0.05, transform: 'scale(1.5)' }}>
+        <div className="auth-hero-pattern">
           <svg width="400" height="400" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
         </div>
-        
-        <div style={{ zIndex: 10, maxWidth: '500px' }}>
-          <div style={{ marginBottom: '24px', background: 'white', padding: '12px 20px', display: 'inline-block', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-             <span style={{ fontSize: '24px', fontWeight: 900, color: '#990000', letterSpacing: '-0.03em' }}>AI SECOND BRAIN</span>
+
+        <div className="auth-hero-inner">
+          <div className="auth-brand-badge">
+            <span className="auth-brand-text">AI SECOND BRAIN</span>
           </div>
-          <h1 style={{ fontSize: '42px', fontWeight: 800, marginBottom: '24px', lineHeight: 1.2 }}>Hệ thống Trợ lý pháp lý thông minh</h1>
-          <p style={{ fontSize: '18px', color: '#f7d9d9', lineHeight: 1.6, fontWeight: 500 }}>
+          <h1>Hệ thống Trợ lý pháp lý thông minh</h1>
+          <p>
             Đại học Kiến trúc Đà Nẵng (DAU). Quản lý, bóc tách và tra cứu văn bản quy phạm pháp luật tự động bằng trí tuệ nhân tạo.
           </p>
+          <div className="auth-hero-note">HÀNH CHÍNH · PHÁP LÝ</div>
         </div>
       </div>
 
       {/* Cột phải: Form đăng nhập */}
-      <div className="login-form-panel" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-        <div className="login-card" style={{ width: '100%', maxWidth: '420px', background: 'white', padding: '48px', borderRadius: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
-          <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-            <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>Đăng nhập</h2>
-            <p style={{ color: '#64748b', margin: 0, fontSize: '15px' }}>Vui lòng đăng nhập để tiếp tục</p>
+      <div className="auth-form-panel">
+        <div className="auth-card">
+          <div className="auth-card-head">
+            <h2>Đăng nhập</h2>
+            <p>Vui lòng đăng nhập để tiếp tục</p>
           </div>
 
           {error && (
-            <div style={{ 
-              marginBottom: '24px', 
-              padding: '14px 16px', 
-              background: '#fef2f2', 
-              borderLeft: '4px solid #ef4444', 
-              color: '#991b1b', 
-              borderRadius: '6px', 
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
+            <div className="auth-error">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Email đăng nhập</label>
+          <form onSubmit={handleSubmit}>
+            <div className="auth-field">
+              <label className="auth-label">Email đăng nhập</label>
               <input
                 type="email"
                 required
-                style={{ 
-                  width: '100%', padding: '14px 16px', border: '1px solid #e2e8f0', borderRadius: '10px', 
-                  fontSize: '15px', outline: 'none', transition: 'border-color 0.2s', background: '#f8fafc'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#990000'}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                className="auth-input"
                 placeholder="Ví dụ: admin@dau.edu.vn"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            
-            <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Mật khẩu</label>
+
+            <div className="auth-field">
+              <label className="auth-label">Mật khẩu</label>
               <input
                 type="password"
                 required
-                style={{ 
-                  width: '100%', padding: '14px 16px', border: '1px solid #e2e8f0', borderRadius: '10px', 
-                  fontSize: '15px', outline: 'none', transition: 'border-color 0.2s', background: '#f8fafc'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#990000'}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                className="auth-input"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -154,15 +124,7 @@ const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              style={{ 
-                width: '100%', padding: '16px', background: loading ? '#b91c1c' : '#990000', 
-                color: 'white', fontWeight: 700, borderRadius: '10px', border: 'none', 
-                fontSize: '16px', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '12px',
-                transition: 'background 0.2s, transform 0.1s',
-                boxShadow: '0 4px 12px rgba(153,0,0,0.2)'
-              }}
-              onMouseOver={(e) => { if(!loading) e.currentTarget.style.background = '#7a0000'; }}
-              onMouseOut={(e) => { if(!loading) e.currentTarget.style.background = '#990000'; }}
+              className="auth-submit"
             >
               {loading ? 'Đang xác thực...' : 'Đăng nhập ngay'}
             </button>

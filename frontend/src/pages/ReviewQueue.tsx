@@ -28,6 +28,7 @@ const ReviewQueue: React.FC = () => {
   const [pendingItems, setPendingItems] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastTone, setToastTone] = useState<'ok' | 'err'>('ok');
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +42,8 @@ const ReviewQueue: React.FC = () => {
   const [editedText, setEditedText] = useState<string>('');
   const [revalidating, setRevalidating] = useState<boolean>(false);
   const [tempLabel, setTempLabel] = useState<string | null>(null);
+  // Text mà nhãn tempLabel đang đại diện (null = chưa chạy NLI lần nào)
+  const [revalidatedText, setRevalidatedText] = useState<string | null>(null);
 
   // Reset page khi filter thay đổi - phải đặt ở đây, trước mọi early return
   useEffect(() => { setPage(1); }, [searchQuery, filterType, filterNli]);
@@ -53,9 +56,10 @@ const ReviewQueue: React.FC = () => {
 
   const hasActiveFilters = searchQuery !== '' || filterType !== 'all' || filterNli !== 'all';
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, tone: 'ok' | 'err' = 'ok') => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setToastTone(tone);
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   const fetchPendingData = async () => {
@@ -83,17 +87,26 @@ const ReviewQueue: React.FC = () => {
 
   const handlePublish = async (itemType: string, id: number, textToPublish?: string) => {
     try {
-      const body = textToPublish ? { edited_summary: textToPublish } : {};
+      const body: Record<string, unknown> = textToPublish
+        ? { edited_summary: textToPublish, nli_label: tempLabel }
+        : {};
       const response = await axiosClient.put(`/review/${itemType}/${id}/publish`, body);
       if (response.status === 200) {
         setPendingItems(prev => prev.filter(item => !(item._itemType === itemType && item.id === id)));
         refreshData();
-        showToast("Đã duyệt & Publish thành công!");
+        showToast(
+          textToPublish
+            ? `Đã sửa & duyệt thành công! (NLI: ${response.data?.nli_label || 'đã xác minh'})`
+            : 'Đã duyệt & Publish thành công!'
+        );
         setEditingId(null);
         setTempLabel(null);
+        setRevalidatedText(null);
       }
-    } catch (error) {
-      console.error("Lỗi khi duyệt:", error);
+    } catch (error: any) {
+      console.error('Lỗi khi duyệt:', error);
+      const detail = error?.response?.data?.detail;
+      showToast(detail || 'Không thể duyệt mục này. Vui lòng thử lại.', 'err');
     }
   };
 
@@ -117,9 +130,15 @@ const ReviewQueue: React.FC = () => {
         original_text: originalText,
         edited_summary: editedText
       });
-      setTempLabel(res.data.nli_label);
+      const label: string = res.data.nli_label;
+      setTempLabel(label);
+      setRevalidatedText(editedText);
+      if (label === 'entailment') showToast('✅ NLI: An toàn (Entailment) — có thể duyệt.', 'ok');
+      else if (label === 'contradiction') showToast('🔴 NLI: Mâu thuẫn (Contradiction) — cần chỉnh sửa lại nội dung.', 'err');
+      else showToast('🟠 NLI: Chung chung (Neutral) — hãy rà kỹ trước khi duyệt.', 'ok');
     } catch (e) {
       console.error(e);
+      showToast('❌ Không thể chạy NLI. Vui lòng thử lại sau.', 'err');
     } finally {
       setRevalidating(false);
     }
@@ -128,7 +147,9 @@ const ReviewQueue: React.FC = () => {
   const startEditing = (type: string, id: number, initialText: string, currentLabel?: string) => {
     setEditingId(`${type}-${id}`);
     setEditedText(initialText);
+    // Text chưa chỉnh = text gốc, nhãn hiện tại coi như đại diện cho nó
     setTempLabel(currentLabel || null);
+    setRevalidatedText(initialText);
   };
 
   const formatDate = (dateStr?: string) => {
@@ -217,11 +238,15 @@ const ReviewQueue: React.FC = () => {
           </div>
         )}
 
-        {isEditing && (
-          <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#fffbe6', borderLeft: '3px solid var(--amber)', borderRadius: '4px' }}>
+        {isEditing && (() => {
+          const nliStale = editedText !== revalidatedText;
+          const nliBlocked = tempLabel === null || nliStale || tempLabel === 'contradiction';
+          const nliWarn = tempLabel === 'neutral';
+          return (
+          <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: tempLabel === 'contradiction' ? 'var(--danger-bg)' : '#fffbe6', borderLeft: `3px solid ${tempLabel === 'contradiction' ? 'var(--red)' : 'var(--amber)'}`, borderRadius: '4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--amber)' }}>Chế độ Sửa (Human-in-the-loop):</div>
-              <button className="btn" disabled={revalidating} style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--amber)', color: 'white', borderRadius: '6px', cursor: 'pointer', border: 'none' }} onClick={() => handleRevalidate(item.nguon)}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', color: tempLabel === 'contradiction' ? 'var(--red)' : 'var(--amber)' }}>Chế độ Sửa (Human-in-the-loop):</div>
+              <button className="btn" disabled={revalidating} style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--amber)', color: 'white', borderRadius: '6px', cursor: revalidating ? 'not-allowed' : 'pointer', border: 'none' }} onClick={() => handleRevalidate(item.nguon)}>
                 <RefreshCw size={12} style={{ display: 'inline', marginRight: '4px' }} className={revalidating ? 'spin' : ''} /> Kiểm tra lại NLI
               </button>
             </div>
@@ -231,8 +256,40 @@ const ReviewQueue: React.FC = () => {
               disabled={revalidating}
               style={{ width: '100%', minHeight: '80px', padding: '10px', fontSize: '14px', border: '1px solid var(--border)', borderRadius: '6px', marginTop: '4px', opacity: revalidating ? 0.7 : 1, cursor: revalidating ? 'not-allowed' : 'text' }}
             />
+            {/* Kết quả NLI rõ ràng ngay trong khối sửa */}
+            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)' }}>Kết quả NLI:</span>
+              {revalidating ? (
+                <span className="badge" style={{ background: 'var(--amber)', color: 'white' }}>
+                  <RefreshCw size={12} className="spin" style={{ marginRight: '4px' }} /> Đang suy luận...
+                </span>
+              ) : nliStale && tempLabel !== null ? (
+                <span className="badge" style={{ background: 'var(--muted)', color: 'white' }}>Nội dung đã thay đổi — chạy lại NLI</span>
+              ) : tempLabel === 'entailment' ? (
+                <span className="badge" style={{ background: 'var(--green)', color: 'white' }}>🟢 An toàn (Entailment)</span>
+              ) : tempLabel === 'contradiction' ? (
+                <span className="badge" style={{ background: 'var(--red)', color: 'white' }}>🔴 Mâu thuẫn (Contradiction)</span>
+              ) : tempLabel === 'neutral' ? (
+                <span className="badge" style={{ background: 'var(--amber)', color: 'white' }}>🟠 Chung chung (Neutral)</span>
+              ) : (
+                <span className="badge" style={{ background: 'var(--soft)', color: 'var(--muted)' }}>Chưa chạy — bấm "Kiểm tra lại NLI"</span>
+              )}
+            </div>
+            {nliBlocked && !revalidating && (
+              <div style={{ marginTop: '8px', fontSize: '13px', fontWeight: 600, color: tempLabel === 'contradiction' ? 'var(--red)' : 'var(--muted)' }}>
+                {tempLabel === 'contradiction'
+                  ? '⚠ Bản chỉnh sửa mâu thuẫn với nguyên văn. Hãy sửa lại nội dung rồi chạy NLI lại.'
+                  : '⚠ Bắt buộc chạy "Kiểm tra lại NLI" (và không sửa thêm sau đó) trước khi duyệt.'}
+              </div>
+            )}
+            {nliWarn && !nliBlocked && !revalidating && (
+              <div style={{ marginTop: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--amber)' }}>
+                🟠 Nhãn Neutral — được phép duyệt nhưng hãy rà kỹ nội dung.
+              </div>
+            )}
           </div>
-        )}
+          );
+        })()}
 
         <div style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--muted)', fontStyle: 'italic', flex: 1, backgroundColor: 'var(--bg)', padding: '16px', borderRadius: '8px', border: '1px dashed var(--line)', maxHeight: '180px', overflowY: 'auto' }}>
           "{item.nguon}"
@@ -249,15 +306,25 @@ const ReviewQueue: React.FC = () => {
             <X size={16} /> Từ chối
           </button>
 
-          {isEditing ? (
-            <button
-              className="btn"
-              style={{ background: 'var(--amber)', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', border: 'none' }}
-              onClick={() => handlePublish(item._itemType, item.id, editedText)}
-            >
-              <Check size={16} /> Sửa & Duyệt
-            </button>
-          ) : (
+          {isEditing ? (() => {
+            const nliStale = editedText !== revalidatedText;
+            const nliBlocked = tempLabel === null || nliStale || tempLabel === 'contradiction';
+            return (
+              <button
+                className="btn"
+                style={{
+                  background: tempLabel === 'contradiction' ? 'var(--red)' : 'var(--amber)', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', padding: '8px 16px', borderRadius: '8px',
+                  border: 'none', opacity: nliBlocked ? 0.5 : 1,
+                  cursor: nliBlocked ? 'not-allowed' : 'pointer'
+                }}
+                disabled={nliBlocked}
+                title={nliBlocked ? 'Phải chạy "Kiểm tra lại NLI" và nhãn không được là Contradiction' : undefined}
+                onClick={() => handlePublish(item._itemType, item.id, editedText)}
+              >
+                <Check size={16} /> Sửa & Duyệt
+              </button>
+            );
+          })() : (
             <button
               className="btn"
               style={{ background: 'var(--green)', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', border: 'none', fontWeight: 600 }}
@@ -276,13 +343,13 @@ const ReviewQueue: React.FC = () => {
       {toastMessage && (
         <div style={{
           position: 'fixed', bottom: '30px', right: '30px',
-          background: 'var(--green)', color: 'white',
+          background: toastTone === 'ok' ? 'var(--green)' : 'var(--red)', color: 'white',
           padding: '14px 28px', borderRadius: '12px',
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           display: 'flex', alignItems: 'center', gap: '10px', zIndex: 9999,
-          fontWeight: 600, fontSize: '15px'
+          fontWeight: 600, fontSize: '15px', maxWidth: '420px'
         }}>
-          <Check size={20} /> {toastMessage}
+          {toastTone === 'ok' ? <Check size={20} /> : <AlertTriangle size={20} />} {toastMessage}
         </div>
       )}
       <div className="wrap">

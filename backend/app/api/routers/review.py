@@ -30,6 +30,10 @@ class RevalidateRequest(BaseModel):
     original_text: str
     edited_summary: str
 
+class PublishRequest(BaseModel):
+    edited_summary: str | None = None
+    nli_label: str | None = None
+
 @router.post("/review/revalidate")
 async def revalidate_nli(request: RevalidateRequest, current_user: User = Depends(get_current_admin)):
     """
@@ -85,7 +89,7 @@ async def get_pending_review_data(db: Session = Depends(get_db), current_user: U
 
 
 @router.put("/review/{item_type}/{item_id}/publish")
-async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
+async def publish_item(item_type: str, item_id: int, body: PublishRequest | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)):
     """
     Changes the status of a specific item to 'published'
     """
@@ -102,14 +106,24 @@ async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_d
     if item.status == "published":
         return {"status": "success", "message": "Item is already published."}
         
-    
+    edited_summary = body.edited_summary if body else None
+    is_edited = bool(edited_summary and edited_summary.strip() and edited_summary != (item.tom_tat or ""))
+    final_nli_label = item.nli_label
     action_taken = "Duyệt giữ nguyên"
-    
-    # Check if there is edited_summary in request (if request exists)
-    # The original function signature might not have request, let's keep it simple
-    # if we can't extract edited_summary, we just log it as "Duyệt giữ nguyên"
-    # Actually, let's just create the AuditTrail
-    
+
+    if is_edited:
+        # Verify NLI server-side lần nữa (không tin nhãn từ FE).
+        server_label = extractor.verify_nli(item.nguon, edited_summary)
+        if server_label == "contradiction":
+            raise HTTPException(
+                status_code=422,
+                detail="NLI: contradiction — bản chỉnh sửa mâu thuẫn với nguyên văn, không thể duyệt.",
+            )
+        item.tom_tat = edited_summary
+        item.nli_label = server_label
+        final_nli_label = server_label
+        action_taken = "Sửa & Duyệt"
+
     from datetime import datetime
     audit = AuditTrail(
         item_type=item_type,
@@ -118,9 +132,9 @@ async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_d
         dieu=item.dieu,
         original_text=item.nguon,
         original_summary=item.tom_tat or "",
-        edited_summary=None,
-        action="Duyệt giữ nguyên",
-        author="Admin",
+        edited_summary=edited_summary if is_edited else None,
+        action=action_taken,
+        author=current_user.email,
         timestamp=datetime.now().isoformat()
     )
     db.add(audit)
@@ -129,7 +143,7 @@ async def publish_item(item_type: str, item_id: int, db: Session = Depends(get_d
     check_and_update_document_status(item.document_id, db)
     db.commit()
     
-    return {"status": "success", "message": f"{item_type} ID {item_id} has been published successfully."}
+    return {"status": "success", "message": f"{item_type} ID {item_id} has been published successfully.", "nli_label": final_nli_label}
 
 
 @router.put("/review/{item_type}/{item_id}/reject")

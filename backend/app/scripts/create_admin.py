@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import os
 import sys
 
 from app.core.security import get_password_hash
@@ -17,15 +18,22 @@ from app.db.models import Base, User
 from app.db.session import SessionLocal, engine
 
 
-def create_user(email: str, role: str, password: str) -> bool:
+def create_user(email: str, role: str, password: str, reset_password: bool = False) -> bool:
     # Cho phép chạy CLI trước lần khởi động app đầu tiên.
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.email == email).first():
-            print(f"Tài khoản {email} đã tồn tại, không thay đổi gì.")
-            return False
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            if not reset_password:
+                print(f"Tài khoản {email} đã tồn tại, không thay đổi gì.")
+                return False
+            existing.hashed_password = get_password_hash(password)
+            existing.role = role
+            db.commit()
+            print(f"Đã đặt lại mật khẩu cho {email} (vai trò {role}).")
+            return True
 
         db.add(User(email=email, hashed_password=get_password_hash(password), role=role))
         db.commit()
@@ -41,10 +49,18 @@ def main() -> int:
     parser.add_argument(
         "--role", choices=["admin", "lecturer"], default="lecturer", help="Vai trò tài khoản"
     )
+    parser.add_argument(
+        "--reset-password",
+        action="store_true",
+        help="Đặt lại mật khẩu nếu tài khoản đã tồn tại",
+    )
     args = parser.parse_args()
 
-    password = getpass.getpass("Mật khẩu: ")
-    confirm = getpass.getpass("Nhập lại mật khẩu: ")
+    password = os.environ.get("DAU_NEW_PASSWORD") or getpass.getpass("Mật khẩu: ")
+    if os.environ.get("DAU_NEW_PASSWORD"):
+        confirm = password
+    else:
+        confirm = getpass.getpass("Nhập lại mật khẩu: ")
     if password != confirm:
         print("Mật khẩu nhập lại không khớp.", file=sys.stderr)
         return 1
@@ -52,7 +68,7 @@ def main() -> int:
         print("Mật khẩu phải có ít nhất 10 ký tự.", file=sys.stderr)
         return 1
 
-    return 0 if create_user(args.email, args.role, password) else 0
+    return 0 if create_user(args.email, args.role, password, args.reset_password) else 0
 
 
 if __name__ == "__main__":

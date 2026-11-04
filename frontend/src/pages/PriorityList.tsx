@@ -4,6 +4,7 @@ import { useDetail } from '../context/DetailContext';
 import { Filter, RotateCcw, Search } from 'lucide-react';
 import { fold } from '../utils';
 import { API_BASE_URL } from '../api/axiosClient';
+import { PageHead, Badge, Pager, EmptyState, FilterPanel } from '../components/ui';
 
 const PriorityList: React.FC = () => {
   const { openDetail } = useDetail();
@@ -101,74 +102,24 @@ const PriorityList: React.FC = () => {
   return (
     <section id="uu-tien">
       <div className="wrap">
-        <h2>Ưu tiên xử lý trước</h2>
-        <p className="sub">
-          Xếp theo mức độ: văn bản có căn cứ <b>bị bãi bỏ</b> và dính <b>nhiều căn cứ hỏng</b> lên đầu. Bấm để xem chi tiết.
-        </p>
+        <PageHead
+          title="Ưu tiên xử lý trước"
+          sub="Xếp theo mức độ: văn bản có căn cứ bị bãi bỏ và dính nhiều căn cứ hỏng lên đầu. Bấm để xem chi tiết."
+        />
 
         {/* Card Bộ lọc */}
-        <div
-          style={{
-            background: '#fff',
-            border: '1px solid var(--line, #e2e8f0)',
-            borderRadius: '12px',
-            padding: '16px 20px',
-            marginTop: '16px',
-            marginBottom: '20px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-          }}
+        <FilterPanel
+          title="Bộ lọc danh sách ưu tiên xử lý"
+          icon={<Filter size={18} style={{ color: 'var(--danger)' }} />}
+          hasActive={hasActiveFilters}
+          onReset={handleResetFilters}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--ink, #1e293b)', fontSize: '15px' }}>
-              <Filter size={18} style={{ color: 'var(--red, #b91c1c)' }} />
-              <span>Bộ lọc danh sách ưu tiên xử lý</span>
-            </div>
-            {hasActiveFilters && (
-              <button
-                onClick={handleResetFilters}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '13px',
-                  color: 'var(--red, #b91c1c)',
-                  background: '#fee2e2',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                <RotateCcw size={14} /> Đặt lại bộ lọc
-              </button>
-            )}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          <div className="panel-filters-grid">
             {/* Ô tìm kiếm */}
-            <div style={{ position: 'relative' }}>
-              <Search
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--muted, #64748b)'
-                }}
-              />
+            <div className="field">
+              <Search size={16} className="field-icon" />
               <input
                 className="inp"
-                style={{
-                  width: '100%',
-                  padding: '0 12px 0 36px',
-                  height: '42px',
-                  fontSize: '14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--line, #cbd5e1)',
-                  boxSizing: 'border-box'
-                }}
                 type="search"
                 placeholder="Tìm số hiệu, loại văn bản..."
                 value={searchTerm}
@@ -179,18 +130,8 @@ const PriorityList: React.FC = () => {
             {/* Mức độ ưu tiên */}
             <div>
               <select
-                className="inp"
-                style={{
-                  width: '100%',
-                  padding: '0 28px 0 12px',
-                  height: '42px',
-                  fontSize: '14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--line, #cbd5e1)',
-                  background: '#fff',
-                  color: 'var(--ink, #1e293b)',
-                  boxSizing: 'border-box'
-                }}
+                className="sel"
+                style={{ width: '100%' }}
                 value={filterLevel}
                 onChange={(e) => setFilterLevel(e.target.value as any)}
               >
@@ -203,18 +144,8 @@ const PriorityList: React.FC = () => {
             {/* Loại văn bản */}
             <div>
               <select
-                className="inp"
-                style={{
-                  width: '100%',
-                  padding: '0 28px 0 12px',
-                  height: '42px',
-                  fontSize: '14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--line, #cbd5e1)',
-                  background: '#fff',
-                  color: 'var(--ink, #1e293b)',
-                  boxSizing: 'border-box'
-                }}
+                className="sel"
+                style={{ width: '100%' }}
                 value={filterLoai}
                 onChange={(e) => setFilterLoai(e.target.value)}
               >
@@ -230,18 +161,8 @@ const PriorityList: React.FC = () => {
             {/* Số căn cứ hỏng */}
             <div>
               <select
-                className="inp"
-                style={{
-                  width: '100%',
-                  padding: '0 28px 0 12px',
-                  height: '42px',
-                  fontSize: '14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--line, #cbd5e1)',
-                  background: '#fff',
-                  color: 'var(--ink, #1e293b)',
-                  boxSizing: 'border-box'
-                }}
+                className="sel"
+                style={{ width: '100%' }}
                 value={filterBrokenCount}
                 onChange={(e) => setFilterBrokenCount(e.target.value)}
               >
@@ -254,51 +175,40 @@ const PriorityList: React.FC = () => {
           </div>
 
           {/* Thanh tổng kết đếm số lượng */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginTop: '12px',
-              paddingTop: '10px',
-              borderTop: '1px solid var(--line, #f1f5f9)',
-              fontSize: '13px',
-              color: 'var(--muted, #64748b)'
-            }}
-          >
+          <div className="panel-filters-summary">
             <div>
-              Hiển thị: <b style={{ color: 'var(--ink, #0f172a)' }}>{filteredRows.length}</b> / {rows.length} văn bản
-              {hasActiveFilters && <span style={{ color: 'var(--red, #b91c1c)', marginLeft: '6px', fontWeight: 600 }}>(đang lọc)</span>}
+              Hiển thị: <b style={{ color: 'var(--ink)' }}>{filteredRows.length}</b> / {rows.length} văn bản
+              {hasActiveFilters && <span style={{ color: 'var(--danger)', marginLeft: '6px', fontWeight: 600 }}>(đang lọc)</span>}
             </div>
             {hasActiveFilters && (
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {searchTerm && (
-                  <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                  <span className="filter-tag search">
                     "{searchTerm}"
                   </span>
                 )}
                 {filterLevel !== 'all' && (
-                  <span style={{ background: filterLevel === 'high' ? '#fee2e2' : '#fef3c7', color: filterLevel === 'high' ? '#b91c1c' : '#92400e', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                  <span className={`filter-tag ${filterLevel === 'high' ? 'danger' : 'warn'}`}>
                     {filterLevel === 'high' ? 'Ưu tiên cao' : 'Cần rà soát'}
                   </span>
                 )}
                 {filterLoai !== 'all' && (
-                  <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                  <span className="filter-tag info">
                     {filterLoai}
                   </span>
                 )}
                 {filterBrokenCount !== 'all' && (
-                  <span style={{ background: '#f3e8ff', color: '#7e22ce', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                  <span className="filter-tag neutral">
                     ≥ {filterBrokenCount} căn cứ hỏng
                   </span>
                 )}
               </div>
             )}
           </div>
-        </div>
+        </FilterPanel>
 
         <div id="priority">
-          <div className="prow phead" style={{ display: 'grid', gridTemplateColumns: '40px 3fr 2fr 1fr 1fr', textTransform: 'uppercase', fontSize: '11px', color: 'var(--muted)', fontWeight: 700, paddingBottom: '12px', borderBottom: '1px solid var(--line)', marginBottom: '8px' }}>
+          <div className="table-head">
             <span>#</span>
             <span>Văn bản</span>
             <span>Loại</span>
@@ -307,69 +217,53 @@ const PriorityList: React.FC = () => {
           </div>
 
           {filteredRows.length === 0 ? (
-            <div style={{ padding: '60px 40px', textAlign: 'center', backgroundColor: '#fff', borderRadius: '12px', border: '1px dashed var(--line)', marginTop: '20px' }}>
-              {rows.length === 0 ? (
-                <>
-                  <h3 style={{ color: 'var(--green)', fontSize: '20px', marginBottom: '8px' }}>Mọi thứ đang ổn định</h3>
-                  <p className="sub">Hiện tại không có văn bản nào cần ưu tiên rà soát do xung đột căn cứ.</p>
-                </>
-              ) : (
-                <>
-                  <h3 style={{ color: 'var(--muted)', fontSize: '18px', marginBottom: '8px' }}>Không tìm thấy văn bản phù hợp</h3>
-                  <p className="sub" style={{ marginBottom: '16px' }}>Không có văn bản nào khớp với điều kiện lọc hiện tại.</p>
-                  <button
-                    onClick={handleResetFilters}
-                    style={{
-                      padding: '8px 16px',
-                      background: 'var(--blue, #2563eb)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '13px'
-                    }}
-                  >
-                    Xóa bộ lọc để xem tất cả
+            rows.length === 0 ? (
+              <EmptyState tone="ok" title="Mọi thứ đang ổn định" desc="Hiện tại không có văn bản nào cần ưu tiên rà soát do xung đột căn cứ." />
+            ) : (
+              <EmptyState
+                title="Không tìm thấy văn bản phù hợp"
+                desc="Không có văn bản nào khớp với điều kiện lọc hiện tại."
+                action={
+                  <button className="btn btn-primary" onClick={handleResetFilters}>
+                    <RotateCcw size={14} /> Xóa bộ lọc để xem tất cả
                   </button>
-                </>
-              )}
-            </div>
+                }
+              />
+            )
           ) : (
             pagedRows.map((r: any, i: number) => {
-              const lvl = r.baiBo ? (
-                <span className="lv lv-hi" style={{ padding: '4px 10px', border: '1px solid #ffd0d0', color: 'var(--red)', background: '#fff0f0', borderRadius: '20px', fontSize: '11px', fontWeight: 600 }}>Ưu tiên cao</span>
-              ) : (
-                <span className="lv lv-md" style={{ padding: '4px 10px', border: '1px solid #ffe4b5', color: 'var(--amber)', background: '#fffdf5', borderRadius: '20px', fontSize: '11px', fontWeight: 600 }}>Cần rà</span>
-              );
               const isUnread = !readWarnings.includes(r.soHieu);
               const itemIdx = (page - 1) * limit + i + 1;
               return (
                 <div
                   key={r.docId}
-                  className={`prow ${isUnread ? 'unread-item' : ''}`}
-                  style={{ display: 'grid', gridTemplateColumns: '40px 3fr 2fr 1fr 1fr', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid var(--soft)', cursor: 'pointer', transition: 'background 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--soft)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  className={`row-item ${isUnread ? 'unread-item' : ''}`}
                   data-did={r.docId}
                   onClick={() => handleViewWarning(r.soHieu)}
                 >
-                  <span className="pk" style={{ color: 'var(--red)', fontWeight: 700 }}>{itemIdx}</span>
-                  <span className="pd" style={{ fontWeight: 600, color: 'var(--ink)' }}>{r.soHieu}</span>
-                  <span className="pl" style={{ color: 'var(--muted)' }}>{r.loai || ''}</span>
-                  <span className="pn" style={{ color: 'var(--red)', fontWeight: 700 }}>{r.n}</span>
-                  <span>{lvl}</span>
+                  <span className="pk">{itemIdx}</span>
+                  <span className="pd">{r.soHieu}</span>
+                  <span className="pl">{r.loai || ''}</span>
+                  <span className="pn">{r.n}</span>
+                  <span>
+                    {r.baiBo ? (
+                      <Badge tone="danger">Ưu tiên cao</Badge>
+                    ) : (
+                      <Badge tone="warn">Cần rà</Badge>
+                    )}
+                  </span>
                 </div>
               );
             })
           )}
 
           {filteredRows.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px' }}>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '8px 16px', background: page === 1 ? '#e0e0e0' : 'var(--blue)', color: page === 1 ? '#888' : '#fff', border: 'none', borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 600 }}>Trang trước</button>
-              <span style={{ fontWeight: 600, color: 'var(--text)' }}>Trang {page} / {totalPages}</span>
-              <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} style={{ padding: '8px 16px', background: page >= totalPages ? '#e0e0e0' : 'var(--blue)', color: page >= totalPages ? '#888' : '#fff', border: 'none', borderRadius: '8px', cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontWeight: 600 }}>Trang sau</button>
-            </div>
+            <Pager
+              page={page}
+              totalPages={totalPages}
+              onPrev={() => setPage(p => Math.max(1, p - 1))}
+              onNext={() => setPage(p => p + 1)}
+            />
           )}
         </div>
       </div>

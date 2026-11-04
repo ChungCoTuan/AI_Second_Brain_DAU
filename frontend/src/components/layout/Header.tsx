@@ -99,50 +99,30 @@ const Header: React.FC<HeaderProps> = ({ onMenu }) => {
   };
 
   return (
-    <header className="header" style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '0 20px', height: '58px', background: 'var(--blue)', color: '#fff',
-      boxShadow: '0 1px 0 rgba(0,0,0,.15)', zIndex: 10, position: 'sticky', top: 0
-    }}>
-      <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+    <header className="hdr">
+      <div className="hdr-left">
         {onMenu && (
           <button
-            className="menu-btn"
+            className="hdr-menu-btn"
             onClick={onMenu}
             aria-label="Mở menu"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer',
-              padding: '6px', borderRadius: '8px',
-            }}
           >
             <Menu size={22} />
           </button>
         )}
-        <div className="brand" style={{ fontWeight: 700, fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hệ thống Trợ lý Pháp lý</div>
+        <div className="hdr-brand">Hệ thống Trợ lý Pháp lý</div>
       </div>
-      <div className="header-right" style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-        
+      <div className="hdr-right">
+
         {/* Khối Thông báo */}
-        <div ref={dropdownRef} style={{ position: 'relative' }}>
-          <button 
+        <div ref={dropdownRef} className="hdr-bell-wrap">
+          <button
+            className={`hdr-bell ${isOpen ? 'open' : ''}`}
             onClick={() => setIsOpen(!isOpen)}
-            style={{ 
-              background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
-              width: '32px', height: '32px', borderRadius: '50%',
-              backgroundColor: isOpen ? 'rgba(255,255,255,0.1)' : 'transparent',
-              transition: 'background 0.2s'
-            }}
           >
             <Bell size={20} />
             {unreadCount > 0 && (
-              <span style={{
-                position: 'absolute', top: '0px', right: '0px',
-                background: '#ef4444', color: 'white', fontSize: '10px',
-                fontWeight: 700, padding: '1px 5px', borderRadius: '10px',
-                lineHeight: 1, border: '2px solid var(--blue)'
-              }}>
+              <span className="hdr-bell-count">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -150,50 +130,36 @@ const Header: React.FC<HeaderProps> = ({ onMenu }) => {
 
           {/* Dropdown UI */}
           {isOpen && (
-            <div style={{
-              position: 'absolute', top: '44px', right: '-10px', width: 'min(340px, calc(100vw - 24px))',
-              background: '#fff', borderRadius: '12px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-              border: '1px solid var(--line)', color: 'var(--ink)', zIndex: 100,
-              overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '420px'
-            }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--soft)' }}>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>Thông báo</h3>
-                {unreadCount > 0 && <span style={{ fontSize: '12px', color: 'var(--blue)', fontWeight: 600 }}>{unreadCount} chưa đọc</span>}
+            <div className="hdr-dropdown">
+              <div className="hdr-dropdown-head">
+                <h3 className="hdr-dropdown-title">Thông báo</h3>
+                {unreadCount > 0 && <span className="hdr-dropdown-unread">{unreadCount} chưa đọc</span>}
               </div>
-              
-              <div style={{ overflowY: 'auto', flex: 1 }}>
+
+              <div className="hdr-dropdown-body">
                 {notifications.length === 0 ? (
-                  <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)' }}>
+                  <div className="hdr-empty">
                     <CheckCircle2 size={32} style={{ margin: '0 auto 12px', color: 'var(--line)' }} />
-                    <p style={{ margin: 0, fontSize: '13px' }}>Bạn không có thông báo nào.</p>
+                    <p>Bạn không có thông báo nào.</p>
                   </div>
                 ) : (
-                  <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  <ul className="hdr-notif-list">
                     {notifications.map((notif, idx) => (
-                      <li key={idx} style={{ borderBottom: '1px solid var(--line)' }}>
-                        <button 
+                      <li key={idx} className="hdr-notif">
+                        <button
+                          className={`hdr-notif-btn ${notif.isRead ? '' : 'unread'}`}
                           onClick={() => handleNotificationClick(notif)}
-                          style={{
-                            width: '100%', textAlign: 'left', background: notif.isRead ? '#fff' : 'var(--blue-50)',
-                            border: 'none', padding: '12px 16px', cursor: 'pointer',
-                            display: 'flex', gap: '12px', alignItems: 'flex-start',
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseOver={(e) => e.currentTarget.style.background = notif.isRead ? 'var(--soft)' : '#f3e8e8'}
-                          onMouseOut={(e) => e.currentTarget.style.background = notif.isRead ? '#fff' : 'var(--blue-50)'}
                         >
-                          <div style={{ marginTop: '2px' }}>{notif.icon}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: notif.isRead ? 600 : 700, color: 'var(--ink)', marginBottom: '4px' }}>
+                          <div className="hdr-notif-icon">{notif.icon}</div>
+                          <div className="hdr-notif-body">
+                            <div className={`hdr-notif-title ${notif.isRead ? 'read' : ''}`}>
                               {notif.title}
                             </div>
-                            <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.4 }}>
+                            <div className="hdr-notif-desc">
                               {notif.desc}
                             </div>
                           </div>
-                          {!notif.isRead && (
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--blue)', marginTop: '6px', flexShrink: 0 }} />
-                          )}
+                          {!notif.isRead && <div className="hdr-notif-dot" />}
                         </button>
                       </li>
                     ))}
@@ -204,15 +170,11 @@ const Header: React.FC<HeaderProps> = ({ onMenu }) => {
           )}
         </div>
 
-        <div className="user-profile" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div className="avatar" style={{ 
-            width: '32px', height: '32px', borderRadius: '50%', 
-            backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
+        <div className="hdr-user">
+          <div className="hdr-avatar">
             <User size={16} />
           </div>
-          <span style={{ fontWeight: 600, fontSize: '13px' }}>
+          <span className="hdr-user-label">
             {role === 'admin' ? 'Phòng Đào tạo' : 'Giảng viên'}
           </span>
         </div>
