@@ -27,6 +27,6 @@ backend/.admin-password
 .archify/
 
 deploy/
-AGENTS.md/
-CLAUDE.md/
+AGENTS.md
+CLAUDE.md
 .kilo/plans/
