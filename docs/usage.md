@@ -1,219 +1,77 @@
-# HƯỚNG DẪN XỬ LÝ DỮ LIỆU & QUY TRÌNH HỆ THỐNG (DATA & PIPELINE GUIDE)
-## Dự Án: DAU Second Brain
+# Hướng dẫn chạy ứng dụng
 
-> **Tài liệu liên quan:** [DAU_Second_Brain_Ke_Hoach_Du_Lieu.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/DAU_Second_Brain_Ke_Hoach_Du_Lieu.md) | [workflow.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/workflow.md) | [DAU_Second_Brain_Dac_Ta_Nghiep_Vu_Kien_Truc.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/DAU_Second_Brain_Dac_Ta_Nghiep_Vu_Kien_Truc.md) | [DAU_Second_Brain_Phan_Cong_RACI.md](file:///Users/macbookair/Desktop/AI_Second_Brain_DAU/docs/DAU_Second_Brain_Phan_Cong_RACI.md)
+**Cập nhật:** 10/11/2026
 
-Tài liệu này tổng hợp toàn bộ quy trình thiết lập môi trường, thu thập dữ liệu tự động, tiền xử lý, chia đoạn (Structure Chunking), định dạng Data Model Schemas, kiểm duyệt tính hợp lệ với Pydantic (Data Quality Gate), quản trị rủi ro và các chỉ số nghiệm thu KPI.
+## 1. Yêu cầu
 
----
+- Python phù hợp với pinned packages trong `backend/requirements.txt`.
+- Node.js/npm phù hợp với Vite trong `frontend/package.json`.
+- PostgreSQL đang chạy và có database `dau_second_brain`.
+- Internet lần đầu để tải model Hugging Face; Gemini API key cho chatbot và OCR nếu dùng các chức năng đó.
 
-## I. TRẠNG THÁI TIẾN ĐỘ DỰ ÁN (PROJECT PROGRESS STATUS)
+## 2. Cấu hình backend
 
-```mermaid
-flowchart LR
-    A[1. Thu thập PDF Raw\n✅ Hoàn thành 90 PDF] --> B[2. Preprocessing & Chunking\n✅ 172 Chunks & 144 Rels]
-    B --> C[3. Pydantic Quality Gate\n✅ 100% Schema Valid]
-    C --> D[4. Phân loại Chủ đề & NER\n🔄 Đang thực hiện]
-    D --> E[5. NLI 3 Nhãn & Publish Gate\n⏳ Chuẩn bị Sprint 3]
+Từ PowerShell tại repository root:
+
+```powershell
+Copy-Item backend\.env.example backend\.env
 ```
 
-- ✅ **Bước 1 (Thu thập dữ liệu)**: Đã cào và lưu trữ 90 văn bản PDF phân loại thành 3 danh mục chính tại `data/raw/` (`thong_tu/`, `quyet_dinh/`, `quy_che_noi_bo/`).
-- ✅ **Bước 2 (Tiền xử lý & Chunking)**: Script `services/ingestion/preprocess.py` đã trích xuất text chuẩn NFC, cắt đoạn theo Điều/Khoản kèm số trang PDF gốc (`so_trang`) và trích xuất 5 loại quan hệ `DocumentRelation`.
-- ✅ **Bước 3 (Pydantic Quality Gate)**: Script `services/ingestion/validate_data.py` đã kiểm duyệt 100% hợp lệ cho 90 Documents, 172 Chunks, 144 Relations và 45 mẫu Faithfulness Testset.
-- 🔄 **Bước 4 (Công việc tiếp theo)**: Phân loại văn bản theo **Chủ đề** (`TopicEnum`) và Trích xuất thực thể NER nâng cao qua `services/extraction/extract_and_classify.py`.
+Điền `DATABASE_URL`, `SECRET_KEY` ngẫu nhiên đủ mạnh, `CORS_ORIGINS` và key cần thiết vào `backend/.env`. Không commit hoặc chia sẻ file này.
 
----
+Backend hỗ trợ cấu hình `GEMINI_API_KEY` (có thể thêm `_2`, `_3`) cho chat và `OCR_API_KEY`/`OCR_MODEL` riêng cho OCR. Thiết lập model Gemini theo `GEMINI_MODEL` nếu cần. Không bật OCR ngoài cho tài liệu nhạy cảm nếu chưa được phép.
 
-## II. THIẾT LẬP MÔI TRƯỜNG & CẤU TRÚC DỮ LIỆU
+## 3. Cài và chạy backend
 
-### 1. Chuẩn bị môi trường làm việc
-- **Python**: Version `3.10+` (khuyên dùng `.venv` trong dự án).
-- **Dependencies**: `pdfplumber`, `pymupdf` (`fitz`), `pandas`, `pydantic`, `requests`, `beautifulsoup4`.
-- **Cài đặt**:
-  ```bash
-  python3 -m venv .venv
-  source .venv/bin/activate
-  pip install pdfplumber pymupdf pandas pydantic requests beautifulsoup4 python-dotenv
-  ```
-
-### 2. Cấu trúc thư mục chuẩn
-```
-data/
-├── raw/
-│   ├── thong_tu/              # Các Thông tư Bộ GD&ĐT & Chính phủ
-│   ├── quyet_dinh/            # Các Quyết định Bộ GD&ĐT & Chính phủ
-│   └── quy_che_noi_bo/        # Tài liệu & Quy định nội bộ DAU
-├── processed/
-│   ├── documents.jsonl        # Metadata văn bản chuẩn DocumentSchema
-│   ├── chunks.jsonl           # Đoạn cắt Điều/Khoản chuẩn DocumentChunkSchema
-│   └── document_relations.jsonl# Quan hệ văn bản chuẩn DocumentRelationSchema
-└── testset/
-    └── faithfulness_samples.json# Tập test NLI 3 nhãn chuẩn FaithfulnessSampleSchema
-logs/
-├── ingestion_errors.log       # Log lỗi cào văn bản
-└── extraction_errors.log      # Log lỗi trích xuất text/OCR
+```powershell
+Set-Location backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m app.scripts.create_admin --email admin@example.com --role admin
+uvicorn app.main:app --reload --port 8000
 ```
 
----
+Nếu cần kiểm tra test OCR/PDF:
 
-## III. ĐỊNH DẠNG CHUẨN 4 SCHEMAS ĐẦU RA (DATA MODEL)
-
-### 📄 1. Schema Metadata Văn Bản (`data/processed/documents.jsonl`)
-Mỗi dòng là đối tượng JSON `DocumentSchema`:
-```json
-{
-  "doc_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
-  "so_hieu": "08/2021/TT-BGDĐT",
-  "ten_van_ban": "Thông tư 08/2021/TT-BGDĐT: Quy chế đào tạo trình độ đại học",
-  "co_quan_ban_hanh": "Bộ Giáo dục và Đào tạo",
-  "ngay_ban_hanh": "2021-03-18",
-  "loai_van_ban": "Thông tư",
-  "trich_yeu": "Ban hành quy chế đào tạo trình độ đại học áp dụng cho các cơ sở giáo dục đại học.",
-  "chu_de": "DAO_TAO",
-  "muc_do_lien_quan_dau": "GENERAL",
-  "trang_thai_xuat_ban": "PENDING_REVIEW",
-  "can_cu_dan_chieu": ["Luật Giáo dục đại học số 34/2018/QH14"],
-  "file_path": "data/raw/thong_tu/BGD_TT_082021_QuyCheDaoTaoDaiHoc.pdf"
-}
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pytest tests
 ```
 
-### 🧩 2. Schema Chunk Đoạn Văn Bản (`data/processed/chunks.jsonl`)
-Mỗi dòng là đối tượng JSON `DocumentChunkSchema` (kèm `so_trang` cho tính năng xem file gốc):
-```json
-{
-  "chunk_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc_D5_K1",
-  "doc_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
-  "so_hieu": "08/2021/TT-BGDĐT",
-  "dieu_so": 5,
-  "khoan_so": 1,
-  "so_trang": 4,
-  "title": "Điều 5. Điều kiện cảnh báo học tập",
-  "content": "Điều 5. Điều kiện cảnh báo học tập\n1. Sinh viên có điểm trung bình học kỳ dưới 1.0 sẽ bị cảnh báo học tập lần 1.",
-  "token_count": 48,
-  "chu_de": "DAO_TAO",
-  "muc_do_lien_quan_dau": "GENERAL"
-}
+Khi backend khởi động, app tạo các bảng thiếu qua SQLAlchemy và bật lịch crawler. Swagger UI: `http://localhost:8000/docs`. Tạo admin bằng script; không có thông tin đăng nhập mặc định được tài liệu này công bố.
+
+## 4. Cài và chạy frontend
+
+Mở terminal khác:
+
+```powershell
+Set-Location frontend
+npm ci
+npm run dev
 ```
 
-### 🕸️ 3. Schema Quan Hệ Văn Bản (`data/processed/document_relations.jsonl`)
-Mỗi dòng là mối quan hệ `DocumentRelationSchema` giữa 2 văn bản:
-```json
-{
-  "relation_id": "rel_001",
-  "document_id_a": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
-  "document_id_b": "34_2018_QH14",
-  "loai_quan_he": "CAN_CU",
-  "mo_ta": "Căn cứ Luật Giáo dục đại học số 34/2018/QH14",
-  "diem_tuong_dong": null
-}
-```
+Vite mặc định phục vụ tại `http://localhost:5173`. API client dùng `/api/v1` mặc định; cấu hình `VITE_API_URL` nếu môi trường cần base URL khác.
 
-### 🧪 4. Schema Tập Kiểm Thử Faithfulness Audit (`data/testset/faithfulness_samples.json`)
-Danh sách mẫu NLI 3 nhãn (`entailment`, `neutral`, `contradiction`) phục vụ đánh giá chống bịa đặt:
-```json
-[
-  {
-    "sample_id": "test_001",
-    "doc_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc",
-    "chunk_id": "BGD_TT_082021_QuyCheDaoTaoDaiHoc_D5_K1",
-    "premise": "Sinh viên có điểm trung bình học kỳ dưới 1.0 sẽ bị cảnh báo học tập lần 1.",
-    "hypothesis": "Sinh viên có điểm học kỳ 0.9/4.0 sẽ bị nhận cảnh báo học tập.",
-    "label": "entailment",
-    "notes": "Suy luận đúng 100% từ đoạn văn bản gốc"
-  }
-]
-```
+## 5. Tài liệu/API
 
----
+- OpenAPI/Swagger: `http://localhost:8000/docs`.
+- API prefix mặc định: `/api/v1`.
+- Frontend route và role: [`DAU_Second_Brain_UIUX_Spec.md`](DAU_Second_Brain_UIUX_Spec.md).
 
-## IV. QUY TRÌNH THỰC THI PIPELINE THEO CÁC BƯỚC
+Các endpoint chính gồm `/auth`, `/documents`, `/topics`, `/legal-data`, `/review`, `/search`, `/chat`, `/analytics`, `/auditing`, `/audit`, `/system`, `/impact` và `/reports/template/{document_id}`. OpenAPI là nguồn chuẩn cho schema hiện tại.
 
-### Bước 1: Thu thập Dữ liệu Văn bản Tự động (`services/ingestion/crawl_documents.py`)
-- **Mục tiêu**: Tải các file PDF Thông tư & Quyết định chính thức từ `moet.gov.vn` hoặc `vanban.chinhphu.vn`.
-- **Lệnh thực thi**:
-  ```bash
-  .venv/bin/python services/ingestion/crawl_documents.py --max_files 50 --output_dir data/raw
-  ```
-- **Quản trị rủi ro luồng cào**:
-  > [!WARNING]
-  > - **Retry & Rate-Limit**: Tự động áp dụng Exponential Backoff Retry (ngủ 2s–5s, tối đa 3 lần thử lại) khi gặp lỗi kết nối 429/403.
-  > - **Kiểm soát PDF Binary**: Kiểm tra header bọc `res.content.startswith(b'%PDF')` ngăn lưu nhầm file lỗi HTML/404.
-  > - **Log lỗi**: Ghi vết ngoại lệ kết nối vào `logs/ingestion_errors.log`.
+## 6. Dữ liệu và giới hạn vận hành
 
----
+- PDF upload lưu trong `backend/data/uploads`; PDF crawler dưới `backend/data/vanban_caotudong`.
+- FAISS index/metadata nằm trong `backend/data`; không xóa hoặc sửa tay khi ứng dụng đang chạy.
+- Scheduler crawl lúc 02:00 và kiểm tra nguồn mỗi 30 phút khi app hoạt động.
+- Chức năng chat cần ít nhất một `GEMINI_API_KEY`; OCR cần `OCR_API_KEY` và `OCR_MODEL`.
+- PDF scan: upload UI cần xác nhận OCR ngoài. Giới hạn OCR có thể cấu hình qua `OCR_MAX_PAGES`, `OCR_MAX_PDF_MB`, `OCR_MAX_IMAGE_MB`, `OCR_TIMEOUT_SECONDS`, `OCR_MAX_RETRIES`.
+- Chatbot, cảnh báo và extraction là hỗ trợ; xác minh nội dung pháp lý trên PDF/nguồn chính thức.
 
-### Bước 2: Preprocessing & Structure Chunking (`services/ingestion/preprocess.py`)
-- **Mục tiêu**: Đọc toàn bộ PDF raw, trích xuất text chuẩn Unicode NFC, cắt đoạn theo Điều/Khoản (`so_trang`), bóc tách mối quan hệ liên văn bản (`CAN_CU`, `THAY_THE`, `SUA_DOI`, `BAI_BO`).
-- **Lệnh thực thi**:
-  ```bash
-  .venv/bin/python services/ingestion/preprocess.py --input_dir data/raw --output_dir data/processed
-  ```
-- **Quản trị rủi ro trích xuất**:
-  > [!IMPORTANT]
-  > - **Fallback OCR**: Nếu PDF là ảnh scan hoặc mã hóa lỗi font (số từ < 20 từ/trang), hệ thống tự động kích hoạt luồng Fallback OCR (`PaddleOCR` / `PyTesseract`).
-  > - **Log lỗi trích xuất**: Mọi đoạn chunk lỗi được ghi vết vào `logs/extraction_errors.log`.
+## 7. Tham khảo thêm
 
----
-
-### Bước 3: Kiểm duyệt Hợp lệ Dữ liệu với Pydantic (`services/ingestion/validate_data.py`)
-- **Mục tiêu**: Đảm bảo 100% dữ liệu đầu ra đạt chuẩn Pydantic Schema trước khi đưa vào các bước tiếp theo.
-- **Lệnh thực thi**:
-  ```bash
-  .venv/bin/python services/ingestion/validate_data.py
-  ```
-- **Kết quả kiểm duyệt thực tế**:
-  - ✅ **Documents**: 90/90 văn bản hợp lệ 100%.
-  - ✅ **Chunks**: 172/172 đoạn hợp lệ 100%.
-  - ✅ **Relations**: 144/144 quan hệ hợp lệ 100%.
-  - ✅ **Faithfulness Samples**: 45/45 mẫu NLI hợp lệ 100%.
-
----
-
-### Bước 4 (BƯỚC TIẾP THEO): Phân Loại Chủ Đề & Trích Xuất Thực Thể NER (`services/extraction/extract_and_classify.py`)
-- **Mục tiêu**: Thực hiện **EPIC-2 (Sprint 2)** theo phân công RACI:
-  1. Phân loại tự động **Loại văn bản**: `Thông tư`, `Quyết định`, `Nghị định`, `Công văn`, `Luật`, `Quy định`.
-  2. Gán nhãn tự động **Chủ đề (`TopicEnum`)**: `DAO_TAO`, `TUYEN_SINH`, `TAI_CHINH`, `NHAN_SU`, `CO_SO_VAT_CHAT`, `KHAC`.
-  3. Trích xuất thực thể NER: Số hiệu, Cơ quan ban hành, Ngày ban hành, Trích yếu, Yêu cầu báo cáo & Hạn nộp.
-- **Lệnh thực thi**:
-  ```bash
-  .venv/bin/python services/extraction/extract_and_classify.py --input_dir data/processed --output_dir data/processed
-  ```
-
----
-
-### Bước 5: Đánh Giá NLI 3 Nhãn & Review Service Publish Gate (`services/review_service/publish_gate.py`)
-- **Mục tiêu**: Thực hiện **EPIC-3 (NLI 3 nhãn)** và **EPIC-9 (Review Service - Sprint 3)**:
-  1. Văn bản mới Ingestion mặc định ở trạng thái `trang_thai_xuat_ban = "PENDING_REVIEW"`.
-  2. Phân loại NLI 3 nhãn: `entailment`, `neutral`, `contradiction`.
-  3. **Ràng buộc an toàn FR-08**: Nếu có ít nhất 1 câu `contradiction` ➔ Chuyển toàn bộ văn bản vào hàng đợi rà soát, ngăn tự động chuyển `published`.
-- **Lệnh thực thi**:
-  ```bash
-  .venv/bin/python services/review_service/publish_gate.py --input_dir data/processed --testset data/testset/faithfulness_samples.json
-  ```
-
----
-
-## V. BỘ CHỈ SỐ KPIS NGHỆM THU CHẤT LƯỢNG
-
-Bảng dưới đây quy định các ngưỡng chỉ số đo lường chất lượng tối thiểu bắt buộc hệ thống phải đạt được trước khi nghiệm thu:
-
-| Hạng mục Đo lường | Chỉ số KPI / Metric | Ngưỡng Đạt Tối Thiểu | Ghi chú & Phương pháp Kiểm thử |
-|---|---|---|---|
-| **Luồng Cào dữ liệu (Crawler)** | Tỷ lệ cào tệp PDF thành công | **> 95% links** | Không bị ngắt tiến trình, 100% tệp lưu chuẩn `%PDF-1.` binary |
-| **Kiểm duyệt Schema (Data Gate)** | Tính hợp lệ Pydantic Schema | **100% hợp lệ** | Không có bất kỳ lỗi `ValidationError` nào trên `documents`, `chunks`, `relations` |
-| **Trích xuất NER & Chủ đề** | Độ chính xác F1-Score | **> 85%** | Đánh giá trên tập nhãn mẫu (Số hiệu, Ngày BH, Loại VB, Chủ đề) |
-| **Độ chính xác Mô hình NLI** | Accuracy NLI 3 Nhãn | **> 85%** | Đánh giá trên tập `data/testset/faithfulness_samples.json` |
-| **Publish Gate Safety (FR-08)** | Tỷ lệ chặn câu `contradiction` | **100% chặn tuyệt đối** | 100% văn bản chứa mâu thuẫn/bịa đặt bị giữ lại `PENDING_REVIEW` |
-| **Hiệu năng xử lý (Performance)** | Thời gian Preprocessing / PDF | **< 3 giây / PDF** | Đảm bảo tốc độ xử lý hàng loạt tốt trên môi trường tiêu chuẩn |
-
----
-
-## VI. BẢNG PHÂN CÔNG VAI TRÒ (NHÓM RACI)
-
-| Hạng mục Công việc | TV1 (Track A - Data & Pipeline) | TV2 (Track B - AI Core) |
-|---|---|---|
-| **Thu thập PDF chinhphu.vn & MOET** | **R / A** (Thực hiện chính) | **C** (Tư vấn nguồn) |
-| **Viết Script Preprocessing & Chunking** | **R / A** (Thực hiện chính) | **C** (Đóng góp regex) |
-| **Trích xuất Quan Hệ DocumentRelation** | **R / A** (Thực hiện chính) | **C** (Tư vấn similarity) |
-| **Phân loại Chủ đề & NER (EPIC-2)** | **R / A** (Thực hiện chính) | **C** (Review chất lượng) |
-| **NLI 3 Nhãn & Review Service (EPIC-3, 9)** | **R / A** (Cùng thực hiện) | **R / A** (Cùng thực hiện) |
+- Mô hình dữ liệu: [`backend/app/db/models.py`](../backend/app/db/models.py)
+- Cấu hình môi trường: [`backend/.env.example`](../backend/.env.example)
+- Hướng dẫn triển khai hiện có trong `backend/HUONG_DAN_TRIEN_KHAI.md`; cần rà soát riêng trước khi áp dụng cho môi trường production.
