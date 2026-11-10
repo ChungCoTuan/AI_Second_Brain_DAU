@@ -25,3 +25,8 @@ backend/test_output.json
 .gitnexus/
 backend/.admin-password
 .archify/
+
+deploy/
+AGENTS.md/
+CLAUDE.md/
+.kilo/plans/
