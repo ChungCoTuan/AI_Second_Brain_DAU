@@ -6,12 +6,18 @@ from sqlalchemy.orm import Session
 import os
 import shutil
 import re
+import threading
 from ...db.session import get_db
 from ...db.models import Document, Obligation, Threshold, DocumentRelation, AuditTrail, User
 from ...services.nlp_pipeline import extractor, classify_text
-from ...services.pdf_parser import extract_text_from_pdf, chunk_document
+from ...services.pdf_parser import extract_text_from_pdf, chunk_document, _count_pages
 from ...services.ingestion.crawl_documents import BASE_OUTPUT_DIR
 from ...core.security import get_current_user, get_current_admin
+from ...core.config import settings
+
+# Xử lý tài liệu phải tuần tự: vừa tránh tràn RAM khi nạp model NLP cục bộ,
+# vừa tránh đụng độ khi ghi file FAISS và vượt giới hạn request của dịch vụ LLM.
+_INGEST_LOCK = threading.Lock()
 
 def clean_doc_title(s: Optional[str]) -> str:
     if not s:
@@ -103,26 +109,54 @@ async def upload_document(
     """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
-        
+
     existing_doc = db.query(Document).filter(Document.filename == file.filename).first()
     if existing_doc:
         raise HTTPException(status_code=400, detail="Văn bản với tên file này đã tồn tại trong hệ thống. Vui lòng đổi tên file hoặc kiểm tra lại hệ thống.")
-        
+
     upload_dir = "data/uploads"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, file.filename)
-    
+
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
+
+    # Kiểm tra số trang NGAY LÚC TẢI LÊN để báo lỗi rõ ràng cho người dùng,
+    # thay vì để task nền chết lặng lẽ.
+    try:
+        total_pages = _count_pages(file_path)
+    except Exception:  # noqa: BLE001 - không đọc được số trang thì để task nền xử lý
+        total_pages = 0
+
+    max_pages = settings.MAX_PAGES_PER_DOCUMENT
+    if total_pages and total_pages > max_pages:
+        # Xoá file vừa lưu vì không xử lý được
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Văn bản có {total_pages} trang, vượt giới hạn cho phép "
+                f"({max_pages} trang). Vui lòng chia nhỏ file PDF thành các phần "
+                f"nhỏ hơn rồi tải lại."
+            ),
+        )
+
     # Thêm tác vụ bóc tách vào hàng đợi ngầm
     background_tasks.add_task(
         _run_extraction, file_path, file.filename, "data/uploads", "Khac", allow_external_ocr
     )
-    
+
     return {
         "status": "success",
-        "message": f"Đã lưu {file.filename} và đưa vào hàng đợi xử lý AI ngầm."
+        "message": (
+            f"Đã lưu {file.filename} ({total_pages} trang) và bắt đầu xử lý AI. "
+            f"Theo dõi tiến trình bên dưới."
+        ),
+        "total_pages": total_pages,
+        "filename": file.filename,
     }
 
 
@@ -812,7 +846,40 @@ def _report_progress(filename: str, progress: int, step: str):
     notifier.push_sync(f"progress:{filename}:{progress}:{step}")
 
 
+def _report_page_progress(filename: str, page_no: int, total_pages: int, base_pct: int = 5, span_pct: int = 45):
+    """
+    Báo tiến trình theo từng trang OCR.
+
+    Vùng OCR chiếm `span_pct` phần trăm của thanh tiến trình (mặc định 5% -> 50%),
+    phần còn lại dành cho bóc tách nghĩa vụ / con số chốt / vector index.
+    """
+    if total_pages <= 0:
+        return
+    ratio = max(0.0, min(1.0, page_no / total_pages))
+    pct = int(base_pct + ratio * span_pct)
+    _report_progress(
+        filename,
+        pct,
+        f"Đang OCR trang {page_no}/{total_pages}...",
+    )
+
+
 def _run_extraction(
+    filepath: str,
+    filename: str,
+    source_folder: str,
+    domain: str,
+    allow_external_ocr: bool = False,
+):
+    """Bọc bằng khoá tuần tự để không xử lý nhiều tài liệu cùng lúc."""
+    with _INGEST_LOCK:
+        print(f"[BACKGROUND] Bắt đầu xử lý: {filename}")
+        _run_extraction_unlocked(
+            filepath, filename, source_folder, domain, allow_external_ocr
+        )
+
+
+def _run_extraction_unlocked(
     filepath: str,
     filename: str,
     source_folder: str,
@@ -831,15 +898,19 @@ def _run_extraction(
             return
 
         _report_progress(filename, 5, "Đang đọc file PDF...")
-        text = extract_text_from_pdf(filepath, allow_external_ocr=allow_external_ocr)
+        text = extract_text_from_pdf(
+            filepath,
+            allow_external_ocr=allow_external_ocr,
+            progress_callback=lambda p, t: _report_page_progress(filename, p, t),
+        )
         if not text:
             print(f"[BACKGROUND] Không thể đọc nội dung file: {filename}")
             _report_progress(filename, 100, "Lỗi: không đọc được nội dung file")
             return
         
-        _report_progress(filename, 20, "Đang chia đoạn văn bản...")
+        _report_progress(filename, 52, "Đang chia đoạn văn bản theo điều khoản...")
         articles = chunk_document(text)
-        
+
         domain_display = {
             "Giao_duc": "Giáo dục",
             "Tai_chinh": "Tài chính",
@@ -849,14 +920,42 @@ def _run_extraction(
             "Phap_luat_khung": "Pháp luật khung",
             "Khac": "Khác"
         }.get(domain, domain)
-        
-        _report_progress(filename, 30, "Đang bóc tách metadata...")
+
+        _report_progress(filename, 58, "Đang bóc tách metadata...")
         metadata = extractor.extract_document_metadata(text)
-        _report_progress(filename, 40, "Đang tóm tắt toàn văn...")
-        tom_tat_toan_van = extractor.summarize_text(text)
-        _report_progress(filename, 50, "Đang phân loại chủ đề...")
+        _report_progress(filename, 70, "Đang phân loại chủ đề...")
         chu_de = classify_text(text)
-        
+
+        # Chọn điều khoản đại diện TRƯỚC, để gom toàn bộ lệnh tóm tắt (ViT5) và
+        # kiểm chứng (NLI) thành 2 phase riêng biệt. Nếu xen kẽ, mô hình bị nạp
+        # lại liên tục (WinError 1455 + chậm).
+        art_obl = None
+        art_thresh = None
+        if len(articles) > 0:
+            obl_keywords = ["trách nhiệm", "nghĩa vụ", "thực hiện", "phải", "hạn chót", "thời hạn", "báo cáo"]
+            art_obl = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in obl_keywords)), articles[0])
+
+            thresh_keywords = ["tỷ đồng", "triệu đồng", "nghìn đồng", "đồng", "%", "tỷ lệ", "hệ số", "định mức", "tối thiểu", "tối đa", "không quá", "ít nhất", "chỉ tiêu"]
+            art_thresh = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in thresh_keywords) and a != art_obl), None)
+            if not art_thresh:
+                art_thresh = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in thresh_keywords)), articles[-1] if len(articles) > 1 else articles[0])
+
+        # --- Phase 1: tóm tắt (mô hình ViT5 được nạp 1 lần duy nhất) ---
+        _report_progress(filename, 65, "Đang tóm tắt toàn văn...")
+        tom_tat_toan_van = extractor.summarize_text(text)
+        obl_tom_tat = extractor.summarize_text(art_obl["raw"]) if art_obl else ""
+        thresh_tom_tat = extractor.summarize_text(art_thresh["raw"]) if art_thresh else ""
+
+        # --- Phase 2: kiểm chứng NLI (mô hình mDeBERTa được nạp 1 lần duy nhất) ---
+        obl_nli = ""
+        thresh_nli = ""
+        if art_obl:
+            _report_progress(filename, 75, "Đang kiểm chứng NLI...")
+            obl_nli = extractor.verify_nli(art_obl["raw"], obl_tom_tat)
+        if art_thresh:
+            _report_progress(filename, 85, "Đang kiểm chứng NLI con số chốt...")
+            thresh_nli = extractor.verify_nli(art_thresh["raw"], thresh_tom_tat)
+
         doc = Document(
             filename=filename,
             source_folder=source_folder,
@@ -868,23 +967,17 @@ def _run_extraction(
             hieu_luc_tu=metadata.get("hieu_luc_tu", ""),
             tags=metadata.get("tags", ""),
             tom_tat=tom_tat_toan_van,
+            noi_dung_day_du=text,
             status="draft"
         )
         db.add(doc)
         db.commit()
         db.refresh(doc)
-        
+
         if len(articles) > 0:
-            # Bóc tách có điều kiện: Tìm điều khoản phù hợp nhất dựa trên từ khóa nghiệp vụ
-            obl_keywords = ["trách nhiệm", "nghĩa vụ", "thực hiện", "phải", "hạn chót", "thời hạn", "báo cáo"]
-            art_obl = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in obl_keywords)), articles[0])
-            
-            _report_progress(filename, 60, "Đang bóc tách nghĩa vụ...")
+            _report_progress(filename, 75, "Đang bóc tách nghĩa vụ...")
             obl_info = extractor.extract_obligation(art_obl["raw"])
-            obl_tom_tat = extractor.summarize_text(art_obl["raw"])
-            _report_progress(filename, 70, "Đang kiểm chứng NLI nghĩa vụ...")
-            obl_nli = extractor.verify_nli(art_obl["raw"], obl_tom_tat)
-            
+
             db.add(Obligation(
                 document_id=doc.id,
                 vb=filename,
@@ -898,19 +991,10 @@ def _run_extraction(
                 tom_tat=obl_tom_tat,
                 nli_label=obl_nli
             ))
-            
-            # Điều khoản con số chốt: ưu tiên chứa số liệu tài chính, %, tỷ lệ, hệ số lương hoặc định mức
-            thresh_keywords = ["tỷ đồng", "triệu đồng", "nghìn đồng", "đồng", "%", "tỷ lệ", "hệ số", "định mức", "tối thiểu", "tối đa", "không quá", "ít nhất", "chỉ tiêu"]
-            art_thresh = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in thresh_keywords) and a != art_obl), None)
-            if not art_thresh:
-                art_thresh = next((a for a in articles if any(kw in a.get("raw", "").lower() for kw in thresh_keywords)), articles[-1] if len(articles) > 1 else articles[0])
-            
-            _report_progress(filename, 75, "Đang bóc tách con số chốt...")
+
+            _report_progress(filename, 85, "Đang bóc tách con số chốt...")
             thresh_info = extractor.extract_threshold(art_thresh["raw"])
-            thresh_tom_tat = extractor.summarize_text(art_thresh["raw"])
-            _report_progress(filename, 80, "Đang kiểm chứng NLI con số chốt...")
-            thresh_nli = extractor.verify_nli(art_thresh["raw"], thresh_tom_tat)
-            
+
             db.add(Threshold(
                 document_id=doc.id,
                 vb=filename,
@@ -923,7 +1007,7 @@ def _run_extraction(
                 nli_label=thresh_nli
             ))
             
-            _report_progress(filename, 85, "Đang trích quan hệ văn bản...")
+            _report_progress(filename, 93, "Đang trích quan hệ văn bản...")
             relations = extractor.extract_document_relations(text, filename)
             for rel in relations:
                 db.add(DocumentRelation(
@@ -949,7 +1033,7 @@ def _run_extraction(
             ))
             db.commit()
         # Đưa dữ liệu vào Vector DB cho Chatbot RAG
-        _report_progress(filename, 90, "Đang tạo vector index...")
+        _report_progress(filename, 97, "Đang tạo vector index...")
         from ...services.vector_db import vector_db
         from ...services.nlp_pipeline import create_embedding
         
@@ -998,7 +1082,13 @@ def _run_extraction(
             user_msg = "Tài liệu là bản scan. Vui lòng xác nhận tài liệu không chứa dữ liệu nhạy cảm trước khi dùng OCR."
             expected_error = True
         elif "vượt giới hạn OCR" in err_msg:
-            user_msg = "Tài liệu vượt giới hạn OCR (số trang hoặc dung lượng). Vui lòng chia nhỏ file."
+            # Giữ nguyên chi tiết số trang/thông số từ thông báo gốc
+            user_msg = err_msg if "trang" in err_msg else (
+                "Tài liệu vượt giới hạn OCR (số trang hoặc dung lượng). Vui lòng chia nhỏ file."
+            )
+            expected_error = True
+        elif "vượt giới hạn cho phép" in err_msg:
+            user_msg = err_msg
             expected_error = True
         elif "OCR" in err_msg:
             user_msg = "Dịch vụ OCR đang gặp sự cố hoặc hết quota. Vui lòng thử lại sau."

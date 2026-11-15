@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Enum, ForeignKey, Boolean, Float, DateTime
+from sqlalchemy import Column, Integer, String, Text, Enum, ForeignKey, Boolean, Float, DateTime, Sequence
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import datetime
@@ -6,9 +6,16 @@ import datetime
 
 Base = declarative_base()
 
+# Fix bug: khi restore DB bang `pg_restore -t <table>` (chi tao bang, khong tao sequence),
+# cac cot `id` bi mat DEFAULT nextval(...) -> moi INSERT ra NULL.
+# Khai bao Sequence ro rang o model + ham `ensure_sequences()` trong app/db/session.py
+# de `create_all` luon tao day du sequence va DB cu cung duoc chua lai khi start.
+def _seq(name: str) -> Sequence:
+    return Sequence(name)
+
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("users_id_seq"), primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="lecturer") # 'admin' or 'lecturer'
@@ -17,7 +24,7 @@ class User(Base):
 class Document(Base):
     __tablename__ = "documents"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("documents_id_seq"), primary_key=True, index=True)
     filename = Column(String, index=True, nullable=False)
     source_folder = Column(String, nullable=False)
     linh_vuc = Column(String, nullable=True, default="Giáo dục") # Nhóm lĩnh vực chuyên ngành
@@ -38,6 +45,7 @@ class Document(Base):
     ghi_chu = Column(Text, nullable=True) # Lưu "Ghi chú khi bóc tách"
     dieu_khoan_hieu_luc_nguyen_van = Column(Text, nullable=True) # Lưu "Nguyên văn điều khoản hiệu lực"
     muc_luc_dieu_khoan = Column(JSONB, nullable=True) # Mảng object lưu cấu trúc chương/điều
+    noi_dung_day_du = Column(Text, nullable=True) # Toàn bộ text đã trích (OCR hoặc PDF text layer)
     created_at = Column(DateTime, default=datetime.datetime.now)
     
     # Relationships``
@@ -47,7 +55,7 @@ class Document(Base):
 class Obligation(Base):
     __tablename__ = "obligations"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("obligations_id_seq"), primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
     vb = Column(String, nullable=False)
     dieu = Column(String)
@@ -66,7 +74,7 @@ class Obligation(Base):
 class Threshold(Base):
     __tablename__ = "thresholds"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("thresholds_id_seq"), primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
     vb = Column(String, nullable=False)
     dieu = Column(String)
@@ -83,7 +91,7 @@ class Threshold(Base):
 class DocumentEmbedding(Base):
     __tablename__ = "document_embeddings"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("document_embeddings_id_seq"), primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
     content = Column(Text, nullable=False)
     # Tạm dùng JSONB để lưu mảng [0.1, 0.2, ...] vì máy user chưa cài đặt pgvector extension
@@ -94,7 +102,7 @@ class DocumentEmbedding(Base):
 class DocumentRelation(Base):
     __tablename__ = "document_relations"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("document_relations_id_seq"), primary_key=True, index=True)
     source_doc = Column(String, nullable=False) # VD: TT 08/2021
     target_doc = Column(String, nullable=False) # VD: TT 17/2021
     relation_type = Column(String, nullable=False) # can_cu, thay_the, sua_doi, bai_bo
@@ -104,7 +112,7 @@ class DocumentRelation(Base):
 class AuditTrail(Base):
     __tablename__ = "audit_trails"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("audit_trails_id_seq"), primary_key=True, index=True)
     item_type = Column(String, nullable=False) # nghiaVu, conSoChot
     item_id = Column(Integer, nullable=False)
     vb = Column(String, nullable=True) # Tên văn bản
@@ -118,7 +126,7 @@ class AuditTrail(Base):
 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("chat_sessions_id_seq"), primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.now)
@@ -126,7 +134,7 @@ class ChatSession(Base):
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, _seq("chat_messages_id_seq"), primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("chat_sessions.id"), nullable=False)
     role = Column(String, nullable=False)
     content = Column(Text, nullable=False)

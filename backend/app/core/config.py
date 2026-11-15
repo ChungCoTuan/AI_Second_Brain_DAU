@@ -1,4 +1,5 @@
 import os
+import re
 
 from pydantic_settings import BaseSettings
 
@@ -28,12 +29,36 @@ class Settings(BaseSettings):
     OCR_MAX_IMAGE_MB: int = 4
     OCR_MAX_RETRIES: int = 3
 
+    # Giới hạn số trang tối đa cho MỌI văn bản (kể cả bản có text layer).
+    # Vượt giới hạn sẽ bị từ chối ngay lúc tải lên với thông báo rõ ràng.
+    MAX_PAGES_PER_DOCUMENT: int = 100
+
     # Thư mục cache mô hình cục bộ; để trống thì dùng mặc định của Hugging Face.
     HF_HOME: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def cors_origin_regexes(self) -> list[str]:
+        """Regex origin cho các domain động (ví dụ Tailscale Funnel `*.ts.net`).
+
+        Chỉ dùng khi `CORS_ORIGINS` chứa mẫu `https://*.ts.net` — FastAPI/Starlette
+        không hỗ trợ wildcard trong `allow_origins`, nên phải dùng regex.
+
+        `*` được hiểu là "một hoặc nhiều tầng subdomain", ví dụ:
+          https://*.ts.net  ->  https://laptop-ahuge8a3.tail-1a2b.ts.net
+        """
+        patterns: list[str] = []
+        for origin in self.cors_origins_list:
+            if "*" not in origin:
+                continue
+            # Tach scheme va host rieng biet de tranh escape 2 lan dau '.'.
+            scheme, _, host = origin.partition("://")
+            host_pattern = re.escape(host).replace(r"\*", r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*")
+            patterns.append(f"^{re.escape(scheme)}://{host_pattern}$")
+        return patterns
 
     class Config:
         env_file = ".env"

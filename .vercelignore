@@ -1,0 +1,33 @@
+# Vercel: chi deploy frontend.
+# Root Directory cua project = `frontend`, nen backend/ (10 GB models + venv)
+# KHONG duoc gui len Vercel.
+
+# --- Backend (khong deploy) ---
+backend/
+scripts/
+docs/
+implement.md
+
+# --- Secret / du lieu ---
+.env
+.env.*
+**/.env
+**/.env.*
+_token.txt
+*.log
+*.dump
+
+# --- Node / build ---
+**/node_modules/
+**/npm-debug.log*
+frontend/dist/
+
+# --- Git / IDE ---
+.git/
+.gitignore
+.cursor/
+.vscode/
+.idea/
+.kilo/
+.archify/
+.ast-graph/

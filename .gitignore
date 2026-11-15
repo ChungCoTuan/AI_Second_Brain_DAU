@@ -27,6 +27,9 @@ backend/.admin-password
 .archify/
 
 deploy/
+.vercel/
 AGENTS.md
 CLAUDE.md
 .kilo/plans/
+.vercel
+.env*

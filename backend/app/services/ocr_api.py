@@ -15,6 +15,7 @@ from typing import Any
 import requests
 
 from ..core.config import settings
+from . import llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +57,19 @@ class OCRResponseError(OCRError):
 
 
 def extract_page_text(image_bytes: bytes) -> str:
-    """Gửi một ảnh JPEG của một trang tới Gemini và trả về text đã trích xuất."""
+    """Gửi một ảnh JPEG của một trang tới dịch vụ OCR và trả về text đã trích xuất.
+
+    Tùy ``LLM_PROVIDER`` sẽ dùng Gemini native hoặc endpoint OpenAI-compatible.
+    """
     if not settings.OCR_API_KEY or not settings.OCR_MODEL:
         raise OCRConfigurationError(
             "Chưa cấu hình OCR. Hãy đặt OCR_API_KEY và OCR_MODEL trong backend/.env."
         )
     if not image_bytes:
         raise OCRResponseError("Ảnh trang rỗng, không thể OCR.")
+
+    if llm_client.get_provider() == "openai":
+        return _extract_page_text_openai(image_bytes)
 
     payload = {
         "contents": [
@@ -128,6 +135,57 @@ def extract_page_text(image_bytes: bytes) -> str:
 
         if attempt < attempts - 1:
             time.sleep(_backoff_seconds(attempt, retry_after))
+
+    raise OCRTemporaryError(
+        f"OCR thất bại sau {attempts} lần thử: {last_message}. Vui lòng thử lại sau."
+    )
+
+
+def _extract_page_text_openai(image_bytes: bytes) -> str:
+    """OCR qua endpoint OpenAI-compatible (vision)."""
+    messages = llm_client.image_message(_OCR_PROMPT, image_bytes, "image/jpeg")
+    attempts = settings.OCR_MAX_RETRIES + 1
+    last_message = "không rõ nguyên nhân"
+
+    for attempt in range(attempts):
+        try:
+            text = llm_client.chat_completion(
+                messages,
+                api_key=settings.OCR_API_KEY,
+                model=settings.OCR_MODEL,
+                max_tokens=6000,
+                temperature=0.0,
+                timeout=settings.OCR_TIMEOUT_SECONDS,
+            )
+        except requests.Timeout:
+            last_message = "quá thời gian chờ"
+        except requests.RequestException:
+            last_message = "lỗi kết nối mạng"
+        except RuntimeError as exc:
+            message = str(exc)
+            if "HTTP 401" in message or "HTTP 403" in message:
+                raise OCRAuthError(
+                    "Dịch vụ OCR từ chối xác thực hoặc quyền của OCR_API_KEY "
+                    f"({message[:120]}). Kiểm tra lại key và quyền truy cập model."
+                ) from exc
+            if "HTTP 400" in message or "HTTP 404" in message:
+                raise OCRResponseError(
+                    "Yêu cầu OCR không hợp lệ hoặc không tìm thấy OCR_MODEL "
+                    f"({message[:120]}). Kiểm tra lại cấu hình."
+                ) from exc
+            if any(code in message for code in ("HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")):
+                last_message = f"dịch vụ tạm thời lỗi ({message[:60]})"
+            else:
+                raise OCRResponseError(f"Dịch vụ OCR trả lời lỗi: {message[:200]}") from exc
+        else:
+            if not text:
+                raise OCRResponseError(
+                    "Dịch vụ OCR không trả về nội dung nào cho trang này."
+                )
+            return text
+
+        if attempt < attempts - 1:
+            time.sleep(_backoff_seconds(attempt, None))
 
     raise OCRTemporaryError(
         f"OCR thất bại sau {attempts} lần thử: {last_message}. Vui lòng thử lại sau."

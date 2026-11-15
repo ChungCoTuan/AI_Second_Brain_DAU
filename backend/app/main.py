@@ -6,13 +6,15 @@ from .api import endpoints
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.ingestion.crawl_documents import crawl_chinhphu, check_new_chinhphu
-from app.db.session import engine
+from app.db.session import engine, ensure_sequences
 from app.db.models import Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Khởi tạo DB
     Base.metadata.create_all(bind=engine)
+    # Chuẩn hoá sequence cho các bảng có cột `id` (fix lỗi id=NULL sau pg_restore)
+    ensure_sequences()
 
     # Tài khoản được tạo một lần bằng CLI: python -m app.scripts.create_admin
     # Không tạo/đặt lại mật khẩu mặc định ở đây.
@@ -36,9 +38,13 @@ app = FastAPI(
 )
 
 # CORS: chỉ cho phép origin frontend được cấu hình trong .env
+# Ngoài danh sách tĩnh, hỗ trợ mẫu wildcard (vd `https://*.ts.net` cho Tailscale Funnel).
+# Lưu ý: Starlette chỉ nhận MỘT chuỗi regex (không phải list).
+_cors_regex = settings.cors_origin_regexes
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
+    allow_origin_regex=_cors_regex[0] if _cors_regex else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -70,9 +70,9 @@ async def search_documents(
             "nguon": "bộ" if "QĐ" in doc.filename or "TT" in doc.filename else "trường",
             "coQuan": doc.co_quan_ban_hanh,
             "ngay": doc.ngay_ky,
-            "tomTat": "", # Tóm tắt sẽ làm sau nếu có
+            "tomTat": doc.tom_tat or "",
             "chuDe": [doc.chu_de] if doc.chu_de else [],
-            "soDieu": 0,
+            "soDieu": len(doc.thresholds) if doc.thresholds else 0,
             "soNghiaVu": len(doc.obligations) if doc.obligations else 0,
             "ocr": doc.ocr
         })

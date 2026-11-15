@@ -1,0 +1,25 @@
+# Root Directory cua project Vercel la `frontend/`, nen file nay ap dung cho
+# noi dung duoc upload tu thu muc frontend/.
+
+# Secret / du lieu
+.env
+.env.*
+**/.env
+**/.env.*
+_token.txt
+*.log
+*.dump
+
+# Build output (Vercel tu build lai)
+dist/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Git / IDE
+.git/
+.gitignore
+.cursor/
+.vscode/
+.idea/

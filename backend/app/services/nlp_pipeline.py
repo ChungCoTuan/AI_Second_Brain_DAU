@@ -12,6 +12,8 @@ from typing import Dict, Any, Optional
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+from . import llm_client
+
 load_dotenv()
 GEMINI_API_KEYS = []
 for key_name in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]:
@@ -58,25 +60,38 @@ class LegalInformationExtractor:
             self.nli_tokenizer = None
             self.nli_model = None
 
+            # Thứ tự LRU của các model nặng đã nạp (giữ tối đa 2 model).
+            self._lru_order = []
+
     def _manage_memory(self, active_model: str):
-        """Chỉ giữ 1 mô hình lớn trong RAM để tránh tràn RAM (WinError 1455)"""
+        """Chỉ giữ 1 mô hình lớn trong RAM để tránh tràn RAM (WinError 1455).
+
+        Model đã nạp được GIỮ LẠI trong cache (LRU nhỏ) để tránh phải tải lại
+        từ đĩa khi xen kẽ các tác vụ (tóm tắt -> NLI -> tóm tắt). Việc nạp lại
+        tốn nhiều giây và gây thrashing bộ nhớ.
+        """
         import gc
-        cleared = False
-        if active_model != 'qa' and self.qa_model is not None:
-            self.qa_model = None
-            self.tokenizer = None
-            cleared = True
-        if active_model != 'sum' and self.sum_model is not None:
-            self.sum_model = None
-            self.sum_tokenizer = None
-            cleared = True
-        if active_model != 'nli' and self.nli_model is not None:
-            self.nli_model = None
-            self.nli_tokenizer = None
-            cleared = True
-            
-        if cleared:
-            gc.collect()
+
+        # Đánh dấu model đang dùng là "mới nhất"
+        self._lru_order = [m for m in self._lru_order if m != active_model]
+        self._lru_order.append(active_model)
+
+        # Chỉ giữ tối đa 2 model nặng cùng lúc (đủ cho summarize + NLI xen kẽ)
+        while len(self._lru_order) > 2:
+            evicted = self._lru_order.pop(0)
+            if evicted == active_model:
+                continue
+            if evicted == 'qa':
+                self.qa_model = None
+                self.tokenizer = None
+            elif evicted == 'sum':
+                self.sum_model = None
+                self.sum_tokenizer = None
+            elif evicted == 'nli':
+                self.nli_model = None
+                self.nli_tokenizer = None
+
+        gc.collect()
             
     def _get_qa_model(self):
         self._manage_memory('qa')
@@ -457,20 +472,13 @@ def create_embedding(text: str) -> list[float]:
             
     return [0.0] * 384
 
-def generate_rag_answer(query: str, context_chunks: list[str]) -> str:
-    """
-    Sử dụng Gemini API để sinh câu trả lời RAG dựa trên các đoạn ngữ cảnh.
-    """
-    global current_key_idx
-    if not GEMINI_API_KEYS:
-        return "Hệ thống chưa được cấu hình GEMINI_API_KEY trong file .env. Vui lòng thêm ít nhất 1 API Key để sử dụng tính năng Chatbot AI."
-        
-    context_text = "\n\n---\n\n".join(context_chunks)
-    
-    prompt = f"""Bạn là một Trợ lý AI pháp lý chuyên nghiệp của Hệ thống DAU Second Brain. 
+
+def _build_rag_prompt(query: str, context_text: str) -> str:
+    """Prompt hệ thống cho chatbot RAG (dùng chung cho mọi provider)."""
+    return f"""Bạn là một Trợ lý AI pháp lý chuyên nghiệp của Hệ thống DAU Second Brain.
 Nguyên tắc hoạt động:
 1. GIAO TIẾP THÔNG THƯỜNG: Nếu người dùng chào hỏi, hỏi thăm (VD: "Bạn là ai?"), hãy giới thiệu bạn là Trợ lý AI chuyên tra cứu Quy chế, Thông tư nội bộ của trường.
-2. TRẢ LỜI NGHIỆP VỤ: Nếu người dùng hỏi về quy định, luật lệ, HÃY TRẢ LỜI TRỰC TIẾP VÀO TRỌNG TÂM, KHÔNG CẦN CHÀO HỎI HAY TỰ GIỚI THIỆU LẠI ("Chào bạn, tôi là..."). HÃY CHỈ DỰA VÀO TÀI LIỆU NGỮ CẢNH bên dưới để trả lời. 
+2. TRẢ LỜI NGHIỆP VỤ: Nếu người dùng hỏi về quy định, luật lệ, HÃY TRẢ LỜI TRỰC TIẾP VÀO TRỌNG TÂM, KHÔNG CẦN CHÀO HỎI HAY TỰ GIỚI THIỆU LẠI ("Chào bạn, tôi là..."). HÃY CHỈ DỰA VÀO TÀI LIỆU NGỮ CẢNH bên dưới để trả lời.
 3. CHỐNG ẢO GIÁC: Nếu TÀI LIỆU NGỮ CẢNH không chứa thông tin phù hợp, HÃY NÓI RÕ: "Dựa vào các văn bản hiện có trên hệ thống, tôi không tìm thấy thông tin để trả lời câu hỏi này." Tuyệt đối không bịa ra luật.
 
 TÀI LIỆU NGỮ CẢNH:
@@ -478,6 +486,76 @@ TÀI LIỆU NGỮ CẢNH:
 
 CÂU HỎI CỦA NGƯỜI DÙNG: {query}
 """
+
+
+def _generate_rag_answer_openai(query: str, context_chunks: list[str]) -> str:
+    """Sinh câu trả lời RAG qua endpoint OpenAI-compatible."""
+    keys = llm_client.get_api_keys()
+    if not keys:
+        return (
+            "Hệ thống chưa được cấu hình API key trong file .env. "
+            "Vui lòng thêm ít nhất 1 API Key để sử dụng tính năng Chatbot AI."
+        )
+
+    context_text = "\n\n---\n\n".join(context_chunks)
+    prompt = _build_rag_prompt(query, context_text)
+    messages = [{"role": "user", "content": prompt}]
+
+    try:
+        timeout = int(os.getenv("GEMINI_TIMEOUT", "60"))
+    except ValueError:
+        timeout = 60
+
+    model = llm_client.get_model("claude-fable-5")
+    last_error = ""
+
+    for key in keys:
+        for candidate in [model, "claude-fable-5", "claude-sonnet-5", "claude-opus-5.5"]:
+            if not candidate:
+                continue
+            try:
+                return llm_client.chat_completion(
+                    messages,
+                    api_key=key,
+                    model=candidate,
+                    max_tokens=4096,
+                    temperature=0.2,
+                    timeout=timeout,
+                )
+            except Exception as exc:  # noqa: BLE001 - thử model/key tiếp theo
+                last_error = str(exc)
+                if "HTTP 404" in last_error or "not found" in last_error.lower():
+                    continue
+                if any(
+                    code in last_error
+                    for code in ("HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")
+                ):
+                    break
+                return f"Xin lỗi, đã xảy ra lỗi khi gọi AI: {last_error[:300]}"
+
+    return (
+        "Tất cả các tài khoản dự phòng đều đang quá tải hoặc phản hồi chậm "
+        f"({last_error[:80] if last_error else 'Timeout'}). "
+        "Bạn vui lòng thử lại sau ít phút!"
+    )
+
+def generate_rag_answer(query: str, context_chunks: list[str]) -> str:
+    """
+    Sinh câu trả lời RAG dựa trên các đoạn ngữ cảnh.
+
+    Dùng endpoint OpenAI-compatible nếu ``LLM_PROVIDER=openai``, ngược lại dùng
+    Gemini native (google.generativeai).
+    """
+    global current_key_idx
+    if llm_client.get_provider() == "openai":
+        return _generate_rag_answer_openai(query, context_chunks)
+
+    if not GEMINI_API_KEYS:
+        return "Hệ thống chưa được cấu hình GEMINI_API_KEY trong file .env. Vui lòng thêm ít nhất 1 API Key để sử dụng tính năng Chatbot AI."
+        
+    context_text = "\n\n---\n\n".join(context_chunks)
+
+    prompt = _build_rag_prompt(query, context_text)
     
     # Danh sách model ứng viên: ưu tiên cấu hình GEMINI_MODEL -> gemini-3.8-flash -> gemini-flash-latest -> gemini-3.5-flash
     env_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")

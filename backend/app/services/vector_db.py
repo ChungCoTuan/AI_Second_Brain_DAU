@@ -1,8 +1,13 @@
 import os
 import json
+import threading
 import numpy as np
 import faiss
 from typing import List, Dict, Any, Tuple
+
+# Khoá ghi file: nhiều tài liệu có thể được xử lý song song, cần tránh
+# hai tiến trình ghi đè cùng lúc (gây lỗi "Invalid argument" khi mở file).
+_WRITE_LOCK = threading.Lock()
 
 class VectorDBManager:
     def __init__(self, data_dir: str = "data"):
@@ -43,9 +48,15 @@ class VectorDBManager:
 
     def save_index(self):
         """Lưu FAISS index và metadata xuống đĩa."""
-        faiss.write_index(self.index, self.index_path)
-        with open(self.meta_path, 'w', encoding='utf-8') as f:
-            json.dump(self.metadata, f, ensure_ascii=False, indent=2)
+        with _WRITE_LOCK:
+            # Ghi ra file tạm rồi đổi tên để tránh file hỏng nếu bị ngắt giữa chừng
+            tmp_index = self.index_path + ".tmp"
+            tmp_meta = self.meta_path + ".tmp"
+            faiss.write_index(self.index, tmp_index)
+            with open(tmp_meta, 'w', encoding='utf-8') as f:
+                json.dump(self.metadata, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_index, self.index_path)
+            os.replace(tmp_meta, self.meta_path)
 
     def add_texts(self, embeddings: List[List[float]], metadatas: List[Dict[str, Any]]):
         """Thêm danh sách các vector và siêu dữ liệu vào index."""
