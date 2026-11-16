@@ -6,8 +6,29 @@ from .api import endpoints
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.ingestion.crawl_documents import crawl_chinhphu, check_new_chinhphu
-from app.db.session import engine, ensure_sequences
+from app.db.session import engine, ensure_sequences, SessionLocal
 from app.db.models import Base
+from app.core.fixed_account import sync_fixed_account, FIXED_ACCOUNT_EMAIL
+
+
+def _sync_fixed_account() -> None:
+    """Đồng bộ bảng `users` với tài khoản cố định duy nhất.
+
+    Tự tạo nếu chưa có, đặt lại mật khẩu/vai trò nếu bị lệch, và xoá các
+    tài khoản khác để hệ thống chỉ còn đúng một tài khoản đăng nhập.
+    """
+    db = SessionLocal()
+    try:
+        changed = sync_fixed_account(db)
+        if changed:
+            print(f"[AUTH] Đã đồng bộ tài khoản cố định: {FIXED_ACCOUNT_EMAIL}")
+        else:
+            print(f"[AUTH] Tài khoản cố định đã sẵn sàng: {FIXED_ACCOUNT_EMAIL}")
+    except Exception as exc:  # noqa: BLE001 - không được chặn app khởi động
+        print(f"[AUTH] Không đồng bộ được tài khoản cố định: {exc}")
+    finally:
+        db.close()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,8 +37,8 @@ async def lifespan(app: FastAPI):
     # Chuẩn hoá sequence cho các bảng có cột `id` (fix lỗi id=NULL sau pg_restore)
     ensure_sequences()
 
-    # Tài khoản được tạo một lần bằng CLI: python -m app.scripts.create_admin
-    # Không tạo/đặt lại mật khẩu mặc định ở đây.
+    # Tài khoản cố định duy nhất: admin@dau.edu.vn / Dau@Second2026
+    _sync_fixed_account()
 
     # Khởi động Cron Job khi app start
     scheduler = BackgroundScheduler()

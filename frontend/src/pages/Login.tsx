@@ -3,8 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Navigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 
+// Tài khoản cố định duy nhất của hệ thống (khớp với backend/app/core/fixed_account.py)
+const FIXED_EMAIL = 'admin@dau.edu.vn';
+
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(FIXED_EMAIL);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +31,7 @@ const Login: React.FC = () => {
 
     try {
       const formData = new URLSearchParams();
-      formData.append('username', email);
+      formData.append('username', email.trim());
       formData.append('password', password);
 
       const response = await axiosClient.post('/auth/login', formData, {
@@ -52,7 +55,13 @@ const Login: React.FC = () => {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Sai email hoặc mật khẩu');
+      // Hệ thống chỉ có 1 tài khoản cố định -> luôn gợi ý đúng thông tin.
+      const detail = err.response?.data?.detail;
+      setError(
+        err.response?.status === 401
+          ? `${detail || 'Email hoặc mật khẩu không chính xác.'} (Tài khoản duy nhất: ${FIXED_EMAIL})`
+          : detail || 'Không thể kết nối đến máy chủ. Vui lòng thử lại.'
+      );
     } finally {
       setLoading(false);
     }
@@ -119,6 +128,9 @@ const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <p className="auth-hint">
+                Tài khoản duy nhất: <strong>admin@dau.edu.vn</strong> / <strong>Dau@Second2026</strong>
+              </p>
             </div>
 
             <button

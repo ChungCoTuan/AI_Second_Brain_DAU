@@ -1,74 +1,46 @@
-"""Tạo tài khoản quản trị/giảng viên một lần, không dùng mật khẩu mặc định.
+"""Đặt lại / tạo tài khoản cố định duy nhất của hệ thống DAU Second Brain.
+
+Hệ thống chỉ dùng MỘT tài khoản:
+    admin@dau.edu.vn / Dau@Second2026
 
 Cách dùng (chạy trong backend/ với venv đã kích hoạt):
-    python -m app.scripts.create_admin --email admin@example.com --role admin
+    python -m app.scripts.create_admin
 
-Mật khẩu được hỏi bằng getpass, không truyền qua tham số dòng lệnh và không ghi log.
+Script tự đồng bộ bảng `users`:
+    - tạo tài khoản nếu chưa có,
+    - đặt lại mật khẩu + vai trò `admin` nếu đã tồn tại,
+    - xoá mọi tài khoản khác.
 """
 
 from __future__ import annotations
 
-import argparse
-import getpass
-import os
 import sys
 
-from app.core.security import get_password_hash
-from app.db.models import Base, User
+from app.core.fixed_account import (
+    FIXED_ACCOUNT_EMAIL,
+    FIXED_ACCOUNT_PASSWORD,
+    FIXED_ACCOUNT_ROLE,
+    sync_fixed_account,
+)
+from app.db.models import Base
 from app.db.session import SessionLocal, engine
 
 
-def create_user(email: str, role: str, password: str, reset_password: bool = False) -> bool:
+def main() -> int:
     # Cho phép chạy CLI trước lần khởi động app đầu tiên.
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        existing = db.query(User).filter(User.email == email).first()
-        if existing:
-            if not reset_password:
-                print(f"Tài khoản {email} đã tồn tại, không thay đổi gì.")
-                return False
-            existing.hashed_password = get_password_hash(password)
-            existing.role = role
-            db.commit()
-            print(f"Đã đặt lại mật khẩu cho {email} (vai trò {role}).")
-            return True
-
-        db.add(User(email=email, hashed_password=get_password_hash(password), role=role))
-        db.commit()
-        print(f"Đã tạo tài khoản {email} với vai trò {role}.")
-        return True
+        changed = sync_fixed_account(db)
     finally:
         db.close()
 
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Tạo tài khoản DAU Second Brain")
-    parser.add_argument("--email", required=True, help="Email đăng nhập")
-    parser.add_argument(
-        "--role", choices=["admin", "lecturer"], default="lecturer", help="Vai trò tài khoản"
-    )
-    parser.add_argument(
-        "--reset-password",
-        action="store_true",
-        help="Đặt lại mật khẩu nếu tài khoản đã tồn tại",
-    )
-    args = parser.parse_args()
-
-    password = os.environ.get("DAU_NEW_PASSWORD") or getpass.getpass("Mật khẩu: ")
-    if os.environ.get("DAU_NEW_PASSWORD"):
-        confirm = password
+    if changed:
+        print(f"Đã đồng bộ tài khoản cố định: {FIXED_ACCOUNT_EMAIL} (vai trò {FIXED_ACCOUNT_ROLE}).")
     else:
-        confirm = getpass.getpass("Nhập lại mật khẩu: ")
-    if password != confirm:
-        print("Mật khẩu nhập lại không khớp.", file=sys.stderr)
-        return 1
-    if len(password) < 10:
-        print("Mật khẩu phải có ít nhất 10 ký tự.", file=sys.stderr)
-        return 1
-
-    return 0 if create_user(args.email, args.role, password, args.reset_password) else 0
+        print(f"Tài khoản {FIXED_ACCOUNT_EMAIL} đã đúng chuẩn, không thay đổi gì.")
+    return 0
 
 
 if __name__ == "__main__":

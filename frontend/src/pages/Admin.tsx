@@ -12,6 +12,9 @@ const Admin: React.FC = () => {
   const [allowExternalOcr, setAllowExternalOcr] = useState(false);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error' | 'crawling'>('idle');
   const [message, setMessage] = useState('');
+  // Tiến trình xử lý cho file đang kéo thả thủ công (0-100 + bước hiện tại)
+  const [manualProgress, setManualProgress] = useState<{ progress: number; step: string } | null>(null);
+  const [uploadedFilename, setUploadedFilename] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
   
   const [crawledFiles, setCrawledFiles] = useState<{filename: string, domain: string}[]>([]);
@@ -76,20 +79,31 @@ const Admin: React.FC = () => {
       // Đã set processingFiles ở DataContext
       setCrawledFiles(prev => prev.filter(f => f.filename !== filename));
       setStatus('success');
+      setManualProgress(null);
       setMessage(`Xử lý thành công: ${filename}`);
       toast.success(`✓ Đã xử lý xong: ${filename}`, { duration: 6000 });
       refreshData();
+      // Nếu là file vừa kéo thả thủ công -> xoá lựa chọn để chọn file mới
+      setUploadedFilename(prev => {
+        if (prev === filename) { setFile(null); return ''; }
+        return prev;
+      });
     };
     const onError = (e: any) => {
       const msg = e.detail;
       const firstColon = msg.indexOf(':');
       const filename = firstColon > -1 ? msg.substring(0, firstColon) : msg;
       const errText = firstColon > -1 ? msg.substring(firstColon + 1) : "Lỗi không xác định";
-      
+
       // Đã set processingFiles ở DataContext
       setStatus('error');
+      setManualProgress(null);
       setMessage(`Lỗi xử lý ${filename}: ${errText}`);
       toast.error(`Lỗi xử lý ${filename}: ${errText}`, { duration: 8000 });
+      setUploadedFilename(prev => {
+        if (prev === filename) { setFile(null); return ''; }
+        return prev;
+      });
     };
     
     window.addEventListener('processing_success', onSuccess);
@@ -100,6 +114,15 @@ const Admin: React.FC = () => {
       window.removeEventListener('processing_error', onError);
     };
   }, []);
+
+  // Theo dõi tiến trình bóc tách của file vừa kéo thả thủ công (qua SSE -> DataContext)
+  useEffect(() => {
+    if (!uploadedFilename) return;
+    const p = processingProgress[uploadedFilename];
+    if (p) {
+      setManualProgress({ progress: p.progress, step: p.step });
+    }
+  }, [processingProgress, uploadedFilename]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -141,22 +164,30 @@ const Admin: React.FC = () => {
 
   const handleUpload = async () => {
     if (!file) return;
-    
+
     setStatus('uploading');
-    setMessage('Đang đưa văn bản vào hàng đợi xử lý bằng AI... Bạn có thể tiếp tục công việc.');
-    
+    setManualProgress({ progress: 1, step: 'Đang tải file lên máy chủ...' });
+    setMessage('Đang tải file lên máy chủ...');
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('allow_external_ocr', String(allowExternalOcr));
-    
+
     try {
       const response = await axiosClient.post('/documents/upload', formData);
-      setStatus('success');
-      setMessage(response.data.message || 'Xử lý thành công!');
-      setFile(null); // Clear file sau khi xong
+      const uploadedName: string = response.data?.filename || file.name;
+      setUploadedFilename(uploadedName);
+      // Đánh dấu đang xử lý để vô hiệu hoá khu vực kéo thả
+      setProcessingFiles(prev => ({ ...prev, [uploadedName]: true }));
+      setStatus('processing');
+      setManualProgress({ progress: 3, step: 'Đã tải lên, đang chờ bắt đầu xử lý AI...' });
+      setMessage(response.data.message || 'Đã tải lên, đang xử lý...');
+      // Không clear file ngay để giữ tên file hiển thị cạnh thanh tiến trình
     } catch (error: any) {
       setStatus('error');
-      setMessage(error?.response?.data?.detail || 'Không thể kết nối đến máy chủ.');
+      setManualProgress(null);
+      const detail = error?.response?.data?.detail;
+      setMessage(detail || 'Không thể kết nối đến máy chủ.');
       console.error(error);
     }
   };
@@ -453,7 +484,7 @@ const Admin: React.FC = () => {
                 Kéo thả file PDF vào đây
               </p>
               <p style={{ fontSize: '14px', color: 'var(--muted)', marginTop: '8px' }}>
-                hoặc click để chọn file từ máy tính của bạn (tối đa 20MB, OCR tối đa 20 trang)
+                hoặc click để chọn file từ máy tính của bạn (tối đa 20MB, tối đa 100 trang)
               </p>
               {isAnyFileProcessing && (
                 <p style={{ fontSize: '14px', color: 'var(--amber)', fontWeight: 600, marginTop: '12px' }}>
@@ -507,6 +538,39 @@ const Admin: React.FC = () => {
           </div>
         )}
 
+        {/* Thanh tiến trình bóc tách cho file đang kéo thả thủ công */}
+        {manualProgress && (
+          <div
+            style={{
+              marginTop: '20px',
+              background: 'var(--card-bg)',
+              borderRadius: '12px',
+              padding: '20px',
+              border: '1px solid var(--border)'
+            }}
+          >
+            <div className="progress-head">
+              <span className="progress-step">
+                <RefreshCw size={14} className="spin" />
+                <span className="progress-step-text">{manualProgress.step}</span>
+              </span>
+              <span className="progress-pct">{manualProgress.progress}%</span>
+            </div>
+            <div className="progress-track">
+              <div
+                className={`progress-fill ${manualProgress.progress >= 100 ? 'done' : ''}`}
+                style={{ width: `${manualProgress.progress}%` }}
+              />
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '10px' }}>
+              Đang xử lý: <strong style={{ color: 'var(--ink)' }}>{uploadedFilename}</strong>
+              {manualProgress.progress >= 100
+                ? ' — Hoàn tất, văn bản đã được đưa vào hàng đợi duyệt.'
+                : ' — Vui lòng không đóng trang này.'}
+            </p>
+          </div>
+        )}
+
         {file && (
           <label
             style={{
@@ -527,7 +591,7 @@ const Admin: React.FC = () => {
             />
             <span>
               Tôi xác nhận tài liệu không chứa dữ liệu nhạy cảm và đồng ý gửi ảnh scan
-              tới dịch vụ OCR bên ngoài (tối đa 20 trang).
+              tới dịch vụ OCR bên ngoài (tối đa 20 trang OCR).
             </span>
           </label>
         )}

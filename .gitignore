@@ -33,3 +33,9 @@ CLAUDE.md
 .kilo/plans/
 .vercel
 .env*
+
+# --- Log runtime & artifact local ---
+*.log
+backup_*.dump
+report/
+.cursor/

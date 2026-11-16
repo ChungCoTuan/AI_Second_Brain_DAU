@@ -28,9 +28,11 @@ Set-Location backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python -m app.scripts.create_admin --email admin@example.com --role admin
+python -m app.scripts.create_admin
 uvicorn app.main:app --reload --port 8000
 ```
+
+Tài khoản đăng nhập cố định duy nhất: **admin@dau.edu.vn** / **Dau@Second2026**.
 
 Nếu cần kiểm tra test OCR/PDF:
 

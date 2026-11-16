@@ -141,9 +141,9 @@ AI_Second_Brain_DAU/
 │   │   │   │   ├── reports.py            # Xuất DOCX
 │   │   │   │   └── system.py             # Trạng thái, crawl, SSE
 │   │   │   └── schemas/                  # Pydantic (user, token)
-│   │   ├── core/                         # config.py, security.py (JWT, bcrypt)
+│   │   ├── core/                         # config.py, security.py (JWT, bcrypt), fixed_account.py
 │   │   ├── db/                           # models.py, session.py
-│   │   ├── scripts/create_admin.py       # Tạo admin/giảng viên, hỏi mật khẩu
+│   │   ├── scripts/create_admin.py       # Đồng bộ tài khoản cố định admin@dau.edu.vn
 │   │   └── services/
 │   │       ├── pdf_parser.py             # PyMuPDF, OCR fallback, chia đoạn
 │   │       ├── nlp_pipeline.py           # ViT5, mDeBERTa QA + NLI, MiniLM
@@ -278,13 +278,14 @@ python scripts/download_models.py
 
 Thêm `--verify` nếu muốn load thử từng model rồi giải phóng RAM.
 
-Tạo tài khoản. Mật khẩu gõ trên terminal (ít nhất 10 ký tự), không có tài khoản mặc định trong app:
+Tài khoản cố định duy nhất của hệ thống. Backend tự đồng bộ bảng `users` mỗi lần khởi động, nên không cần chạy lệnh này:
 
 ```powershell
-python -m app.scripts.create_admin --email admin@example.com --role admin
+python -m app.scripts.create_admin
 ```
 
-Giảng viên: cùng lệnh với `--role lecturer`. Đặt lại mật khẩu: thêm `--reset-password`.
+Tài khoản: **admin@dau.edu.vn** / **Dau@Second2026** (vai trò `admin`).
+Lệnh trên sẽ tạo nếu chưa có, đặt lại mật khẩu nếu bị lệch, và xoá mọi tài khoản khác.
 
 Chạy API:
 
@@ -347,7 +348,7 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 # sửa .env, rồi:
 python scripts/download_models.py
-python -m app.scripts.create_admin --email admin@example.com --role admin
+python -m app.scripts.create_admin
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -389,7 +390,7 @@ Máy cần mạng để tải weight nếu chưa chạy `download_models.py`. Sa
 
 ### Frontend trắng hoặc 401 liên tục
 
-Backend phải đang chạy cổng 8000. Dev server Vite phải là cổng 5173 để khớp `CORS_ORIGINS`. Sai mật khẩu: tạo lại bằng `create_admin --reset-password`.
+Backend phải đang chạy cổng 8000. Dev server Vite phải là cổng 5173 để khớp `CORS_ORIGINS`. Sai mật khẩu: chạy `python -m app.scripts.create_admin` để đặt lại tài khoản cố định.
 
 ### Script doctor in `admin@dau.edu.vn / admin123`
 

@@ -14,7 +14,7 @@ TIMEOUT_PER_DOC = 600  # 10 phut / tai lieu
 def login():
     from urllib.parse import urlencode
 
-    data = urlencode({"username": "admin@dau.edu.vn", "password": "Dau@2026Admin!"}).encode()
+    data = urlencode({"username": "admin@dau.edu.vn", "password": "Dau@Second2026"}).encode()
     req = urllib.request.Request(
         BASE + "/auth/login",
         data=data,
