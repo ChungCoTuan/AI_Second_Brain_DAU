@@ -21,13 +21,13 @@ def _sync_fixed_account() -> None:
     try:
         changed = sync_fixed_account(db)
         if changed:
-            print("[AUTH] Đã đồng bộ các tài khoản cố định:")
+            print("[AUTH] Đã đồng bộ các tài khoản cố định:", flush=True)
         else:
-            print("[AUTH] Các tài khoản cố định đã sẵn sàng:")
+            print("[AUTH] Các tài khoản cố định đã sẵn sàng:", flush=True)
         for email, password, role in FIXED_ACCOUNTS:
-            print(f"[AUTH]   - {email} / {password} (vai trò: {role})")
+            print(f"[AUTH]   - {email} / {password} (vai trò: {role})", flush=True)
     except Exception as exc:  # noqa: BLE001 - không được chặn app khởi động
-        print(f"[AUTH] Không đồng bộ được tài khoản cố định: {exc}")
+        print(f"[AUTH] Không đồng bộ được tài khoản cố định: {exc}", flush=True)
     finally:
         db.close()
 
