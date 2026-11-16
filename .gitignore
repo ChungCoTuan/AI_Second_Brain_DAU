@@ -30,7 +30,7 @@ deploy/
 .vercel/
 AGENTS.md
 CLAUDE.md
-.kilo/plans/
+.kilo/
 .vercel
 .env*
 
