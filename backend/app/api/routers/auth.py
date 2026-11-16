@@ -9,8 +9,9 @@ from app.api.schemas.user import UserResponse, Token
 from app.core.security import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
 from app.core.fixed_account import (
     FIXED_ACCOUNT_EMAIL,
-    FIXED_ACCOUNT_ROLE,
+    LECTURER_ACCOUNT_EMAIL,
     normalize_email,
+    get_role_for_email,
     verify_fixed_account,
 )
 
@@ -19,9 +20,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Đăng nhập bằng tài khoản cố định duy nhất của hệ thống.
+    """Đăng nhập bằng các tài khoản cố định của hệ thống.
 
-    Chỉ chấp nhận `admin@dau.edu.vn` / `Dau@Second2026`.
+    - Quản trị viên: `admin@dau.edu.vn` / `Dau@Second2026`  -> role `admin`
+    - Giảng viên   : `lecturer@dau.edu.vn` / `Dau@Second2026` -> role `lecturer`
     """
     email = normalize_email(form_data.username)
 
@@ -34,14 +36,14 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
     # Lấy user trong DB để trả về /auth/me đúng thông tin (id, role, is_active).
     # Nếu chưa có (app chưa từng khởi động) thì tự tạo, tránh lỗi 500.
-    user = db.query(User).filter(User.email == FIXED_ACCOUNT_EMAIL).first()
+    user = db.query(User).filter(User.email == email).first()
     if user is None:
         from app.core.security import get_password_hash
 
         user = User(
-            email=FIXED_ACCOUNT_EMAIL,
+            email=email,
             hashed_password=get_password_hash(form_data.password),
-            role=FIXED_ACCOUNT_ROLE,
+            role=get_role_for_email(email),
             is_active=True,
         )
         db.add(user)

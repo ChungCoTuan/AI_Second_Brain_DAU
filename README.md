@@ -284,7 +284,11 @@ Tài khoản cố định duy nhất của hệ thống. Backend tự đồng b�
 python -m app.scripts.create_admin
 ```
 
-Tài khoản: **admin@dau.edu.vn** / **Dau@Second2026** (vai trò `admin`).
+| Vai trò | Email | Mật khẩu |
+|---|---|---|
+| Quản trị viên (`admin`) | `admin@dau.edu.vn` | `Dau@Second2026` |
+| Giảng viên (`lecturer`) | `lecturer@dau.edu.vn` | `Dau@Second2026` |
+
 Lệnh trên sẽ tạo nếu chưa có, đặt lại mật khẩu nếu bị lệch, và xoá mọi tài khoản khác.
 
 Chạy API:

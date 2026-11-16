@@ -75,8 +75,9 @@ Không được làm:
 | `backend/app/api/routers/review.py` | `pending/revalidate/publish/reject`, sửa thì chạy lại NLI, `contradiction` bị từ chối |
 | `backend/app/api/endpoints.py` | Gộp routers: documents, review, system, analytics, chat, audit, search, auth, reports |
 | `backend/app/core/security.py` | JWT `SECRET_KEY` bắt buộc `>=32 ký tự`, `OAuth2PasswordBearer(tokenUrl=/api/v1/auth/login)`, `get_current_user/get_current_admin` |
-| `backend/app/core/fixed_account.py` | Tài khoản cố định duy nhất `admin@dau.edu.vn / Dau@Second2026`, `sync_fixed_account(db)` dùng lúc app start |
-| `backend/app/scripts/create_admin.py` | Đồng bộ tài khoản cố định duy nhất `admin@dau.edu.vn / Dau@Second2026` (role `admin`), xoá tài khoản khác |
+| `backend/app/core/fixed_account.py` | 2 tài khoản cố định: `admin@dau.edu.vn` (role `admin`) + `lecturer@dau.edu.vn` (role `lecturer`), cùng mật khẩu `Dau@Second2026`; `sync_fixed_account(db)` dùng lúc app start |
+| `backend/app/scripts/create_admin.py` | Đồng bộ các tài khoản cố định, xoá tài khoản khác |
+| `backend/app/scripts/create_admin.py` | Đồng bộ 2 tài khoản cố định `admin@dau.edu.vn` / `lecturer@dau.edu.vn` (mật khẩu `Dau@Second2026`), xoá tài khoản khác |
 | `frontend/src/api/axiosClient.ts` | `API_BASE_URL = VITE_API_URL || /api/v1`, gắn `Authorization: Bearer`, 401 thì logout về `/login` |
 | `frontend/vite.config.ts` | Proxy `/api -> http://127.0.0.1:8000` chỉ dùng dev, `allowedHosts: .ts.net` |
 | `frontend/package.json` | `build = tsc -b && vite build`, output `dist/` |

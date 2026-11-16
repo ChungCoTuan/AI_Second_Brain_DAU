@@ -3,11 +3,18 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Navigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 
-// Tài khoản cố định duy nhất của hệ thống (khớp với backend/app/core/fixed_account.py)
-const FIXED_EMAIL = 'admin@dau.edu.vn';
+// Các tài khoản cố định của hệ thống (khớp với backend/app/core/fixed_account.py)
+const FIXED_PASS = 'Dau@Second2026';
+const FIXED_ACCOUNTS = {
+  admin: { email: 'admin@dau.edu.vn', label: 'Quản trị viên', desc: 'Toàn quyền: duyệt văn bản, quản lý tài liệu' },
+  lecturer: { email: 'lecturer@dau.edu.vn', label: 'Giảng viên', desc: 'Tra cứu, chatbot, phân tích văn bản' },
+} as const;
+
+type RoleKey = keyof typeof FIXED_ACCOUNTS;
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState(FIXED_EMAIL);
+  const [role, setRole] = useState<RoleKey>('admin');
+  const [email, setEmail] = useState<string>(FIXED_ACCOUNTS.admin.email);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,11 +62,11 @@ const Login: React.FC = () => {
         navigate('/');
       }
     } catch (err: any) {
-      // Hệ thống chỉ có 1 tài khoản cố định -> luôn gợi ý đúng thông tin.
+      // Hệ thống chỉ có các tài khoản cố định -> luôn gợi ý đúng thông tin.
       const detail = err.response?.data?.detail;
       setError(
         err.response?.status === 401
-          ? `${detail || 'Email hoặc mật khẩu không chính xác.'} (Tài khoản duy nhất: ${FIXED_EMAIL})`
+          ? `${detail || 'Email hoặc mật khẩu không chính xác.'} (Quản trị viên: ${FIXED_ACCOUNTS.admin.email} / Giảng viên: ${FIXED_ACCOUNTS.lecturer.email} — mật khẩu: ${FIXED_PASS})`
           : detail || 'Không thể kết nối đến máy chủ. Vui lòng thử lại.'
       );
     } finally {
@@ -107,6 +114,27 @@ const Login: React.FC = () => {
 
           <form onSubmit={handleSubmit}>
             <div className="auth-field">
+              <label className="auth-label">Vai trò đăng nhập</label>
+              <div className="auth-role-switch">
+                {(Object.keys(FIXED_ACCOUNTS) as RoleKey[]).map((key) => (
+                  <button
+                    type="button"
+                    key={key}
+                    className={`auth-role-btn ${role === key ? 'active' : ''}`}
+                    onClick={() => {
+                      setRole(key);
+                      setEmail(FIXED_ACCOUNTS[key].email);
+                      setError('');
+                    }}
+                  >
+                    <span className="auth-role-name">{FIXED_ACCOUNTS[key].label}</span>
+                    <span className="auth-role-desc">{FIXED_ACCOUNTS[key].desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="auth-field">
               <label className="auth-label">Email đăng nhập</label>
               <input
                 type="email"
@@ -129,7 +157,7 @@ const Login: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <p className="auth-hint">
-                Tài khoản duy nhất: <strong>admin@dau.edu.vn</strong> / <strong>Dau@Second2026</strong>
+                Tài khoản cố định: <strong>{email}</strong> / <strong>{FIXED_PASS}</strong>
               </p>
             </div>
 

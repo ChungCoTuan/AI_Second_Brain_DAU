@@ -1,27 +1,21 @@
-"""Đặt lại / tạo tài khoản cố định duy nhất của hệ thống DAU Second Brain.
+"""Đặt lại / tạo các tài khoản cố định của hệ thống DAU Second Brain.
 
-Hệ thống chỉ dùng MỘT tài khoản:
-    admin@dau.edu.vn / Dau@Second2026
+Hệ thống dùng 2 tài khoản cố định:
+    admin@dau.edu.vn     / Dau@Second2026  -> vai trò `admin`
+    lecturer@dau.edu.vn  / Dau@Second2026  -> vai trò `lecturer`
 
 Cách dùng (chạy trong backend/ với venv đã kích hoạt):
     python -m app.scripts.create_admin
 
 Script tự đồng bộ bảng `users`:
     - tạo tài khoản nếu chưa có,
-    - đặt lại mật khẩu + vai trò `admin` nếu đã tồn tại,
+    - đặt lại mật khẩu + vai trò nếu đã tồn tại,
     - xoá mọi tài khoản khác.
 """
 
 from __future__ import annotations
 
-import sys
-
-from app.core.fixed_account import (
-    FIXED_ACCOUNT_EMAIL,
-    FIXED_ACCOUNT_PASSWORD,
-    FIXED_ACCOUNT_ROLE,
-    sync_fixed_account,
-)
+from app.core.fixed_account import FIXED_ACCOUNTS, sync_fixed_account
 from app.db.models import Base
 from app.db.session import SessionLocal, engine
 
@@ -37,9 +31,11 @@ def main() -> int:
         db.close()
 
     if changed:
-        print(f"Đã đồng bộ tài khoản cố định: {FIXED_ACCOUNT_EMAIL} (vai trò {FIXED_ACCOUNT_ROLE}).")
+        print("Đã đồng bộ các tài khoản cố định:")
     else:
-        print(f"Tài khoản {FIXED_ACCOUNT_EMAIL} đã đúng chuẩn, không thay đổi gì.")
+        print("Các tài khoản cố định đã đúng chuẩn, không thay đổi gì:")
+    for email, password, role in FIXED_ACCOUNTS:
+        print(f"  - {email} / {password} (vai trò: {role})")
     return 0
 
 

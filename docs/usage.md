@@ -32,7 +32,7 @@ python -m app.scripts.create_admin
 uvicorn app.main:app --reload --port 8000
 ```
 
-Tài khoản đăng nhập cố định duy nhất: **admin@dau.edu.vn** / **Dau@Second2026**.
+Tài khoản đăng nhập cố định: **admin@dau.edu.vn** / **Dau@Second2026** (quản trị viên) và **lecturer@dau.edu.vn** / **Dau@Second2026** (giảng viên).
 
 Nếu cần kiểm tra test OCR/PDF:
 

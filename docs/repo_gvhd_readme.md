@@ -20,7 +20,7 @@ Các chức năng trên có mức độ hoàn thiện khác nhau. Xem ma trận 
 
 ## Chạy thử
 
-Làm theo [`usage.md`](usage.md). Hệ thống dùng tài khoản cố định duy nhất `admin@dau.edu.vn / Dau@Second2026` (backend tự đồng bộ lúc khởi động, hoặc chạy `python -m app.scripts.create_admin`). Không commit `.env` hoặc API keys. Với PDF scan, OCR gửi ảnh tới Gemini nên cần cân nhắc quyền dữ liệu và xác nhận trong UI.
+Làm theo [`usage.md`](usage.md). Hệ thống dùng 2 tài khoản cố định: `admin@dau.edu.vn` (quản trị viên) và `lecturer@dau.edu.vn` (giảng viên), cùng mật khẩu `Dau@Second2026` (backend tự đồng bộ lúc khởi động, hoặc chạy `python -m app.scripts.create_admin`). Không commit `.env` hoặc API keys. Với PDF scan, OCR gửi ảnh tới Gemini nên cần cân nhắc quyền dữ liệu và xác nhận trong UI.
 
 ## Tài liệu khác
 
