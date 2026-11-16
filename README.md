@@ -441,3 +441,11 @@ Swagger http://localhost:8000/docs là danh sách endpoint sống. Nhóm chính:
 - **Mã nguồn:** giấy phép MIT, xem [LICENSE](LICENSE).
 
 Đồ án phục vụ học tập và thử nghiệm tra cứu văn bản nội bộ. Bản quyền dữ liệu PDF (văn bản nhà nước, tài liệu nhà trường) thuộc chủ sở hữu văn bản; repo không cấp quyền phân phối lại các file đó.
+
+---
+
+## 8. Báo cáo đồ án
+
+[Báo cáo đồ án DAU Second Brain (PDF)](docs/Bao_Cao_Do_An_AI_Second_Brain_DAU.pdf)
+
+Báo cáo học phần AIP202, lớp 23CT2, năm học 2025–2026, do Chung Cơ Tuấn và Võ Minh Hiếu thực hiện. Nội dung gồm cơ sở lý thuyết, phân tích và thiết kế, cài đặt, thử nghiệm và đánh giá hệ thống.
