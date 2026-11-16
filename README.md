@@ -74,7 +74,7 @@ Kho văn bản hành chính tiếng Việt thường chỉ là file PDF. Repo n�
 | Công đoạn | Cách làm trong code | Chạy ở đâu |
 |---|---|---|
 | Đọc PDF có lớp chữ | PyMuPDF, giữ mốc `--- TRANG N ---` | Máy local |
-| PDF scan (dưới khoảng 20 từ/trang) | Render ảnh bằng Poppler/`pdf2image`, gửi Gemini OCR | API ngoài, admin phải xác nhận trên giao diện |
+| PDF scan (trung bình dưới 20 từ/trang tính trên toàn tài liệu) | Render ảnh bằng Poppler/`pdf2image`, gửi dịch vụ OCR đã cấu hình | API ngoài, admin phải xác nhận trên giao diện |
 | Chia đoạn | Chọn một cấp cấu trúc: Điều, Chương, mục số hoặc trang | Máy local |
 | Metadata và quan hệ | Regex: cơ quan, ngày ký, người ký, hiệu lực, căn cứ / thay thế / sửa đổi / bãi bỏ | Máy local |
 | Chủ đề | Chấm điểm từ khóa; dưới ngưỡng thì gán `Khác` | Máy local |
@@ -82,9 +82,9 @@ Kho văn bản hành chính tiếng Việt thường chỉ là file PDF. Repo n�
 | Tóm tắt | `VietAI/vit5-base-vietnews-summarization` | Máy local |
 | Kiểm tra câu tóm tắt có bám nguồn không | `mDeBERTa-v3-base-xnli` — 3 nhãn `entailment` / `neutral` / `contradiction` | Máy local |
 | Embedding cho chat | `paraphrase-MiniLM-L3-v2` + FAISS | Máy local |
-| Câu trả lời hội thoại | Gemini, tối đa 5 đoạn gần nhất | API ngoài |
+| Câu trả lời hội thoại | Gemini mặc định; endpoint tương thích OpenAI tùy cấu hình; tối đa 5 đoạn gần nhất | API ngoài |
 
-Gemini chỉ dùng cho **chatbot** và **OCR trang scan**. Tóm tắt, NLI và embedding không gọi Gemini.
+Trong cấu hình hiện tại, `LLM_PROVIDER` không được đặt trong `backend/.env`, nên backend mặc định dùng Gemini cho **chatbot** và **OCR trang scan**. Có thể chọn endpoint tương thích OpenAI bằng `LLM_PROVIDER=openai`; đây là tùy chọn cấu hình, không đồng nghĩa hệ thống hiện đang dùng ChatGPT. Tóm tắt, NLI và embedding chạy cục bộ.
 
 ### Luồng một file PDF
 
@@ -92,7 +92,7 @@ Gemini chỉ dùng cho **chatbot** và **OCR trang scan**. Tóm tắt, NLI và e
 flowchart TD
     A[Admin upload PDF hoặc đưa file crawler vào xử lý] --> B[Lưu backend/data]
     B --> C[PyMuPDF đọc chữ]
-    C --> D{Ít chữ trên trang?}
+    C --> D{Trung bình dưới 20 từ/trang toàn tài liệu?}
     D -->|Có và đã cho phép OCR| E[Ảnh trang → Gemini OCR]
     D -->|Có và chưa cho phép| X[Báo cần xác nhận OCR]
     D -->|PDF có chữ| F[Chia đoạn + metadata + chủ đề]
@@ -193,7 +193,7 @@ Làm trên Windows PowerShell. Máy cần mạng ở lần cài pip và lần t�
 | Phần mềm | Phiên bản | Ghi chú |
 |---|---|---|
 | Python | **3.11** (chấp nhận 3.10–3.12), 64-bit | 3.13 dễ thiếu wheel PyTorch / tokenizers |
-| Node.js | **20 LTS** trở lên | Kèm `npm`. Frontend dùng Vite 8 |
+| Node.js | **20.19+ hoặc 22.12+** | Theo yêu cầu của Vite 8; kèm `npm` |
 | PostgreSQL | 14 trở lên | Tạo database trống, app tự tạo bảng |
 | Poppler | `pdftoppm` trong PATH | Chỉ cần khi OCR PDF scan. Có sẵn trong `backend/bin/poppler` |
 | RAM | 8 GB tối thiểu, **16 GB** dễ chịu hơn | Model load cùng lúc khá nặng; xem mục 5 nếu gặp WinError 1455 |
@@ -322,7 +322,7 @@ Vite proxy `/api` sang `http://127.0.0.1:8000`, nên lúc dev không cần `VITE
 2. Đăng nhập admin vào được màn **Ưu tiên xử lý**.
 3. Vào **Tải tài liệu**, upload một PDF có lớp chữ (không phải bản scan).
 4. Thanh tiến trình SSE chạy; sau đó mục nghĩa vụ/ngưỡng xuất hiện ở **Cần rà soát** nếu pipeline trích được.
-5. `GET /search` hoặc ô tra cứu tìm được tên file.
+5. `GET /api/v1/search` hoặc ô tra cứu tìm được tên file.
 
 OCR scan: Poppler phải gọi được `pdftoppm`. Trên Windows có thể thêm vào PATH cho phiên hiện tại:
 
